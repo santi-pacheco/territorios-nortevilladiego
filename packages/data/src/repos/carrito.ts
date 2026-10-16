@@ -69,9 +69,14 @@ export function pickCurrentSchedule(
   schedules: readonly CartScheduleRow[],
   today: string,
 ): CartScheduleRow | null {
-  return (
-    schedules.find((s) => s.start_date <= today && today <= s.end_date) ?? schedules[0] ?? null
-  );
+  const current = schedules.find((s) => s.start_date <= today && today <= s.end_date);
+  if (current) return current;
+  // Between schedules: the next one to start beats an old one that already ended.
+  const upcoming = schedules
+    .filter((s) => s.start_date > today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
+  if (upcoming) return upcoming;
+  return [...schedules].sort((a, b) => b.end_date.localeCompare(a.end_date))[0] ?? null;
 }
 
 export interface CartBoard {
