@@ -28,7 +28,7 @@ El rol vive en `public.profiles.role` (`viewer` | `editor` | `admin`). La fila s
 el repo ni en el bundle.
 
 1. Levantá la base local: `npx supabase start`.
-2. Sacá la URL y la service key: `npx supabase status` (`API_URL` y `SERVICE_ROLE_KEY`).
+2. Sacá la URL y la service key: `npx supabase status` (`API_URL` y `SECRET_KEY`).
 3. Creá el usuario y el perfil con un script **de un solo uso** (dejalo fuera del repo, por
    ejemplo en tu carpeta temporal). El script no contiene la clave: la recibe por variables de
    entorno. Hace dos llamados:
@@ -36,12 +36,12 @@ el repo ni en el bundle.
    ```
    # 1) alta del usuario (admin)
    POST {API_URL}/auth/v1/admin/users
-     Authorization: Bearer {SERVICE_ROLE_KEY}
+     Authorization: Bearer {SECRET_KEY}
      { "email": "encargado@example.com", "password": "...", "email_confirm": true }
 
    # 2) perfil con rol editor (upsert por id)
    POST {API_URL}/rest/v1/profiles  Prefer: resolution=merge-duplicates
-     Authorization: Bearer {SERVICE_ROLE_KEY}
+     Authorization: Bearer {SECRET_KEY}
      [{ "id": "{user.id}", "role": "editor", "display_name": "Encargado de prueba" }]
    ```
 
