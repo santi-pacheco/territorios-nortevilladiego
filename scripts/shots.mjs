@@ -1,3 +1,4 @@
+/* global document */
 // Visual QA captures: node scripts/shots.mjs <url-path> [outDir]
 // Captures 390x844 (mobile, 2x) and 1440x900 (desktop) in light, dark and sol themes,
 // and reports horizontal overflow so layout bugs fail loudly instead of hiding in a crop.
@@ -18,7 +19,8 @@ const viewports = [
 let overflow = 0;
 for (const theme of themes) {
   for (const vp of viewports) {
-    const { name: _n, width, height, ...rest } = vp;
+    const { width, height, ...rest } = vp;
+    delete rest.name;
     const ctx = await browser.newContext({ ...rest, viewport: { width, height }, locale: 'es-AR', timezoneId: 'America/Argentina/Buenos_Aires' });
     await ctx.addInitScript((t) => localStorage.setItem('tm-theme', t), theme);
     const page = await ctx.newPage();
