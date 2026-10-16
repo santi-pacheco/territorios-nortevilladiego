@@ -12,7 +12,7 @@ import type {
   CartScheduleInsert,
 } from '@territorios/data';
 import type { ScheduleEntry } from '@territorios/core';
-import { addDaysIso, entryKey, mondayOfIso, notesByEntry } from './model';
+import { addDaysIso, entryKey, findEntry, mondayOfIso, notesByEntry } from './model';
 
 /** Notes of a published schedule, keyed by `Monday of the week | slot_id`. */
 export function collectNotes(assignments: readonly CartAssignmentRow[]): Map<string, string> {
@@ -68,6 +68,28 @@ export function mergeNotes(
   return applyNotes(entries, collectNotes(existingAssignments));
 }
 
+/**
+ * Set the note typed in a preview cell. The note is a controlled input, so it is stored as
+ * typed (trimming per keystroke would eat every space); it is trimmed when published.
+ * A blank note removes it; a cell that does not exist yet is added as a note-only entry.
+ */
+export function setEntryNote(
+  entries: readonly ScheduleEntry[],
+  cell: { weekDate: string; weekLabel: string; slotId: string },
+  note: string,
+): ScheduleEntry[] {
+  const list = entries.map((e) => ({ ...e }));
+  const target = findEntry(list, cell.weekDate, cell.slotId);
+  const blank = note.trim() === '';
+  if (target) {
+    if (blank) delete target.note;
+    else target.note = note;
+  } else if (!blank) {
+    list.push({ ...cell, personIds: [], note });
+  }
+  return list;
+}
+
 export function buildScheduleInsert(
   name: string,
   startDate: string,
@@ -94,7 +116,7 @@ export function buildAssignments(
     slot_id: e.slotId,
     week_date: mondayOfIso(e.weekDate),
     person_ids: [...e.personIds],
-    note: e.note ?? null,
+    note: e.note?.trim() || null,
   }));
 }
 

@@ -8,6 +8,7 @@ import {
   collectNotes,
   mergeNotes,
   planPublish,
+  setEntryNote,
 } from './publish';
 
 function entry(weekDate: string, slotId: string, personIds: string[], note?: string): ScheduleEntry {
@@ -143,4 +144,37 @@ describe('carrito publish mapping', () => {
       end_date: '2026-10-31',
     });
   });
+});
+
+describe('preview notes', () => {
+  const cell = { weekDate: '2026-11-02', weekLabel: '2 nov', slotId: 'slot-a' };
+
+  // Regression: the note input is controlled; trimming per keystroke ate every space.
+  it('keeps a note as typed, key by key, and trims it only when published', () => {
+    let list: ScheduleEntry[] = [entry('2026-11-02', 'slot-a', ['p1'])];
+    for (const ch of 'Llevar folletos ') list = setEntryNote(list, cell, findNote(list) + ch);
+    expect(findNote(list)).toBe('Llevar folletos ');
+    expect(buildAssignments('s', list)[0]!.note).toBe('Llevar folletos');
+  });
+
+  it('adds a note-only cell and removes a blank note', () => {
+    let list = setEntryNote([], cell, 'Lluvia ');
+    expect(list).toEqual([{ ...cell, personIds: [], note: 'Lluvia ' }]);
+    list = setEntryNote(list, cell, '   ');
+    expect(list[0]!.note).toBeUndefined();
+    expect(setEntryNote([], cell, '  ')).toEqual([]);
+  });
+
+  it('does not churn an unchanged published note that only differs by outer spaces', () => {
+    const plan = planPublish(
+      'sched',
+      [entry('2026-11-02', 'slot-a', ['p1'], 'Llevar folletos ')],
+      [assignment('2026-11-02', 'slot-a', ['p1'], 'Llevar folletos')],
+    );
+    expect(plan).toEqual({ creates: [], updates: [], deletes: [] });
+  });
+
+  function findNote(list: ScheduleEntry[]): string {
+    return list.find((e) => e.slotId === 'slot-a')?.note ?? '';
+  }
 });

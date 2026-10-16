@@ -28,7 +28,7 @@ import {
   weekRefsInRange,
   type RosterPerson,
 } from './model';
-import { applyNotes, buildScheduleInsert, collectNotes, planPublish } from './publish';
+import { applyNotes, buildScheduleInsert, collectNotes, planPublish, setEntryNote } from './publish';
 import { runScheduler } from './scheduler';
 import { ConflictBar, EmptyState, Field, Sheet, errorMessage, useWriteState } from './ui';
 
@@ -198,18 +198,9 @@ export function GenerarTab({
   }
 
   function setNote(weekDate: string, slotId: string, note: string) {
-    setEntries((prev) => {
-      const list = (prev ?? []).map((e) => ({ ...e }));
-      const target = findEntry(list, weekDate, slotId);
-      const trimmed = note.trim();
-      if (target) {
-        if (trimmed) target.note = trimmed;
-        else delete target.note;
-      } else if (trimmed) {
-        list.push({ weekDate, weekLabel: weekLabelByDate(weekDate), slotId, personIds: [], note: trimmed });
-      }
-      return prune(list);
-    });
+    setEntries((prev) =>
+      prune(setEntryNote(prev ?? [], { weekDate, weekLabel: weekLabelByDate(weekDate), slotId }, note)),
+    );
   }
 
   /**
