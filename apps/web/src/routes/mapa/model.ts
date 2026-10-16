@@ -111,5 +111,5 @@ export type LocateMode = 'off' | 'follow' | 'compass';
 export function nextLocateMode(mode: LocateMode, headingSupported: boolean): LocateMode {
   if (mode === 'off') return 'follow';
   if (mode === 'follow') return headingSupported ? 'compass' : 'off';
-  return 'off';
+  return 'follow'; // v1 rule: leaving the compass keeps following; a drag turns locate off.
 }

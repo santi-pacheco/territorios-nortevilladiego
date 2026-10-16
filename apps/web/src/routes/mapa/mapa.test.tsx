@@ -80,10 +80,10 @@ describe('mapa model', () => {
     );
   });
 
-  it('cycles locate off → follow → compass → off', () => {
+  it('cycles locate off → follow → compass → follow (v1 rule)', () => {
     expect(nextLocateMode('off', true)).toBe('follow');
     expect(nextLocateMode('follow', true)).toBe('compass');
-    expect(nextLocateMode('compass', true)).toBe('off');
+    expect(nextLocateMode('compass', true)).toBe('follow');
     expect(nextLocateMode('follow', false)).toBe('off');
   });
 });
