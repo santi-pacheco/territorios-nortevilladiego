@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:size": "node scripts/check-size.mjs",
-    "ci": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:size && pnpm check:secrets"
+    "verify": "pnpm --filter @territorios/ui-tokens build && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:size && pnpm check:secrets"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
