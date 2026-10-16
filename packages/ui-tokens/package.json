@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./tokens.css": "./dist/tokens.css",
+    "./fonts/*": "./fonts/*"
   },
   "scripts": {
+    "build": "node scripts/build-css.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
   },
