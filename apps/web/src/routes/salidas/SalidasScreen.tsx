@@ -78,8 +78,11 @@ export function SalidasScreen() {
               >
                 <ChevronLeft aria-hidden size={22} />
               </button>
-              <span className="truncate">
-                {isThisWeek ? 'Esta semana' : 'Semana'} del {longDate(fromIso(monday))}
+              <span className="flex min-w-0">
+                <span className="shrink-0">Cong. Norte Villa Diego&nbsp;·&nbsp;</span>
+                <span className="truncate">
+                  {isThisWeek ? 'Esta semana' : 'Semana'} del {longDate(fromIso(monday))}
+                </span>
               </span>
               <button
                 type="button"

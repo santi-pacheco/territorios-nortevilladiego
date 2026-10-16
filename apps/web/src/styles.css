@@ -279,13 +279,13 @@
   .station[data-state='next'] .station-card {
     border: 2px solid var(--tk-text-primary);
   }
-  /* Past stations: hollow and quiet, but still readable (line form, not hue). */
+  /* Past stations: a hollow ring at reduced strength and a faded card (form, not only hue). */
   .station[data-state='past'] .station-dot {
-    border-style: dashed;
+    border-color: color-mix(in srgb, var(--day) 45%, var(--tk-bg-surface));
   }
   .station[data-state='past'] .station-card {
     background: transparent;
-    border-style: dashed;
+    border-color: transparent;
   }
   .station[data-state='past'] .station-card > * {
     color: var(--tk-text-secondary);

@@ -73,7 +73,7 @@ export function StationLine({ dow, meetings, now }: Props) {
                 <p className="text-secondary text-ink-soft">
                   {m.conductor && <>Conduce {m.conductor}</>}
                   {m.conductor && m.groups && <br />}
-                  {m.groups && <>{/^\d/.test(m.groups) ? `Grupos ${m.groups}` : m.groups}</>}
+                  {m.groups && <>{groupsLabel(m.groups)}</>}
                 </p>
               )}
               {m.kind === 'domingo' && <GroupRows dow={dow} groups={m.group_territories} />}
@@ -84,6 +84,12 @@ export function StationLine({ dow, meetings, now }: Props) {
       })}
     </ol>
   );
+}
+
+/** "2" → "Grupo 2"; "1 y 2" / "1, 2" → "Grupos 1 y 2"; free text ("Todos") stays as written. */
+export function groupsLabel(groups: string): string {
+  if (!/^\d/.test(groups)) return groups;
+  return /^\d+$/.test(groups.trim()) ? `Grupo ${groups.trim()}` : `Grupos ${groups}`;
 }
 
 function Roundels({ dow, ids, label }: { dow: number; ids: number[]; label?: string }) {
