@@ -3,7 +3,7 @@ import { dayNumberForDow } from './salidasStore';
 import { dayDefByDow } from './days';
 
 // "5, 12" / "5-12" / "16" / "5 y 12" → ids únicos. Igual que csv.ts.
-function parseTerritoryIds(raw: string): number[] {
+export function parseTerritoryIds(raw: string): number[] {
   if (!raw) return [];
   const parts = raw.split(/[-,/]|\s+y\s+|\s+&\s+|\s+/).map((s) => s.trim()).filter(Boolean);
   const ids: number[] = [];
