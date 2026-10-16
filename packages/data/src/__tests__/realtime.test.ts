@@ -6,6 +6,7 @@ import {
   EDITOR_REALTIME_TABLES,
   PUBLIC_REALTIME_TABLES,
   startRealtime,
+  startRealtimeWhenReady,
   type AppLifecycle,
 } from '../realtime';
 import { fakeSupabase } from './fakeSupabase';
@@ -184,5 +185,48 @@ describe('startRealtime', () => {
       rt.stop();
     }).not.toThrow();
     expect(spy).toHaveBeenCalled();
+  });
+});
+
+describe('startRealtimeWhenReady', () => {
+  it('starts once the client loads, applying setEditorTables called before that', async () => {
+    const sb = fakeSupabase(() => ({}));
+    let resolve!: (c: typeof sb.client) => void;
+    const loading = new Promise<typeof sb.client>((r) => (resolve = r));
+    const rt = startRealtimeWhenReady(loading, {
+      queryClient: qc,
+      lifecycle: fakeLifecycle().lifecycle,
+    });
+    rt.setEditorTables(true);
+    expect(rt.paused).toBe(true);
+    expect(sb.channels).toHaveLength(0);
+    resolve(sb.client);
+    await loading;
+    await Promise.resolve();
+    expect(rt.paused).toBe(false);
+    expect(sb.channels.map((c) => tablesOf(c))).toEqual([
+      [...PUBLIC_REALTIME_TABLES].sort(),
+      [...EDITOR_REALTIME_TABLES].sort(),
+    ]);
+    rt.stop();
+  });
+
+  it('never subscribes when stopped before the client loads, and survives a failed load', async () => {
+    const sb = fakeSupabase(() => ({}));
+    const ready = Promise.resolve(sb.client);
+    const rt = startRealtimeWhenReady(ready, {
+      queryClient: qc,
+      lifecycle: fakeLifecycle().lifecycle,
+    });
+    rt.stop();
+    await ready;
+    await Promise.resolve();
+    expect(sb.channels).toHaveLength(0);
+
+    const failed = Promise.reject(new Error('chunk load failed'));
+    const rt2 = startRealtimeWhenReady(failed, { queryClient: qc });
+    await failed.catch(() => {});
+    expect(rt2.paused).toBe(true);
+    rt2.stop();
   });
 });

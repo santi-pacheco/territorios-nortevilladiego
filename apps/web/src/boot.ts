@@ -5,7 +5,7 @@ import {
   makeSupabase,
   setSupabase,
   startPersistence,
-  startRealtime,
+  startRealtimeWhenReady,
   type RealtimeHandle,
 } from '@territorios/data';
 import type { QueryClient } from '@tanstack/react-query';
@@ -18,7 +18,11 @@ export interface Boot {
   configured: boolean;
 }
 
-/** Wires platform → Supabase → Query cache → persistence → realtime, in that order. */
+/**
+ * Wires platform → Supabase → Query cache → persistence → realtime, in that order.
+ * supabase-js is a lazy chunk: its download starts here, before the first render, while the
+ * persisted cache paints. Queries wait for it (withDb); auth and realtime bind once it loads.
+ */
 export function boot(native?: Platform): Boot {
   setPlatform(native ?? webPlatform());
   const queryClient = createQueryClient();
@@ -27,10 +31,16 @@ export function boot(native?: Platform): Boot {
   if (!url || !key) {
     return { queryClient, realtime: null, clearPersisted: async () => {}, configured: false };
   }
-  const sb = makeSupabase(url, key, platform().secureStorage, { isNative: platform().kind !== 'web' });
+  const sb = makeSupabase(url, key, platform().secureStorage, {
+    isNative: platform().kind !== 'web',
+  });
   setSupabase(sb);
   const persistence = startPersistence(queryClient);
-  bindAuth(queryClient, sb);
-  const realtime = startRealtime({ supabase: sb, queryClient });
+  // A failed load surfaces through the queries (withDb rejects); nothing to bind then.
+  sb.then(
+    (client) => bindAuth(queryClient, client),
+    () => {},
+  );
+  const realtime = startRealtimeWhenReady(sb, { queryClient });
   return { queryClient, realtime, clearPersisted: () => persistence.clear(), configured: true };
 }

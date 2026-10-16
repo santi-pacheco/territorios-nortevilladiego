@@ -8,7 +8,7 @@
  * Server-owned columns are never sent: `version`, `updated_at`, `updated_by` (bump_version
  * trigger) and `cart_assignments.person_names` (fill_assignment_names trigger).
  */
-import { z } from 'zod';
+import { z } from 'zod/mini';
 
 /** Bump when a row shape changes: busts the persisted query cache. */
 export const SCHEMA_VERSION = '2026-10-16.1';
@@ -25,7 +25,7 @@ export const Timestamp = z.iso.datetime({ offset: true });
 /** `time` column: HH:MM or HH:MM:SS (PostgREST returns HH:MM:SS). */
 export const TimeOfDay = z
   .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Expected HH:MM[:SS]');
+  .check(z.regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Expected HH:MM[:SS]'));
 
 /** ISO day of week (1 = Monday … 7 = Sunday) for a YYYY-MM-DD string. */
 export function isoDow(date: string): number {
@@ -37,8 +37,8 @@ const isMonday = (d: string) => isoDow(d) === 1;
 
 const Meta = {
   updated_at: Timestamp,
-  version: z.number().int().min(1),
-  updated_by: Uuid.nullable(),
+  version: z.int().check(z.minimum(1)),
+  updated_by: z.nullable(Uuid),
 };
 
 /** Columns the client must never send. */
@@ -50,7 +50,7 @@ const SERVER_OWNED = { updated_at: true, version: true, updated_by: true } as co
 export const Role = z.enum(['viewer', 'editor', 'admin']);
 export type Role = z.infer<typeof Role>;
 
-const DisplayName = z.string().min(1).max(80).nullable();
+const DisplayName = z.nullable(z.string().check(z.minLength(1), z.maxLength(80)));
 
 export const ProfileRow = z.object({
   id: Uuid,
@@ -66,7 +66,7 @@ export type ProfileUpdate = z.infer<typeof ProfileUpdate>;
 // ---------------------------------------------------------------------------
 // territories
 // ---------------------------------------------------------------------------
-const Position = z.array(z.number()).min(2);
+const Position = z.array(z.number()).check(z.minLength(2));
 const Ring = z.array(Position);
 export const TerritoryGeometry = z.discriminatedUnion('type', [
   z.object({ type: z.literal('Polygon'), coordinates: z.array(Ring) }),
@@ -75,17 +75,17 @@ export const TerritoryGeometry = z.discriminatedUnion('type', [
 export type TerritoryGeometry = z.infer<typeof TerritoryGeometry>;
 
 export const TerritoryRow = z.object({
-  id: z.number().int().positive(),
-  name: z.string().min(1).max(120),
+  id: z.int().check(z.positive()),
+  name: z.string().check(z.minLength(1), z.maxLength(120)),
   geometry: TerritoryGeometry,
-  centroid_lng: z.number().min(-180).max(180),
-  centroid_lat: z.number().min(-90).max(90),
+  centroid_lng: z.number().check(z.minimum(-180), z.maximum(180)),
+  centroid_lat: z.number().check(z.minimum(-90), z.maximum(90)),
   ...Meta,
 });
 export type TerritoryRow = z.infer<typeof TerritoryRow>;
-export const TerritoryInsert = TerritoryRow.omit(SERVER_OWNED);
+export const TerritoryInsert = z.omit(TerritoryRow, SERVER_OWNED);
 export type TerritoryInsert = z.infer<typeof TerritoryInsert>;
-export const TerritoryUpdate = TerritoryInsert.omit({ id: true }).partial();
+export const TerritoryUpdate = z.partial(z.omit(TerritoryInsert, { id: true }));
 export type TerritoryUpdate = z.infer<typeof TerritoryUpdate>;
 
 // ---------------------------------------------------------------------------
@@ -93,31 +93,30 @@ export type TerritoryUpdate = z.infer<typeof TerritoryUpdate>;
 // ---------------------------------------------------------------------------
 export const ServiceWeekRow = z.object({
   id: Uuid,
-  week_start: IsoDate.refine(isMonday, 'week_start must be a Monday'),
-  month_label: z.string().max(40),
+  week_start: IsoDate.check(z.refine(isMonday, 'week_start must be a Monday')),
+  month_label: z.string().check(z.maxLength(40)),
   ...Meta,
 });
 export type ServiceWeekRow = z.infer<typeof ServiceWeekRow>;
-export const ServiceWeekInsert = ServiceWeekRow.omit(SERVER_OWNED).extend({
-  id: Uuid.optional(),
-  month_label: z.string().max(40).optional(),
+export const ServiceWeekInsert = z.extend(z.omit(ServiceWeekRow, SERVER_OWNED), {
+  id: z.optional(Uuid),
+  month_label: z.optional(z.string().check(z.maxLength(40))),
 });
 export type ServiceWeekInsert = z.infer<typeof ServiceWeekInsert>;
-export const ServiceWeekUpdate = ServiceWeekRow.pick({
-  week_start: true,
-  month_label: true,
-}).partial();
+export const ServiceWeekUpdate = z.partial(
+  z.pick(ServiceWeekRow, { week_start: true, month_label: true }),
+);
 export type ServiceWeekUpdate = z.infer<typeof ServiceWeekUpdate>;
 
 export const MeetingKind = z.enum(['normal', 'domingo']);
 export type MeetingKind = z.infer<typeof MeetingKind>;
-const TerritoryIds = z.array(z.number().int()).max(60);
+const TerritoryIds = z.array(z.int()).check(z.maxLength(60));
 /** Domingo-only per-group layout: keys G1..G4 only. */
 export const GroupTerritories = z.strictObject({
-  G1: z.array(z.number().int()).optional(),
-  G2: z.array(z.number().int()).optional(),
-  G3: z.array(z.number().int()).optional(),
-  G4: z.array(z.number().int()).optional(),
+  G1: z.optional(z.array(z.int())),
+  G2: z.optional(z.array(z.int())),
+  G3: z.optional(z.array(z.int())),
+  G4: z.optional(z.array(z.int())),
 });
 export type GroupTerritories = z.infer<typeof GroupTerritories>;
 
@@ -125,13 +124,13 @@ const meetingFields = {
   id: Uuid,
   week_id: Uuid,
   /** JS numbering: 0 = Domingo … 6 = Sábado. */
-  dow: z.number().int().min(0).max(6),
-  position: z.number().int().min(0).max(99),
+  dow: z.int().check(z.minimum(0), z.maximum(6)),
+  position: z.int().check(z.minimum(0), z.maximum(99)),
   kind: MeetingKind,
-  start_time: z.string().max(20),
-  groups: z.string().max(120),
-  conductor: z.string().max(120),
-  place: z.string().max(200),
+  start_time: z.string().check(z.maxLength(20)),
+  groups: z.string().check(z.maxLength(120)),
+  conductor: z.string().check(z.maxLength(120)),
+  place: z.string().check(z.maxLength(200)),
   territory_ids: TerritoryIds,
   group_territories: GroupTerritories,
 };
@@ -143,7 +142,7 @@ function meetingInvariants(
     kind?: MeetingKind | undefined;
     group_territories?: GroupTerritories | undefined;
   },
-  ctx: z.RefinementCtx,
+  ctx: z.core.$RefinementCtx,
 ): void {
   if (m.dow !== undefined && m.kind !== undefined && (m.kind === 'domingo') !== (m.dow === 0)) {
     ctx.addIssue({ code: 'custom', path: ['kind'], message: 'kind "domingo" iff dow = 0' });
@@ -159,56 +158,54 @@ function meetingInvariants(
 
 export const ServiceMeetingRow = z
   .object({ ...meetingFields, ...Meta })
-  .superRefine(meetingInvariants);
+  .check(z.superRefine(meetingInvariants));
 export type ServiceMeetingRow = z.infer<typeof ServiceMeetingRow>;
 export const ServiceMeetingInsert = z
   .object({
     ...meetingFields,
-    id: Uuid.optional(),
-    position: meetingFields.position.optional(),
-    kind: MeetingKind.optional(),
-    start_time: meetingFields.start_time.optional(),
-    groups: meetingFields.groups.optional(),
-    conductor: meetingFields.conductor.optional(),
-    place: meetingFields.place.optional(),
-    territory_ids: TerritoryIds.optional(),
-    group_territories: GroupTerritories.optional(),
+    id: z.optional(Uuid),
+    position: z.optional(meetingFields.position),
+    kind: z.optional(MeetingKind),
+    start_time: z.optional(meetingFields.start_time),
+    groups: z.optional(meetingFields.groups),
+    conductor: z.optional(meetingFields.conductor),
+    place: z.optional(meetingFields.place),
+    territory_ids: z.optional(TerritoryIds),
+    group_territories: z.optional(GroupTerritories),
   })
-  .superRefine(meetingInvariants);
+  .check(z.superRefine(meetingInvariants));
 export type ServiceMeetingInsert = z.infer<typeof ServiceMeetingInsert>;
 export const ServiceMeetingUpdate = z
-  .object(meetingFields)
-  .omit({ id: true, week_id: true })
-  .partial()
-  .superRefine(meetingInvariants);
+  .partial(z.omit(z.object(meetingFields), { id: true, week_id: true }))
+  .check(z.superRefine(meetingInvariants));
 export type ServiceMeetingUpdate = z.infer<typeof ServiceMeetingUpdate>;
 
 // ---------------------------------------------------------------------------
 // Carrito
 // ---------------------------------------------------------------------------
-const HexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+const HexColor = z.string().check(z.regex(/^#[0-9A-Fa-f]{6}$/));
 
 export const CartPlaceRow = z.object({
   id: Uuid,
-  name: z.string().min(1).max(120),
+  name: z.string().check(z.minLength(1), z.maxLength(120)),
   color: HexColor,
   ...Meta,
 });
 export type CartPlaceRow = z.infer<typeof CartPlaceRow>;
 export const CartPlaceInsert = z.object({
-  id: Uuid.optional(),
-  name: z.string().min(1).max(120),
-  color: HexColor.optional(),
+  id: z.optional(Uuid),
+  name: z.string().check(z.minLength(1), z.maxLength(120)),
+  color: z.optional(HexColor),
 });
 export type CartPlaceInsert = z.infer<typeof CartPlaceInsert>;
-export const CartPlaceUpdate = CartPlaceInsert.omit({ id: true }).partial();
+export const CartPlaceUpdate = z.partial(z.omit(CartPlaceInsert, { id: true }));
 export type CartPlaceUpdate = z.infer<typeof CartPlaceUpdate>;
 
 /** Compare HH:MM[:SS] strings (lexicographic works after padding seconds). */
 const toSeconds = (t: string) => (t.length === 5 ? `${t}:00` : t);
 function slotTimeOrder(
   s: { start_time?: string | undefined; end_time?: string | undefined },
-  ctx: z.RefinementCtx,
+  ctx: z.core.$RefinementCtx,
 ) {
   if (s.start_time && s.end_time && toSeconds(s.end_time) <= toSeconds(s.start_time)) {
     ctx.addIssue({
@@ -222,33 +219,31 @@ const slotFields = {
   id: Uuid,
   place_id: Uuid,
   /** ISO numbering: 1 = Lunes … 7 = Domingo (differs from service_meetings.dow on purpose). */
-  iso_dow: z.number().int().min(1).max(7),
+  iso_dow: z.int().check(z.minimum(1), z.maximum(7)),
   start_time: TimeOfDay,
   end_time: TimeOfDay,
-  group_size: z.number().int().min(1).max(12),
-  display_label: z.string().max(80).nullable(),
+  group_size: z.int().check(z.minimum(1), z.maximum(12)),
+  display_label: z.nullable(z.string().check(z.maxLength(80))),
 };
-export const CartSlotRow = z.object({ ...slotFields, ...Meta }).superRefine(slotTimeOrder);
+export const CartSlotRow = z.object({ ...slotFields, ...Meta }).check(z.superRefine(slotTimeOrder));
 export type CartSlotRow = z.infer<typeof CartSlotRow>;
 export const CartSlotInsert = z
   .object({
     ...slotFields,
-    id: Uuid.optional(),
-    group_size: slotFields.group_size.optional(),
-    display_label: slotFields.display_label.optional(),
+    id: z.optional(Uuid),
+    group_size: z.optional(slotFields.group_size),
+    display_label: z.optional(slotFields.display_label),
   })
-  .superRefine(slotTimeOrder);
+  .check(z.superRefine(slotTimeOrder));
 export type CartSlotInsert = z.infer<typeof CartSlotInsert>;
 export const CartSlotUpdate = z
-  .object(slotFields)
-  .omit({ id: true })
-  .partial()
-  .superRefine(slotTimeOrder);
+  .partial(z.omit(z.object(slotFields), { id: true }))
+  .check(z.superRefine(slotTimeOrder));
 export type CartSlotUpdate = z.infer<typeof CartSlotUpdate>;
 
 function scheduleRange(
   s: { start_date?: string | undefined; end_date?: string | undefined },
-  ctx: z.RefinementCtx,
+  ctx: z.core.$RefinementCtx,
 ) {
   if (!s.start_date || !s.end_date) return;
   const days = (Date.parse(s.end_date) - Date.parse(s.start_date)) / 86_400_000;
@@ -262,24 +257,24 @@ function scheduleRange(
 }
 const scheduleFields = {
   id: Uuid,
-  name: z.string().max(120),
+  name: z.string().check(z.maxLength(120)),
   start_date: IsoDate,
   end_date: IsoDate,
 };
-export const CartScheduleRow = z.object({ ...scheduleFields, ...Meta }).superRefine(scheduleRange);
+export const CartScheduleRow = z
+  .object({ ...scheduleFields, ...Meta })
+  .check(z.superRefine(scheduleRange));
 export type CartScheduleRow = z.infer<typeof CartScheduleRow>;
 export const CartScheduleInsert = z
-  .object({ ...scheduleFields, id: Uuid.optional(), name: scheduleFields.name.optional() })
-  .superRefine(scheduleRange);
+  .object({ ...scheduleFields, id: z.optional(Uuid), name: z.optional(scheduleFields.name) })
+  .check(z.superRefine(scheduleRange));
 export type CartScheduleInsert = z.infer<typeof CartScheduleInsert>;
 export const CartScheduleUpdate = z
-  .object(scheduleFields)
-  .omit({ id: true })
-  .partial()
-  .superRefine(scheduleRange);
+  .partial(z.omit(z.object(scheduleFields), { id: true }))
+  .check(z.superRefine(scheduleRange));
 export type CartScheduleUpdate = z.infer<typeof CartScheduleUpdate>;
 
-function uniquePeople(a: { person_ids?: string[] | undefined }, ctx: z.RefinementCtx) {
+function uniquePeople(a: { person_ids?: string[] | undefined }, ctx: z.core.$RefinementCtx) {
   if (a.person_ids && new Set(a.person_ids).size !== a.person_ids.length) {
     ctx.addIssue({
       code: 'custom',
@@ -292,9 +287,9 @@ const assignmentFields = {
   id: Uuid,
   schedule_id: Uuid,
   slot_id: Uuid,
-  week_date: IsoDate.refine(isMonday, 'week_date must be a Monday'),
-  person_ids: z.array(Uuid).max(12),
-  note: z.string().max(500).nullable(),
+  week_date: IsoDate.check(z.refine(isMonday, 'week_date must be a Monday')),
+  person_ids: z.array(Uuid).check(z.maxLength(12)),
+  note: z.nullable(z.string().check(z.maxLength(500))),
 };
 export const CartAssignmentRow = z
   .object({
@@ -303,30 +298,31 @@ export const CartAssignmentRow = z
     person_names: z.array(z.string()),
     ...Meta,
   })
-  .superRefine(uniquePeople)
-  .refine((a) => a.person_names.length === a.person_ids.length, {
-    path: ['person_names'],
-    message: 'person_names must match person_ids',
-  });
+  .check(
+    z.superRefine(uniquePeople),
+    z.refine((a) => a.person_names.length === a.person_ids.length, {
+      path: ['person_names'],
+      message: 'person_names must match person_ids',
+    }),
+  );
 export type CartAssignmentRow = z.infer<typeof CartAssignmentRow>;
 export const CartAssignmentInsert = z
   .object({
     ...assignmentFields,
-    id: Uuid.optional(),
-    person_ids: assignmentFields.person_ids.optional(),
-    note: assignmentFields.note.optional(),
+    id: z.optional(Uuid),
+    person_ids: z.optional(assignmentFields.person_ids),
+    note: z.optional(assignmentFields.note),
   })
-  .superRefine(uniquePeople);
+  .check(z.superRefine(uniquePeople));
 export type CartAssignmentInsert = z.infer<typeof CartAssignmentInsert>;
 export const CartAssignmentUpdate = z
-  .object({ person_ids: assignmentFields.person_ids, note: assignmentFields.note })
-  .partial()
-  .superRefine(uniquePeople);
+  .partial(z.object({ person_ids: assignmentFields.person_ids, note: assignmentFields.note }))
+  .check(z.superRefine(uniquePeople));
 export type CartAssignmentUpdate = z.infer<typeof CartAssignmentUpdate>;
 
 export const CartBlackoutRow = z.object({ id: Uuid, slot_id: Uuid, date: IsoDate, ...Meta });
 export type CartBlackoutRow = z.infer<typeof CartBlackoutRow>;
-export const CartBlackoutInsert = z.object({ id: Uuid.optional(), slot_id: Uuid, date: IsoDate });
+export const CartBlackoutInsert = z.object({ id: z.optional(Uuid), slot_id: Uuid, date: IsoDate });
 export type CartBlackoutInsert = z.infer<typeof CartBlackoutInsert>;
 
 // ---------------------------------------------------------------------------
@@ -336,41 +332,41 @@ export const Gender = z.enum(['M', 'F']);
 export type Gender = z.infer<typeof Gender>;
 const personFields = {
   id: Uuid,
-  name: z.string().min(1).max(120),
+  name: z.string().check(z.minLength(1), z.maxLength(120)),
   gender: Gender,
   /** 0 = unlimited. */
-  target_appearances: z.number().int().min(0).max(999),
+  target_appearances: z.int().check(z.minimum(0), z.maximum(999)),
 };
 export const PersonRow = z.object({ ...personFields, ...Meta });
 export type PersonRow = z.infer<typeof PersonRow>;
 export const PersonInsert = z.object({
   ...personFields,
-  id: Uuid.optional(),
-  target_appearances: personFields.target_appearances.optional(),
+  id: z.optional(Uuid),
+  target_appearances: z.optional(personFields.target_appearances),
 });
 export type PersonInsert = z.infer<typeof PersonInsert>;
-export const PersonUpdate = PersonInsert.omit({ id: true }).partial();
+export const PersonUpdate = z.partial(z.omit(PersonInsert, { id: true }));
 export type PersonUpdate = z.infer<typeof PersonUpdate>;
 
 export const PersonAvailabilityRow = z.object({ person_id: Uuid, slot_id: Uuid, ...Meta });
 export type PersonAvailabilityRow = z.infer<typeof PersonAvailabilityRow>;
-export const PersonAvailabilityInsert = PersonAvailabilityRow.omit(SERVER_OWNED);
+export const PersonAvailabilityInsert = z.omit(PersonAvailabilityRow, SERVER_OWNED);
 export type PersonAvailabilityInsert = z.infer<typeof PersonAvailabilityInsert>;
 
 /** Stored once with person_a < person_b; a trigger reorders inserts, so either order may be sent. */
-export const PersonPairRow = z
-  .object({ person_a: Uuid, person_b: Uuid, ...Meta })
-  .refine((p) => p.person_a < p.person_b, {
+export const PersonPairRow = z.object({ person_a: Uuid, person_b: Uuid, ...Meta }).check(
+  z.refine((p) => p.person_a < p.person_b, {
     path: ['person_b'],
     message: 'person_a must sort before person_b',
-  });
+  }),
+);
 export type PersonPairRow = z.infer<typeof PersonPairRow>;
-export const PersonPairInsert = z
-  .object({ person_a: Uuid, person_b: Uuid })
-  .refine((p) => p.person_a !== p.person_b, {
+export const PersonPairInsert = z.object({ person_a: Uuid, person_b: Uuid }).check(
+  z.refine((p) => p.person_a !== p.person_b, {
     path: ['person_b'],
     message: 'a person cannot pair with themselves',
-  });
+  }),
+);
 export type PersonPairInsert = z.infer<typeof PersonPairInsert>;
 
 // ---------------------------------------------------------------------------
@@ -384,7 +380,7 @@ export type ProgramData = z.infer<typeof ProgramData>;
 
 function programKeyDay(
   p: { kind?: ProgramKind | undefined; date?: string | undefined },
-  ctx: z.RefinementCtx,
+  ctx: z.core.$RefinementCtx,
 ) {
   if (!p.kind || !p.date) return;
   const want = p.kind === 'midweek' ? 2 : 6;
@@ -398,11 +394,13 @@ function programKeyDay(
   }
 }
 const programFields = { id: Uuid, kind: ProgramKind, date: IsoDate, data: ProgramData };
-export const ProgramWeekRow = z.object({ ...programFields, ...Meta }).superRefine(programKeyDay);
+export const ProgramWeekRow = z
+  .object({ ...programFields, ...Meta })
+  .check(z.superRefine(programKeyDay));
 export type ProgramWeekRow = z.infer<typeof ProgramWeekRow>;
 export const ProgramWeekInsert = z
-  .object({ ...programFields, id: Uuid.optional(), data: ProgramData.optional() })
-  .superRefine(programKeyDay);
+  .object({ ...programFields, id: z.optional(Uuid), data: z.optional(ProgramData) })
+  .check(z.superRefine(programKeyDay));
 export type ProgramWeekInsert = z.infer<typeof ProgramWeekInsert>;
 /** kind/date form the natural key; only `data` is patched. */
 export const ProgramWeekUpdate = z.object({ data: ProgramData });
@@ -415,12 +413,12 @@ export const DevicePlatform = z.enum(['ios', 'android', 'web']);
 export const DeviceTokenRow = z.object({
   id: Uuid,
   user_id: Uuid,
-  token: z.string().min(10).max(4096),
+  token: z.string().check(z.minLength(10), z.maxLength(4096)),
   platform: DevicePlatform,
   ...Meta,
 });
 export type DeviceTokenRow = z.infer<typeof DeviceTokenRow>;
-export const DeviceTokenInsert = DeviceTokenRow.pick({ token: true, platform: true });
+export const DeviceTokenInsert = z.pick(DeviceTokenRow, { token: true, platform: true });
 export type DeviceTokenInsert = z.infer<typeof DeviceTokenInsert>;
 
 // ---------------------------------------------------------------------------

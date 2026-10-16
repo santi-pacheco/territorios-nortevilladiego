@@ -14,7 +14,7 @@ import {
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
-import { db, type TerritoriosClient } from '../client';
+import { withDb, type TerritoriosClient } from '../client';
 import { ConflictError } from '../errors';
 import * as authRepo from '../repos/auth';
 import type { CartBoard } from '../repos/carrito';
@@ -104,7 +104,7 @@ export function mutationOptionsFor<TVars, TResult>(
 ): MutationOptions<TResult, Error, TVars, MutationContext> {
   return {
     mutationKey: spec.key,
-    mutationFn: (vars) => spec.run(db(), vars),
+    mutationFn: (vars) => withDb((sb) => spec.run(sb, vars)),
     retry: shouldRetry,
     retryDelay,
     networkMode: 'online',

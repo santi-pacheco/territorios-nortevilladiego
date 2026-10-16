@@ -4,6 +4,7 @@ export {
   makeSupabase,
   setSupabase,
   db,
+  withDb,
   type TerritoriosClient,
   type MakeSupabaseOptions,
 } from './client';

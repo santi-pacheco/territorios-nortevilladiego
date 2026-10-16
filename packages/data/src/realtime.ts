@@ -169,3 +169,36 @@ export function startRealtime(opts: RealtimeOptions): RealtimeHandle {
     },
   };
 }
+
+/**
+ * `startRealtime` for a client that is still loading: returns a handle right away and starts
+ * once the client resolves. Calls made before then are applied on start; `stop()` before
+ * then means it never starts. A client that fails to load leaves the handle inert.
+ */
+export function startRealtimeWhenReady(
+  client: Promise<TerritoriosClient>,
+  opts: Omit<RealtimeOptions, 'supabase'>,
+): RealtimeHandle {
+  let inner: RealtimeHandle | null = null;
+  let editor = opts.includeEditorTables ?? false;
+  let stopped = false;
+  client.then(
+    (supabase) => {
+      if (!stopped) inner = startRealtime({ ...opts, supabase, includeEditorTables: editor });
+    },
+    () => {},
+  );
+  return {
+    stop() {
+      stopped = true;
+      inner?.stop();
+    },
+    setEditorTables(enabled) {
+      editor = enabled;
+      inner?.setEditorTables(enabled);
+    },
+    get paused() {
+      return inner ? inner.paused : true;
+    },
+  };
+}

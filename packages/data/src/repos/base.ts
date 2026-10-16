@@ -2,7 +2,7 @@
  * Shared repo plumbing: response unwrapping, Zod parsing at the IO boundary, and the
  * compare-and-swap (CAS) write pattern from supabase/README.md.
  */
-import type { z } from 'zod';
+import type { z } from 'zod/mini';
 import type { TerritoriosClient } from '../client';
 import { ConflictError, DataError, NetworkError, SchemaError } from '../errors';
 import type { TableName } from '../schemas';
@@ -42,7 +42,7 @@ export async function run(builder: PromiseLike<PgResponse>): Promise<unknown> {
   return res.data;
 }
 
-export function parseRow<S extends z.ZodType>(
+export function parseRow<S extends z.ZodMiniType>(
   table: TableName,
   schema: S,
   data: unknown,
@@ -52,7 +52,7 @@ export function parseRow<S extends z.ZodType>(
   return r.data;
 }
 
-export function parseRows<S extends z.ZodType>(
+export function parseRows<S extends z.ZodMiniType>(
   table: TableName,
   schema: S,
   data: unknown,
@@ -62,7 +62,7 @@ export function parseRows<S extends z.ZodType>(
 }
 
 /** Validate an outgoing payload; Zod strips unknown keys, so version/updated_* never leak out. */
-export function parsePayload<S extends z.ZodType>(
+export function parsePayload<S extends z.ZodMiniType>(
   table: TableName,
   schema: S,
   payload: unknown,
@@ -107,7 +107,7 @@ function matchKey(q: Query, key: RowKey): Query {
   return out;
 }
 
-export async function fetchByKey<S extends z.ZodType>(
+export async function fetchByKey<S extends z.ZodMiniType>(
   sb: TerritoriosClient,
   table: TableName,
   schema: S,
@@ -117,7 +117,7 @@ export async function fetchByKey<S extends z.ZodType>(
   return data == null ? null : parseRow(table, schema, data);
 }
 
-export async function insertRow<S extends z.ZodType>(
+export async function insertRow<S extends z.ZodMiniType>(
   sb: TerritoriosClient,
   table: TableName,
   schema: S,
@@ -132,7 +132,7 @@ function keyId(key: RowKey): unknown {
   return entries.length === 1 && entries[0] ? entries[0][1] : { ...key };
 }
 
-async function conflict<S extends z.ZodType>(
+async function conflict<S extends z.ZodMiniType>(
   sb: TerritoriosClient,
   table: TableName,
   schema: S,
@@ -147,7 +147,7 @@ async function conflict<S extends z.ZodType>(
  * `update … where <key> and version = expected returning *`. 0 rows ⇒ refetch the row and
  * throw ConflictError (current = null when it was deleted / is not visible). Never retried.
  */
-export async function casUpdate<S extends z.ZodType>(
+export async function casUpdate<S extends z.ZodMiniType>(
   sb: TerritoriosClient,
   table: TableName,
   schema: S,
@@ -162,7 +162,7 @@ export async function casUpdate<S extends z.ZodType>(
 }
 
 /** `delete … where <key> and version = expected returning *`. 0 rows ⇒ ConflictError. */
-export async function casDelete<S extends z.ZodType>(
+export async function casDelete<S extends z.ZodMiniType>(
   sb: TerritoriosClient,
   table: TableName,
   schema: S,

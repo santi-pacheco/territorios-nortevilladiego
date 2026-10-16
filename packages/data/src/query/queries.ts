@@ -3,7 +3,7 @@
  * Each hook is a thin wrapper so the logic stays testable without React.
  */
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { db } from '../client';
+import { withDb } from '../client';
 import { fetchRole, fetchSession, isEditorRole, type AppRole } from '../repos/auth';
 import { fetchCartBoard } from '../repos/carrito';
 import { fetchPeople } from '../repos/people';
@@ -22,39 +22,39 @@ export function todayIso(now: Date = new Date()): string {
 export const serviceWeekQuery = (weekStart: string) =>
   queryOptions({
     queryKey: qk.serviceWeek(weekStart),
-    queryFn: () => fetchServiceWeek(db(), weekStart),
+    queryFn: () => withDb((sb) => fetchServiceWeek(sb, weekStart)),
   });
 
 export const territoriesQuery = () =>
   queryOptions({
     queryKey: qk.territories,
-    queryFn: () => fetchTerritories(db()),
+    queryFn: () => withDb(fetchTerritories),
     staleTime: 60 * 60_000,
   });
 
 export const cartBoardQuery = (scheduleId: string | null = null) =>
   queryOptions({
     queryKey: qk.cartBoard(scheduleId),
-    queryFn: () => fetchCartBoard(db(), scheduleId, todayIso()),
+    queryFn: () => withDb((sb) => fetchCartBoard(sb, scheduleId, todayIso())),
   });
 
 export const peopleQuery = () =>
-  queryOptions({ queryKey: qk.people, queryFn: () => fetchPeople(db()) });
+  queryOptions({ queryKey: qk.people, queryFn: () => withDb(fetchPeople) });
 
 export const programWeekQuery = (weekStart: string) =>
   queryOptions({
     queryKey: qk.programWeek(weekStart),
-    queryFn: () => fetchProgramWeek(db(), weekStart),
+    queryFn: () => withDb((sb) => fetchProgramWeek(sb, weekStart)),
   });
 
 /** Kept fresh by `bindAuth` (onAuthStateChange); never refetched on a timer. */
 export const sessionQuery = () =>
-  queryOptions({ queryKey: qk.session, queryFn: () => fetchSession(db()), staleTime: Infinity });
+  queryOptions({ queryKey: qk.session, queryFn: () => withDb(fetchSession), staleTime: Infinity });
 
 export const roleQuery = (userId: string | null) =>
   queryOptions({
     queryKey: qk.role(userId),
-    queryFn: () => fetchRole(db(), userId),
+    queryFn: () => withDb((sb) => fetchRole(sb, userId)),
     staleTime: 5 * 60_000,
   });
 

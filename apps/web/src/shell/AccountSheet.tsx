@@ -2,7 +2,7 @@ import { useId, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { UserRound, X } from 'lucide-react';
-import { db, useRole, useSession } from '@territorios/data';
+import { useRole, useSession, withDb } from '@territorios/data';
 import { readTheme, saveTheme, type ThemeChoice } from '../lib/theme';
 import { readMe, saveMe } from '../lib/me';
 import { useBoot } from './bootContext';
@@ -126,7 +126,7 @@ function SignedIn({
         type="button"
         className="btn-secondary"
         onClick={async () => {
-          await db().auth.signOut();
+          await withDb((sb) => sb.auth.signOut());
           await clearPersisted();
           qc.clear();
         }}
@@ -148,10 +148,10 @@ function SignInForm() {
     const form = new FormData(e.currentTarget);
     setBusy(true);
     setError(null);
-    const { error: err } = await db().auth.signInWithPassword({
+    const { error: err } = await withDb((sb) => sb.auth.signInWithPassword({
       email: String(form.get('email') ?? '').trim(),
       password: String(form.get('password') ?? ''),
-    });
+    })).catch(() => ({ error: { status: 0 } }));
     setBusy(false);
     if (err) {
       setError(
