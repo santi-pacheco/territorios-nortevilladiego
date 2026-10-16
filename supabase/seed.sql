@@ -60,3 +60,11 @@ insert into public.cart_blackouts (slot_id, date) values
 insert into public.program_weeks (kind, date, data) values
   ('midweek', '2026-10-13', '{"date":"2026-10-13","asamblea":null,"parts":[{"time":"19:00","title":"Canción y oración","section":"inicio","people":[{"name":"Hermano Ejemplo","role":"Presidente"}]}]}'),
   ('weekend', '2026-10-17', '{"date":"2026-10-17","asamblea":null,"presidente":"Hermano Ejemplo","cancionInicio":"1","conductor":"Hermano Prueba","lector":"Hermano Ficticio","cancionFin":"2","oracionFinal":"Hermano Ejemplo","discurso":null}');
+
+-- Extra fake salidas so the day line has past, next and later stations in dev.
+insert into public.service_meetings
+  (week_id, dow, position, kind, start_time, groups, conductor, place, territory_ids, group_territories) values
+  ('00000000-0000-4000-8000-000000000101', 4, 0, 'normal', '09:00', '1 y 2', 'Conductor Ejemplo D', 'Casa de Familia Ejemplo', '{1}',   '{}'),
+  ('00000000-0000-4000-8000-000000000101', 4, 1, 'normal', '17:30', '3',     'Conductor Ejemplo E', 'Esquina Inventada 250',   '{2,3}', '{}'),
+  ('00000000-0000-4000-8000-000000000101', 4, 2, 'normal', '19:00', 'Todos', 'Conductor Ejemplo F', 'Salón',                   '{}',    '{}'),
+  ('00000000-0000-4000-8000-000000000101', 5, 0, 'normal', '10:00', '2',     'Conductor Ejemplo G', 'Plaza Ficticia',          '{3}',   '{}');
