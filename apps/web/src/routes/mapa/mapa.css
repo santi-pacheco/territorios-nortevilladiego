@@ -1,0 +1,78 @@
+/* Mapa route only. Tokens come from @territorios/ui-tokens via styles.css. */
+.mapa-host {
+  position: absolute;
+  inset: 0;
+  background: var(--tk-bg-canvas);
+}
+.mapa-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Locate control sits bottom-right, above MapLibre's attribution. */
+.mapa-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 40px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+}
+.locate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tk-touch-min);
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--tk-border-strong);
+  background: var(--tk-bg-surface);
+  color: var(--tk-text-primary);
+  font-weight: 650;
+  box-shadow: var(--tk-shadow-card);
+}
+.locate-btn[aria-pressed='true'] {
+  background: var(--tk-map-me);
+  border-color: var(--tk-map-me);
+  color: #fff;
+}
+.mapa-toast {
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: var(--tk-radius-md);
+  border: 1px solid var(--tk-border-subtle);
+  background: var(--tk-bg-surface);
+  color: var(--tk-text-primary);
+  font-size: var(--tk-type-secondary-size);
+  line-height: var(--tk-type-secondary-leading);
+  box-shadow: var(--tk-shadow-card);
+}
+.mapa-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 104px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(420px, calc(100% - 32px));
+  padding: 16px;
+  transform: translateX(-50%);
+  border-radius: var(--tk-radius-md);
+  border: 1px solid var(--tk-border-subtle);
+  background: var(--tk-bg-surface);
+  box-shadow: var(--tk-shadow-card);
+}
+
+/* Keep MapLibre's attribution legible on the dark basemap. */
+.mapa-host .maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--tk-bg-surface) 85%, transparent);
+  color: var(--tk-text-secondary);
+}
+.mapa-host .maplibregl-ctrl-attrib a {
+  color: var(--tk-text-secondary);
+}
