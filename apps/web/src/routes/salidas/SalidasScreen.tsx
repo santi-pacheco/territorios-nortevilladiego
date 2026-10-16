@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useServiceWeek, type ServiceMeetingRow } from '@territorios/data';
@@ -18,6 +18,22 @@ import {
 import { DayStrip } from './DayStrip';
 import { StationLine } from './StationLine';
 
+// Desktop splits Salidas with the day's map. The pane is a separate chunk (it carries maplibre),
+// requested only once the wide layout is actually shown.
+const DayMap = lazy(() => import('../mapa/DayMap'));
+const WIDE = '(min-width: 64rem)';
+
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = matchMedia(WIDE);
+      mq.addEventListener('change', cb);
+      return () => mq.removeEventListener('change', cb);
+    },
+    () => matchMedia(WIDE).matches,
+  );
+}
+
 function useNow(intervalMs = 30_000): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -34,6 +50,7 @@ export function SalidasScreen() {
   const thisMonday = mondayOf(now);
   const [monday, setMonday] = useState(thisMonday);
   const week = useServiceWeek(monday);
+  const wide = useWide();
 
   const byDow = useMemo(() => {
     const map = new Map<number, ServiceMeetingRow[]>();
@@ -60,83 +77,112 @@ export function SalidasScreen() {
   const selectedDate = selected === null ? null : dateOfDow(monday, selected);
   const isToday = isThisWeek && selected === todayDow;
 
+  const dayKey = `${monday}-${selected}`;
+  const split = wide && selected !== null;
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  // A roundel click belongs to the day it was made on; changing day drops it.
+  const [pick, setPick] = useState<{ ids: number[]; n: number; dayKey: string } | null>(null);
+  const dayPick = pick?.dayKey === dayKey ? pick : null;
+  const showInPane = (ids: number[]) => setPick({ ids, n: (pick?.n ?? 0) + 1, dayKey });
+
   function selectDay(dow: number) {
     navigate(`/salidas/${DAY_SLUGS[dow]}`, { replace: true });
   }
 
   return (
-    <main className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-line bg-surface">
-        <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1 text-secondary text-ink-soft">
-              <button
-                type="button"
-                className="icon-btn -ml-3"
-                aria-label="Semana anterior"
-                onClick={() => setMonday(addDaysIso(monday, -7))}
-              >
-                <ChevronLeft aria-hidden size={22} />
-              </button>
-              <span className="flex min-w-0">
-                <span className="shrink-0">Cong. Norte Villa Diego&nbsp;·&nbsp;</span>
-                <span className="truncate">
-                  {isThisWeek ? 'Esta semana' : 'Semana'} del {longDate(fromIso(monday))}
+    <main
+      className={`salidas-split flex flex-1 flex-col ${split ? 'lg:grid lg:grid-cols-[420px_minmax(0,1fr)]' : ''}`}
+    >
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 border-b border-line bg-surface">
+          <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 text-secondary text-ink-soft">
+                <button
+                  type="button"
+                  className="icon-btn -ml-3"
+                  aria-label="Semana anterior"
+                  onClick={() => setMonday(addDaysIso(monday, -7))}
+                >
+                  <ChevronLeft aria-hidden size={22} />
+                </button>
+                {/* The week part gives way first; the congregation only wraps, at large text. */}
+                <span className="flex min-w-0 flex-1">
+                  <span className="max-w-full shrink-0">Cong. Norte Villa Diego&nbsp;·&nbsp;</span>
+                  <span className="truncate">
+                    {isThisWeek ? 'Esta semana' : 'Semana'} del {longDate(fromIso(monday))}
+                  </span>
                 </span>
-              </span>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Semana siguiente"
-                onClick={() => setMonday(addDaysIso(monday, 7))}
-              >
-                <ChevronRight aria-hidden size={22} />
-              </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Semana siguiente"
+                  onClick={() => setMonday(addDaysIso(monday, 7))}
+                >
+                  <ChevronRight aria-hidden size={22} />
+                </button>
+              </div>
+              <h1 className="mt-1 text-display font-bold">
+                {selected === null || !selectedDate
+                  ? 'Salidas'
+                  : `${DAY_NAME[selected]} ${selectedDate.getDate()}`}
+                {isToday && <span className="sr-only">, hoy</span>}
+              </h1>
             </div>
-            <h1 className="mt-1 text-display font-bold">
-              {selected === null || !selectedDate
-                ? 'Salidas'
-                : `${DAY_NAME[selected]} ${selectedDate.getDate()}`}
-              {isToday && <span className="sr-only">, hoy</span>}
-            </h1>
+            <div className="lg:hidden">
+              <AccountButton />
+            </div>
           </div>
-          <div className="lg:hidden">
-            <AccountButton />
-          </div>
-        </div>
-        {days.length > 0 && (
-          <DayStrip
-            days={days}
-            counts={byDow}
-            selected={selected}
-            todayDow={isThisWeek ? todayDow : null}
-            onSelect={selectDay}
-          />
-        )}
-      </header>
+          {days.length > 0 && (
+            <DayStrip
+              days={days}
+              counts={byDow}
+              selected={selected}
+              todayDow={isThisWeek ? todayDow : null}
+              onSelect={selectDay}
+            />
+          )}
+        </header>
 
-      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-5">
-        {week.isPending ? (
-          <ScreenSkeleton />
-        ) : week.isError && !week.data ? (
-          <EmptyState
-            title="No pudimos cargar las salidas"
-            body="Revisá la conexión. Cuando vuelva, se actualizan solas."
-          />
-        ) : selected === null ? (
-          <EmptyState
-            title="Todavía no hay salidas para esta semana"
-            body="Cuando los encargados las publiquen, aparecen acá al instante."
-          />
-        ) : (
-          <StationLine
-            key={`${monday}-${selected}`}
-            dow={selected}
-            meetings={byDow.get(selected) ?? []}
-            now={isToday ? now : null}
-          />
-        )}
+        <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-5">
+          {week.isPending ? (
+            <ScreenSkeleton />
+          ) : week.isError && !week.data ? (
+            <EmptyState
+              title="No pudimos cargar las salidas"
+              body="Revisá la conexión. Cuando vuelva, se actualizan solas."
+            />
+          ) : selected === null ? (
+            <EmptyState
+              title="Todavía no hay salidas para esta semana"
+              body="Cuando los encargados las publiquen, aparecen acá al instante."
+            />
+          ) : (
+            <StationLine
+              key={dayKey}
+              dow={selected}
+              meetings={byDow.get(selected) ?? []}
+              now={isToday ? now : null}
+              onHover={wide ? setHoverId : undefined}
+              onShow={wide ? showInPane : undefined}
+            />
+          )}
+        </div>
       </div>
+
+      {split && (
+        <aside className="salidas-map" aria-label="Mapa del día">
+          <Suspense fallback={<div aria-hidden className="skeleton h-full w-full rounded-none" />}>
+            <DayMap
+              dow={selected}
+              meetings={byDow.get(selected) ?? []}
+              dayKey={dayKey}
+              hoverId={hoverId}
+              pick={dayPick}
+            />
+          </Suspense>
+        </aside>
+      )}
     </main>
   );
 }

@@ -6,12 +6,15 @@
   padding-bottom: 4px;
 }
 
+/* Mobile: the three tabs share the row (390 px leaves 358 px); scrolls only at large text. */
 .gestion-nav-link {
+  flex: 1 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
   min-height: var(--tk-touch-min);
-  padding: 0 14px;
+  padding: 0 8px;
   border-radius: var(--tk-radius-md);
   color: var(--tk-text-secondary);
   font-weight: 600;
@@ -31,6 +34,13 @@
     border-bottom: 0;
     border-right: 1px solid var(--tk-border-subtle);
     padding: 0 12px 0 0;
+  }
+
+  .gestion-nav-link {
+    flex: none;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 14px;
   }
 
   .gestion-nav-link[aria-current='page'] {

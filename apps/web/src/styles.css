@@ -345,4 +345,25 @@
   .roundel-row:hover .roundel-hint {
     color: var(--tk-text-primary);
   }
+
+  /* ---------- Desktop Salidas + Mapa split: the line left, that day's map right ---------- */
+  @media (min-width: 1024px) {
+    .salidas-map {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100dvh;
+      overflow: hidden;
+      border-left: 1px solid var(--tk-border-subtle);
+    }
+    /* The station whose territories the map is lighting up. */
+    .salidas-split:has(> .salidas-map) .station:is(:hover, :focus-within) .station-card {
+      border-color: var(--tk-border-strong);
+    }
+    .salidas-split:has(> .salidas-map)
+      .station[data-state='next']:is(:hover, :focus-within)
+      .station-card {
+      border-color: var(--tk-text-primary);
+    }
+  }
 }

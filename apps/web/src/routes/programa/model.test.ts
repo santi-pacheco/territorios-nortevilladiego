@@ -7,6 +7,7 @@ import {
   parseSemanaParam,
   sanitizeMidweek,
   sanitizeWeekend,
+  shortRange,
   type MyPart,
 } from './model';
 
@@ -172,5 +173,13 @@ describe('?semana param', () => {
     expect(parseSemanaParam(null, new Date(2026, 9, 16))).toBe('2026-10-12');
     expect(parseSemanaParam('hoy', new Date(2026, 9, 16))).toBe('2026-10-12');
     expect(parseSemanaParam('2026-99-99', new Date(2026, 9, 16))).toBe('2026-10-12');
+  });
+});
+
+describe('shortRange', () => {
+  it('names the month once inside one month and twice across months', () => {
+    expect(shortRange('2026-10-12', '2026-10-18')).toBe('12–18 oct');
+    expect(shortRange('2026-09-28', '2026-10-04')).toBe('28 sep – 4 oct');
+    expect(shortRange('2026-12-28', '2027-01-03')).toBe('28 dic – 3 ene');
   });
 });

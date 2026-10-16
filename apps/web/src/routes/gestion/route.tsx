@@ -72,16 +72,13 @@ export function Component() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-5">
       <header className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-caption text-ink-soft">Encargados</p>
-          <h1 className="mt-1 text-display font-bold">Gestión</h1>
-        </div>
+        <h1 className="text-display font-bold">Gestión</h1>
         <div className="lg:hidden">
           <AccountButton />
         </div>
       </header>
 
-      <div className="lg:grid lg:grid-cols-[200px_1fr] lg:items-start lg:gap-8">
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[200px_1fr] lg:items-start lg:gap-8">
         <nav aria-label="Secciones de gestión" className="gestion-nav">
           {SECTIONS.map(({ key, to, label, Icon }) => (
             <NavLink key={key} to={to} className="gestion-nav-link">

@@ -5,6 +5,7 @@ import { AccountButton } from '../../shell/AccountSheet';
 import { ScreenSkeleton } from '../../shell/AppShell';
 import { readMe, matchesMe } from '../../lib/me';
 import { DAY_NAME, addDaysIso, fromIso, longDate, mondayOf, toIso } from '../../lib/week';
+import { shortRange } from '../programa/model';
 
 /** One rendered row of the schedule: a slot on a concrete date. */
 interface Turn {
@@ -162,7 +163,7 @@ function MobileWeekList({ turns, me }: { turns: Turn[]; me: string }) {
     <ul className="flex flex-col border-t border-line lg:hidden">
       {turns.map((turn) => (
         <li key={turn.date + turn.timeRange} className="flex flex-col gap-1 border-b border-line py-3">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <div>
               <span className="text-body font-semibold">{turn.weekday}</span>{' '}
               <span className="text-secondary text-ink-soft">{longDate(turn.dateObj)}</span>
@@ -195,7 +196,7 @@ function MyTurns({ turns, me }: { turns: Turn[]; me: string }) {
           const companions = turn.people.filter((name) => !matchesMe(me, name));
           return (
             <li key={turn.date + turn.timeRange} className="flex flex-col gap-1 border-b border-line py-3">
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <span className="text-body font-semibold">
                   {turn.weekday} {longDate(turn.dateObj)}
                 </span>
@@ -263,16 +264,25 @@ export function Component() {
   });
   const past = sections.filter((s) => addDaysIso(s.weekStart, 6) < today);
 
-  const caption = board.data?.schedule
-    ? `${board.data.schedule.name} · ${longDate(fromIso(board.data.schedule.start_date))} al ${longDate(fromIso(board.data.schedule.end_date))}`
-    : '';
+  const schedule = board.data?.schedule;
 
   return (
     <main className="flex flex-1 flex-col">
       <header ref={headerRef} className="sticky top-0 z-10 border-b border-line bg-surface">
         <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3 pb-2">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-secondary text-ink-soft">{caption}</div>
+            {/* The period never truncates; a long schedule name does. */}
+            <div className="flex min-w-0 text-secondary text-ink-soft">
+              {schedule && (
+                <>
+                  <span className="truncate">{schedule.name}</span>
+                  <span className="shrink-0 whitespace-pre">
+                    {' · '}
+                    {shortRange(schedule.start_date, schedule.end_date)}
+                  </span>
+                </>
+              )}
+            </div>
             <h1 className="mt-1 text-display font-bold">Carrito</h1>
           </div>
           <div className="lg:hidden">

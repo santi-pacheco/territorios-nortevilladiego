@@ -10,6 +10,10 @@ interface Props {
   meetings: ServiceMeetingRow[];
   /** Set only when the line is today's, so past/next can be computed. */
   now: Date | null;
+  /** Desktop split only: a station under the pointer or focus (null when it leaves). */
+  onHover?: (meetingId: string | null) => void;
+  /** Desktop split only: roundels show their territories in the map pane instead of opening Mapa. */
+  onShow?: (ids: number[]) => void;
 }
 
 type StationState = 'past' | 'next' | 'later';
@@ -23,7 +27,7 @@ function stateOf(m: ServiceMeetingRow, nowMin: number | null, nextId: string | n
 }
 
 /** The day drawn as a train line: each salida is a station, in time order. */
-export function StationLine({ dow, meetings, now }: Props) {
+export function StationLine({ dow, meetings, now, onHover, onShow }: Props) {
   const nowMin = now ? now.getHours() * 60 + now.getMinutes() : null;
   const ordered = [...meetings].sort(
     (a, b) => (minutesOf(a.start_time) ?? 0) - (minutesOf(b.start_time) ?? 0) || a.position - b.position,
@@ -50,7 +54,15 @@ export function StationLine({ dow, meetings, now }: Props) {
         const state = stateOf(m, nowMin, next?.id ?? null);
         const start = minutesOf(m.start_time);
         return (
-          <li key={m.id} className="station" data-state={state}>
+          <li
+            key={m.id}
+            className="station"
+            data-state={state}
+            onMouseEnter={onHover && (() => onHover(m.id))}
+            onMouseLeave={onHover && (() => onHover(null))}
+            onFocus={onHover && (() => onHover(m.id))}
+            onBlur={onHover && (() => onHover(null))}
+          >
             <span aria-hidden className="station-dot" />
             <article className="station-card" aria-current={state === 'next' ? 'time' : undefined}>
               {state === 'next' && nowMin !== null && start !== null && (
@@ -76,8 +88,12 @@ export function StationLine({ dow, meetings, now }: Props) {
                   {m.groups && <>{groupsLabel(m.groups)}</>}
                 </p>
               )}
-              {m.kind === 'domingo' && <GroupRows dow={dow} groups={m.group_territories} />}
-              {m.territory_ids.length > 0 && <Roundels dow={dow} ids={m.territory_ids} />}
+              {m.kind === 'domingo' && (
+                <GroupRows dow={dow} groups={m.group_territories} onShow={onShow} />
+              )}
+              {m.territory_ids.length > 0 && (
+                <Roundels dow={dow} ids={m.territory_ids} onShow={onShow} />
+              )}
             </article>
           </li>
         );
@@ -92,12 +108,33 @@ export function groupsLabel(groups: string): string {
   return /^\d+$/.test(groups.trim()) ? `Grupo ${groups.trim()}` : `Grupos ${groups}`;
 }
 
-function Roundels({ dow, ids, label }: { dow: number; ids: number[]; label?: string }) {
+type ShowFn = Props['onShow'];
+
+function Roundels({
+  dow,
+  ids,
+  label,
+  onShow,
+}: {
+  dow: number;
+  ids: number[];
+  label?: string;
+  onShow: ShowFn;
+}) {
   return (
     <Link
       to={`/mapa?t=${ids.join(',')}&dia=${DAY_SLUGS[dow]}`}
       className="roundel-row"
       aria-label={`${label ? `${label}: ` : ''}territorios ${ids.join(', ')}. Ver en el mapa`}
+      onClick={
+        onShow &&
+        ((e) => {
+          // A plain click shows them in the pane beside; modified clicks still open the full Mapa.
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+          onShow(ids);
+        })
+      }
     >
       {ids.map((id) => (
         <span key={id} className="roundel">
@@ -109,7 +146,15 @@ function Roundels({ dow, ids, label }: { dow: number; ids: number[]; label?: str
   );
 }
 
-function GroupRows({ dow, groups }: { dow: number; groups: GroupTerritories }) {
+function GroupRows({
+  dow,
+  groups,
+  onShow,
+}: {
+  dow: number;
+  groups: GroupTerritories;
+  onShow: ShowFn;
+}) {
   const keys = (['G1', 'G2', 'G3', 'G4'] as const).filter((g) => (groups[g]?.length ?? 0) > 0);
   if (!keys.length) return null;
   return (
@@ -118,7 +163,7 @@ function GroupRows({ dow, groups }: { dow: number; groups: GroupTerritories }) {
         <div key={g} className="contents">
           <dt className="font-mono text-secondary font-bold">{g}</dt>
           <dd>
-            <Roundels dow={dow} ids={groups[g]!} label={`Grupo ${g.slice(1)}`} />
+            <Roundels dow={dow} ids={groups[g]!} label={`Grupo ${g.slice(1)}`} onShow={onShow} />
           </dd>
         </div>
       ))}

@@ -88,8 +88,9 @@ export function attach(host: HTMLElement, theme: MapTheme): boolean {
   return true;
 }
 
-export function detach(): void {
-  container?.remove();
+/** Detaches the map only from `host`: a late cleanup must not take it from the next owner. */
+export function detach(host: HTMLElement): void {
+  if (container?.parentElement === host) container.remove();
 }
 
 function styleFor(theme: MapTheme): string {

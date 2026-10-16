@@ -128,6 +128,31 @@ export function dayHeading(iso: string): string {
   return `${DAY_NAME[d.getDay()]} ${longDate(d)}`;
 }
 
+const SHORT_MONTH = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
+
+/** "12–18 oct", or "28 sep – 4 oct" across months: short enough for a 390 px header caption. */
+export function shortRange(startIso: string, endIso: string): string {
+  const a = fromIso(startIso);
+  const b = fromIso(endIso);
+  const month = (d: Date) => SHORT_MONTH[d.getMonth()];
+  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+    ? `${a.getDate()}–${b.getDate()} ${month(b)}`
+    : `${a.getDate()} ${month(a)} – ${b.getDate()} ${month(b)}`;
+}
+
 /** "Martes 13" — compact day for the "Mis partes" rows. */
 export function shortDay(iso: string): string {
   const d = fromIso(iso);

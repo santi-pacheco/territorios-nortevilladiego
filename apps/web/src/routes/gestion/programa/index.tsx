@@ -16,7 +16,6 @@ import {
   useDataMutation,
   type ProgramWeekRow,
 } from '@territorios/data';
-import { AccountButton } from '../../../shell/AccountSheet';
 import { useProgramWeekList } from './data';
 import {
   KIND_LABEL,
@@ -147,20 +146,11 @@ export function GestionPrograma() {
   const publishCount = preview ? publishPlan(preview, selected).length : 0;
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3 pb-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-secondary text-ink-soft">Gestión</p>
-            <h1 className="mt-1 text-display font-bold">Programa</h1>
-          </div>
-          <div className="lg:hidden">
-            <AccountButton />
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col gap-4">
+      {/* The Gestión layout owns the page h1; this is the section heading. */}
+      <h2 className="text-title font-bold">Programa</h2>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-5">
+      <div className="flex flex-col gap-8">
         <UploadForm
           year={year}
           onYear={setYear}
@@ -257,7 +247,7 @@ function UploadForm({
   const fileId = useId();
   return (
     <section aria-labelledby={`${fileId}-h`} className="flex flex-col gap-4">
-      <h2 id={`${fileId}-h`} className="text-title font-bold">
+      <h2 id={`${fileId}-h`} className="text-heading font-bold">
         Subir programa del mes
       </h2>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -322,7 +312,7 @@ function PreviewSection({
   return (
     <section aria-labelledby="gp-preview-h" className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id="gp-preview-h" className="text-title font-bold">
+        <h2 id="gp-preview-h" className="text-heading font-bold">
           Vista previa
         </h2>
         <button type="button" className="icon-btn" aria-label="Descartar vista previa" onClick={onDiscard}>
@@ -534,7 +524,7 @@ function PublishedSection({
 }) {
   return (
     <section aria-labelledby="gp-published-h" className="flex flex-col gap-3">
-      <h2 id="gp-published-h" className="text-title font-bold">
+      <h2 id="gp-published-h" className="text-heading font-bold">
         Publicado
       </h2>
       {list.isPending ? (

@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProgramWeek } from '@territorios/data';
-import { weekRangeLabel, type MidweekWeek, type WeekendMeeting } from '@territorios/core';
+import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import { AccountButton } from '../../shell/AccountSheet';
 import { readMe } from '../../lib/me';
 import { addDaysIso, fromIso, mondayOf } from '../../lib/week';
@@ -15,6 +15,7 @@ import {
   parseSemanaParam,
   sanitizeMidweek,
   sanitizeWeekend,
+  shortRange,
   weekendHasContent,
   type MyPart,
 } from './model';
@@ -63,9 +64,10 @@ export function Component() {
               >
                 <ChevronLeft aria-hidden size={22} />
               </button>
-              <span className="truncate">
-                {isThisWeek ? 'Esta semana · ' : 'Semana '}
-                {weekRangeLabel(monday)}
+              {/* The range never truncates; at large text the "Esta semana" prefix does. */}
+              <span className="flex min-w-0">
+                <span className="truncate whitespace-pre">{isThisWeek ? 'Esta semana · ' : 'Semana '}</span>
+                <span className="shrink-0">{shortRange(monday, addDaysIso(monday, 6))}</span>
               </span>
               <button
                 type="button"
@@ -109,7 +111,7 @@ export function Component() {
             )}
 
             {onlyAssembly && asamblea ? (
-              <AssemblyCard name={asamblea} caption={weekRangeLabel(monday)} />
+              <AssemblyCard name={asamblea} caption={shortRange(monday, addDaysIso(monday, 6))} />
             ) : (
               <div className="flex flex-col gap-10">
                 {parts.length > 0 && <MyParts parts={parts} />}
@@ -211,13 +213,13 @@ function MidweekSection({ week, fallbackDate }: { week: MidweekWeek | null; fall
                 {group.parts.map((part, i) => (
                   <li
                     key={`${part.time}-${part.title}-${i}`}
-                    className="flex gap-3 border-b border-line py-3 last:border-b-0"
+                    className="flex items-baseline gap-3 border-b border-line py-3 last:border-b-0"
                   >
-                    <time className="w-12 shrink-0 pt-0.5 font-mono text-body">
+                    <time className="w-14 shrink-0 font-mono text-body-strong font-semibold">
                       {part.time || '—'}
                     </time>
                     <div className="min-w-0 flex-1">
-                      <p className="text-body-strong break-words">{part.title}</p>
+                      <p className="text-body-strong font-semibold break-words">{part.title}</p>
                       {part.people.length > 0 && (
                         <ul className="mt-1 flex flex-col">
                           {part.people.map((person, j) => (
