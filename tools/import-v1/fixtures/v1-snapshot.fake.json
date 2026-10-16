@@ -1,0 +1,126 @@
+{
+  "_comment": "FAKE data shaped like the v1 jsonb rows (salidas/carrito/programa id=1). Invented names only. Includes deliberate edge cases: legacy Domingo g1..g4, negative target, asymmetric pair, unknown ids, non-Tuesday midweek key.",
+  "salidas": {
+    "mes": "OCTUBRE",
+    "weekStart": "2026-10-21",
+    "days": [
+      {
+        "id": "day-mie",
+        "dow": 3,
+        "kind": "normal",
+        "slots": [
+          { "id": "s-mie-1", "hora": "9:30", "grupos": "1, 2", "conductor": "Hermano Ficticio A", "lugar": "Plaza Inventada", "territorio": "5, 12" },
+          { "id": "s-mie-2", "hora": "17:00", "grupos": "Familias", "conductor": "Hermano Ficticio B", "lugar": "Esquina Falsa 123", "territorio": "7 y 8" },
+          { "id": "s-mie-3", "hora": "", "grupos": "", "conductor": "", "lugar": "", "territorio": "" }
+        ],
+        "domingoSlots": []
+      },
+      {
+        "id": "day-jue",
+        "dow": 4,
+        "kind": "normal",
+        "slots": [
+          { "id": "s-jue-1", "hora": "9:30", "grupos": "3", "conductor": "Hermana Ficticia C", "lugar": "Salón", "territorio": "20-21" }
+        ],
+        "domingoSlots": []
+      },
+      {
+        "id": "day-sab",
+        "dow": 6,
+        "kind": "normal",
+        "slots": [
+          { "id": "s-sab-1", "hora": "10:00", "grupos": "1, 2, 3, 4", "conductor": "Hermano Ficticio D", "lugar": "Parque Imaginario", "territorio": "30" },
+          { "id": "s-sab-2", "hora": "16:00", "grupos": "", "conductor": "Hermano Ficticio E", "lugar": "Casa de Ejemplo", "territorio": "99" }
+        ],
+        "domingoSlots": []
+      },
+      {
+        "id": "day-dom",
+        "dow": 0,
+        "kind": "domingo",
+        "slots": [],
+        "domingoSlots": [
+          { "id": "d-1", "hora": "9:45", "grupos": "1, 2, 3, 4", "conductor": "Hermano Ficticio F", "lugar": "Salón del Reino", "territorioNumero": "40, 41" },
+          { "id": "d-2", "hora": "11:00", "conductor": "Hermano Ficticio G", "lugar": "Plaza Inventada", "territorioNumero": "", "g1": "10", "g2": "11, 12", "g3": "", "g4": "13" }
+        ]
+      }
+    ]
+  },
+  "carrito": {
+    "places": [
+      { "id": "place-a", "name": "PLAZA FICTICIA", "color": "#f5c842" },
+      { "id": "place-b", "name": "ESTACIÓN INVENTADA", "color": "teal" }
+    ],
+    "slots": [
+      { "id": "slot-mar-a", "placeId": "place-a", "dayOfWeek": 2, "startTime": "09:00", "endTime": "11:00", "groupSize": 3 },
+      { "id": "slot-jue-b", "placeId": "place-b", "dayOfWeek": 4, "startTime": "16:30", "endTime": "18:00", "groupSize": 2, "displayLabel": "Jueves tarde" },
+      { "id": "slot-vie-a", "placeId": "place-a", "dayOfWeek": 5, "startTime": "8:30", "endTime": "10:00", "groupSize": 20 },
+      { "id": "slot-orphan", "placeId": "place-zzz", "dayOfWeek": 1, "startTime": "09:00", "endTime": "10:00", "groupSize": 2 }
+    ],
+    "people": [
+      { "id": "p-uno", "name": "Persona Uno", "gender": "F", "availableSlotIds": ["slot-mar-a", "slot-vie-a"], "mustBeWithIds": [], "targetAppearances": 2 },
+      { "id": "p-dos", "name": "Persona Dos", "gender": "M", "availableSlotIds": ["slot-mar-a", "slot-jue-b", "slot-gone"], "mustBeWithIds": ["p-tres"], "targetAppearances": -1 },
+      { "id": "p-tres", "name": "Persona Tres", "gender": "F", "availableSlotIds": ["slot-mar-a"], "mustBeWithIds": [], "targetAppearances": 0 },
+      { "id": "p-cuatro", "name": "Persona Cuatro", "gender": "M", "availableSlotIds": ["slot-jue-b"], "mustBeWithIds": ["p-cinco"], "targetAppearances": 3 },
+      { "id": "p-cinco", "name": "Persona Cinco", "gender": "F", "availableSlotIds": ["slot-jue-b", "slot-vie-a"], "mustBeWithIds": ["p-cuatro", "p-cinco"], "targetAppearances": 1500 }
+    ],
+    "schedule": {
+      "name": "Octubre-Noviembre",
+      "startDate": "2026-10-19",
+      "endDate": "2026-11-15",
+      "entries": [
+        { "weekLabel": "19 de octubre", "weekDate": "2026-10-19", "slotId": "slot-mar-a", "personIds": ["p-uno", "p-dos", "p-tres"] },
+        { "weekLabel": "19 de octubre", "weekDate": "2026-10-19", "slotId": "slot-jue-b", "personIds": ["p-cuatro", "p-cinco"], "note": "Traer folletos" },
+        { "weekLabel": "26 de octubre", "weekDate": "2026-10-26", "slotId": "slot-mar-a", "personIds": ["p-uno", "p-ghost"] },
+        { "weekLabel": "26 de octubre", "weekDate": "2026-10-26", "slotId": "slot-vie-a", "personIds": ["p-cinco", "p-uno"] },
+        { "weekLabel": "2 de noviembre", "weekDate": "2026-11-02", "slotId": "slot-jue-b", "personIds": [] }
+      ]
+    },
+    "blackouts": [
+      { "id": "b-1", "slotId": "slot-jue-b", "date": "2026-10-29" },
+      { "id": "b-2", "slotId": "slot-gone", "date": "2026-10-30" }
+    ]
+  },
+  "programa": {
+    "midweek": {
+      "2026-10-20": {
+        "date": "2026-10-20",
+        "asamblea": null,
+        "parts": [
+          { "time": "19:00", "title": "Canción 1 y oración", "section": "inicio", "people": [{ "name": "Hermano Ficticio A", "role": "Presidente" }] },
+          { "time": "19:06", "title": "1. Tesoros de ejemplo", "section": "tesoros", "people": [{ "name": "Hermano Ficticio B" }] }
+        ]
+      },
+      "2026-10-27": {
+        "date": "2026-10-27",
+        "asamblea": null,
+        "parts": [{ "time": "19:00", "title": "Canción 2 y oración", "section": "inicio", "people": [{ "name": "Hermano Ficticio D", "role": "Presidente" }] }]
+      },
+      "2026-10-21": { "date": "2026-10-21", "asamblea": null, "parts": [] }
+    },
+    "weekend": {
+      "2026-10-24": {
+        "date": "2026-10-24",
+        "asamblea": null,
+        "presidente": "Hermano Ficticio E",
+        "cancionInicio": "10",
+        "conductor": "Hermano Ficticio F",
+        "lector": "Hermano Ficticio G",
+        "cancionFin": "20",
+        "oracionFinal": "Hermano Ficticio A",
+        "discurso": { "tipo": "PÚBLICO", "titulo": "Un discurso de ejemplo", "orador": "Orador Inventado", "congregacion": "Congregación Ficticia", "saliente": null }
+      },
+      "2026-10-31": {
+        "date": "2026-10-31",
+        "asamblea": "Asamblea de ejemplo",
+        "presidente": null,
+        "cancionInicio": null,
+        "conductor": null,
+        "lector": null,
+        "cancionFin": null,
+        "oracionFinal": null,
+        "discurso": null
+      }
+    }
+  }
+}

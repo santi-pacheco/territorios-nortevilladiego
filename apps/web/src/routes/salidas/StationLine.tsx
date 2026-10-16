@@ -76,11 +76,8 @@ export function StationLine({ dow, meetings, now }: Props) {
                   {m.groups && <>{/^\d/.test(m.groups) ? `Grupos ${m.groups}` : m.groups}</>}
                 </p>
               )}
-              {m.kind === 'domingo' ? (
-                <GroupRows dow={dow} groups={m.group_territories} />
-              ) : (
-                m.territory_ids.length > 0 && <Roundels dow={dow} ids={m.territory_ids} />
-              )}
+              {m.kind === 'domingo' && <GroupRows dow={dow} groups={m.group_territories} />}
+              {m.territory_ids.length > 0 && <Roundels dow={dow} ids={m.territory_ids} />}
             </article>
           </li>
         );
