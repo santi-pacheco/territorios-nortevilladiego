@@ -59,6 +59,13 @@ export function reducedMotion(): boolean {
   return matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+/**
+ * Where the map opens before territories load: the congregation's area in Villa Gobernador
+ * Gálvez (centre of the 49 territories, at roughly the zoom that frames them all). Never a far-away default city.
+ */
+const HOME_CENTER: [number, number] = [-60.6129, -33.0065];
+const HOME_ZOOM = 13.2;
+
 /** Mounts the singleton map into `host`. Returns false when the device has no WebGL. */
 export function attach(host: HTMLElement, theme: MapTheme): boolean {
   if (!container) {
@@ -77,8 +84,14 @@ export function attach(host: HTMLElement, theme: MapTheme): boolean {
     map = new MapLibreMap({
       container,
       style: styleUrl,
-      center: [-58.44, -34.61],
-      zoom: 11,
+      // Start on the territories already cached, else the congregation's area; `focus()`
+      // then glides to the day's territories once data arrives.
+      ...(rows.length
+        ? {
+            bounds: boundsOf(rows.map((t) => t.geometry)) ?? undefined,
+            fitBoundsOptions: { padding: 40 },
+          }
+        : { center: HOME_CENTER, zoom: HOME_ZOOM }),
       attributionControl: { compact: true },
       pitchWithRotate: false,
       touchPitch: false,
