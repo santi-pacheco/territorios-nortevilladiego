@@ -68,7 +68,11 @@ inferred type of the same name.
 `CartScheduleRow/Insert/Update`, `CartAssignmentRow/Insert/Update`, `CartBlackoutRow/Insert`,
 `PersonRow/Insert/Update`, `Gender`, `PersonAvailabilityRow/Insert`, `PersonPairRow/Insert`,
 `ProgramWeekRow/Insert/Update`, `ProgramKind`, `ProgramData`, `DeviceTokenRow/Insert`,
-`DevicePlatform`, `Role`; primitives `Uuid`, `IsoDate`, `Timestamp`, `TimeOfDay`, `isoDow()`;
+`DevicePlatform`, `Role`; Privilegios (docs/PRIVILEGIOS.md): `DutyRole`, `DutySlot`,
+`DutyRosterRow`, `DutyCellInput`, `DutyDayRow`, `DutyDayInput`, `DutyDayKind`; RPC rows
+`MyAssignment` (kinds incl. `privilegio`), `MyLink`, `AccountRow` (+ `can_edit_programa`,
+`can_edit_privilegios`), `MyPermissions`, `NameSource`, `NameSourceKind`, `DutyPerson`;
+`PersonRow` has `in_carrito` and `duties`; primitives `Uuid`, `IsoDate`, `Timestamp`, `TimeOfDay`, `isoDow()`;
 registry `rowSchemas`, `type TableName`, `type RowOf<T>`; `SCHEMA_VERSION`.
 
 ### Errors — `errors.ts`
@@ -82,8 +86,10 @@ registry `rowSchemas`, `type TableName`, `type RowOf<T>`; `SCHEMA_VERSION`.
 | Salidas | `fetchServiceWeek(sb, weekStart)` → `ServiceWeek { week, meetings }` | `createServiceWeek`, `updateServiceWeek`, `deleteServiceWeek`, `createMeeting`, `updateMeeting`, `deleteMeeting` |
 | Territories | `fetchTerritories` | `updateTerritory` |
 | Carrito | `fetchCartPlaces`, `fetchCartSlots`, `fetchCartSchedules`, `fetchCartAssignments(sb, scheduleId)`, `fetchCartBlackouts(sb, from, to)`, `fetchCartBoard(sb, scheduleId \| null, today)` → `CartBoard`, `pickCurrentSchedule` | `create/update/deleteCartPlace`, `create/update/deleteCartSlot`, `create/update/deleteCartSchedule`, `create/update/deleteCartAssignment`, `createCartBlackout`, `deleteCartBlackout` |
-| People (editor) | `fetchPeople` → `PeopleRoster { people, availability, pairs }` | `createPerson`, `updatePerson`, `deletePerson`, `addAvailability`, `removeAvailability`, `addPair`, `removePair` |
-| Programa | `fetchProgramWeek(sb, weekStart)` → `ProgramWeek { midweek (Tue), weekend (Sat) }` | `createProgramWeek`, `updateProgramWeek`, `deleteProgramWeek` |
+| People (editor) | `fetchPeople` → `PeopleRoster { people, availability, pairs }`; `carritoPeople(roster)` → the `in_carrito` part (people + their availability + pairs with both partners in the carrito): **feed this to the scheduler (Generar) and carrito pickers**; `fetchNameSources` → `NameSource[]` (unmatched first); `fetchDutyPeople` → `DutyPerson[]` (editors and `can_edit_privilegios`) | `createPerson`, `updatePerson`, `deletePerson`, `addAvailability`, `removeAvailability`, `addPair`, `removePair`, `createPersonFromName(sb, name, gender, inCarrito = false)` → id (23505 if the name matches someone), `addPersonAlias(sb, personId, alias)` |
+| Programa | `fetchProgramWeek(sb, weekStart)` → `ProgramWeek { midweek (Tue), weekend (Sat) }`, `fetchProgramWeeks(sb, from, to)` → rows by date | `createProgramWeek`, `updateProgramWeek`, `deleteProgramWeek(sb, id, version)`, `saveProgramWeek(sb, kind, date, data, version?)` (insert without version, CAS on `(kind, date)` with it) |
+| Privilegios | `fetchDutyRoster(sb, from, to)` → `DutyRoster { rows, days }` (empty unless `sees_privilegios`) | `upsertDutyCell(sb, cell, version?)`, `clearDutyCell(sb, { date, role, slot }, version)`, `setDutyDay(sb, day, version?)`, `clearDutyDay(sb, date, version)`. Without a version they insert; a lost insert race throws `ConflictError` with `expectedVersion` 0 and the winning row. `person_name` is the server snapshot of `people.name` when `person_id` is set: always display it, and pass the picked person's name with `person_id` so the optimistic cell shows it |
+| Accounts | `myAssignments`, `myLink`, `listAccounts`, `myPermissions` → `MyPermissions` (effective flags: editors/admins get `true`) | `linkAccount`, `setAccountRole`, `setAccountPermissions(sb, userId, programa \| null, privilegios \| null)` (admin; null = unchanged), `saveWebPushSubscription`, `deleteWebPushSubscription` |
 | Auth | `fetchSession`, `fetchRole(sb, userId)` → `AppRole`, `fetchProfile` | `updateDisplayName` |
 
 Also: `isEditorRole(role)`, `addDays(isoDate, n)`, `type RowKey`, `type AppRole`.
@@ -91,15 +97,17 @@ Also: `isEditorRole(role)`, `addDays(isoDate, n)`, `type RowKey`, `type AppRole`
 ### Query — `query/*.ts`
 | Export | Notes |
 |---|---|
-| `qk` | key factory: `serviceWeek(ws)`, `territories`, `cartBoard(id\|null)`, `people`, `programWeek(ws)`, `session`, `role(uid)`; scopes `salidas`, `cart`, `program`, `auth`, `all` |
+| `qk` | key factory: `serviceWeek(ws)`, `territories`, `cartBoard(id\|null)`, `people`, `programWeek(ws)`, `programRange(from, to)`, `nameSources`, `dutyRoster(from, to)`, `dutyPeople`, `myPermissions(uid)`, `session`, `role(uid)`; scopes `salidas`, `cart`, `program`, `directory`, `privilegios`, `auth`, `all` (`people`, `directory`, `privilegios`, `auth` are private: never persisted, dropped on sign-out) |
 | `tableScopes`, `privateScopes`, `isPrivateKey` | table → scope map; never-persisted scopes |
 | `createQueryClient(config?)`, `queryClientConfig` | defaults: retry policy, `gcTime` 7 d, `networkMode: 'online'` for mutations |
 | `shouldRetry`, `retryDelay`, `MAX_NETWORK_RETRIES` | retry policy |
 | `serviceWeekQuery`, `territoriesQuery`, `cartBoardQuery`, `peopleQuery`, `programWeekQuery`, `sessionQuery`, `roleQuery`, `todayIso` | `queryOptions` factories (router loaders, prefetch) |
 | `useServiceWeek(weekStart)`, `useTerritories()`, `useCartSchedule(scheduleId?)`, `usePeople({ enabled? })` (defaults to `isEditor`), `useProgramWeek(weekStart)`, `useSession()`, `useRole()` → `{ role, isEditor, isLoading }` | read hooks |
+| `useMyPermissions()`, `useProgramWeeks(from, to)`, `useNameSources({ enabled? })` (editor), `useDutyRoster(from, to, { enabled? })` (default: `sees_privilegios`), `useDutyPeople({ enabled? })` (default: `can_edit_privilegios`) | read hooks (docs/PRIVILEGIOS.md); factories `myPermissionsQuery`, `programWeeksQuery`, `nameSourcesQuery`, `dutyRosterQuery`, `dutyPeopleQuery` |
 | `mutations` (+ `salidasMutations`, `territoryMutations`, `cartMutations`, `peopleMutations`, `programMutations`, `profileMutations`) | mutation specs; vars are `{ id, version, patch }` (+ `weekStart` for Salidas/Programa optimistic targets) |
 | `useDataMutation(spec, { onConflict })` | generic mutation hook; `.error` is a `ConflictError` on conflict |
 | `useCreateMeeting`, `useUpdateMeeting`, `useDeleteMeeting`, `useUpdateServiceWeek`, `useUpdateCartAssignment`, `useUpdatePerson`, `useUpdateProgramWeek` | named shortcuts |
+| `useSaveProgramWeek` (`{ kind, date, data, version? }`), `useCreatePersonFromName` (`{ name, gender, inCarrito? }`), `useAddPersonAlias` (`{ personId, alias }`), `useUpsertDutyCell` (`{ date, role, slot, person_id, person_name, note?, version? }`), `useClearDutyCell` (`{ date, role, slot, version }`), `useSetDutyDay` (`{ date, kind, note?, version? }`), `useClearDutyDay` (`{ date, version }`), `useSetAccountPermissions` (`{ userId, programa, privilegios }`); specs in `privilegiosMutations` and the existing catalogs | Privilegios / directory / permissions shortcuts |
 | `mutationOptionsFor(qc, spec, hooks)`, `registerMutationDefaults(qc)`, `type MutationSpec`, `type MutationHooks`, `type MutationContext` | |
 | `invalidateScope(qc, scope)`, `invalidateTable(qc, table)` | own-echo-safe invalidation |
 | `bindAuth(qc, sb)` | onAuthStateChange → cache |
@@ -107,7 +115,7 @@ Also: `isEditorRole(role)`, `addDays(isoDate, n)`, `type RowKey`, `type AppRole`
 ### Realtime — `realtime.ts`
 `startRealtime({ supabase, queryClient, lifecycle?, includeEditorTables?, channelName? })` →
 `{ stop(), setEditorTables(enabled), paused }`. Public tables and editor-only tables
-(`people`, `person_availability`, `person_pairs`) use separate channels with a fresh topic per
+(`people`, `person_availability`, `person_pairs`, `duty_roster`, `duty_days`) use separate channels with a fresh topic per
 subscribe (realtime-js reuses channels by topic). A second `SUBSCRIBED` on a channel (silent
 socket rejoin) invalidates everything. `PUBLIC_REALTIME_TABLES`, `EDITOR_REALTIME_TABLES`,
 `REALTIME_TABLES`, `defaultLifecycle()`, `type AppLifecycle`, `type RealtimeOptions`, `type RealtimeHandle`.

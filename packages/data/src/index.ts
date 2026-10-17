@@ -17,6 +17,7 @@ export * from './repos/people';
 export * from './repos/program';
 export * from './repos/auth';
 export * from './repos/accounts';
+export * from './repos/privilegios';
 
 export { qk, tableScopes, privateScopes, isPrivateKey } from './query/keys';
 export {

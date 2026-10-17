@@ -11,7 +11,7 @@
 import { z } from 'zod/mini';
 
 /** Bump when a row shape changes: busts the persisted query cache. */
-export const SCHEMA_VERSION = '2026-10-17.1';
+export const SCHEMA_VERSION = '2026-10-17.2';
 
 // ---------------------------------------------------------------------------
 // Primitives
@@ -58,6 +58,9 @@ export const ProfileRow = z.object({
   display_name: DisplayName,
   /** Linked people row. Written only through the link_account RPC (no column grant). */
   person_id: z.optional(z.nullable(Uuid)),
+  /** Stored grants (docs/PRIVILEGIOS.md). Written only through set_account_permissions. */
+  can_edit_programa: z.optional(z.boolean()),
+  can_edit_privilegios: z.optional(z.boolean()),
   ...Meta,
 });
 export type ProfileRow = z.infer<typeof ProfileRow>;
@@ -332,6 +335,14 @@ export type CartBlackoutInsert = z.infer<typeof CartBlackoutInsert>;
 // ---------------------------------------------------------------------------
 export const Gender = z.enum(['M', 'F']);
 export type Gender = z.infer<typeof Gender>;
+/** Privilegios a person can take (people.duties) and the roster columns (duty_roster.role). */
+export const DutyRole = z.enum(['computadora', 'sonido', 'microfonista', 'acomodador']);
+export type DutyRole = z.infer<typeof DutyRole>;
+/** Rows stay lenient (the DB check allows repeats); writes must not repeat a duty. */
+const Duties = z.array(DutyRole);
+const UniqueDuties = z
+  .array(DutyRole)
+  .check(z.refine((d) => new Set(d).size === d.length, 'duties contains duplicates'));
 const personFields = {
   id: Uuid,
   name: z.string().check(z.minLength(1), z.maxLength(120)),
@@ -340,6 +351,9 @@ const personFields = {
   target_appearances: z.int().check(z.minimum(0), z.maximum(999)),
   /** Other spellings of the name in program PDFs / as salida conductor (e.g. "D. Gomez"). */
   aliases: z.array(z.string().check(z.minLength(1), z.maxLength(120))).check(z.maxLength(20)),
+  /** Takes part in the carrito (scheduler + pickers). See `carritoPeople()`. */
+  in_carrito: z.boolean(),
+  duties: Duties,
 };
 export const PersonRow = z.object({ ...personFields, ...Meta });
 export type PersonRow = z.infer<typeof PersonRow>;
@@ -348,6 +362,8 @@ export const PersonInsert = z.object({
   id: z.optional(Uuid),
   target_appearances: z.optional(personFields.target_appearances),
   aliases: z.optional(personFields.aliases),
+  in_carrito: z.optional(personFields.in_carrito),
+  duties: z.optional(UniqueDuties),
 });
 export type PersonInsert = z.infer<typeof PersonInsert>;
 export const PersonUpdate = z.partial(z.omit(PersonInsert, { id: true }));
@@ -412,6 +428,68 @@ export const ProgramWeekUpdate = z.object({ data: ProgramData });
 export type ProgramWeekUpdate = z.infer<typeof ProgramWeekUpdate>;
 
 // ---------------------------------------------------------------------------
+// duty_roster / duty_days (Privilegios: editors, can_edit_privilegios, tagged members)
+// ---------------------------------------------------------------------------
+/** Slot within a role on one day: Micrófono 1/2, Acomodador 1..4. */
+export const DutySlot = z.int().check(z.minimum(1), z.maximum(4));
+const DutyPersonName = z.nullable(z.string().check(z.minLength(1), z.maxLength(120)));
+const DutyNote = z.nullable(z.string().check(z.maxLength(500)));
+
+export const DutyRosterRow = z.object({
+  id: Uuid,
+  date: IsoDate,
+  role: DutyRole,
+  slot: DutySlot,
+  person_id: z.nullable(Uuid),
+  /** people.name snapshot when person_id is set (trigger), free text otherwise. Always display this. */
+  person_name: DutyPersonName,
+  note: DutyNote,
+  ...Meta,
+});
+export type DutyRosterRow = z.infer<typeof DutyRosterRow>;
+function dutyWho(
+  c: { person_id?: string | null | undefined; person_name?: string | null | undefined },
+  ctx: z.core.$RefinementCtx,
+) {
+  if (c.person_id == null && !c.person_name?.trim()) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['person_name'],
+      message: 'a person or a name is required',
+    });
+  }
+}
+/** person_name is ignored by the server when person_id is set. */
+export const DutyCellInput = z
+  .object({
+    date: IsoDate,
+    role: DutyRole,
+    slot: DutySlot,
+    person_id: z.nullable(Uuid),
+    person_name: DutyPersonName,
+    note: z.optional(DutyNote),
+  })
+  .check(z.superRefine(dutyWho));
+export type DutyCellInput = z.infer<typeof DutyCellInput>;
+
+export const DutyDayKind = z.enum(['normal', 'asamblea', 'sin_reunion']);
+export type DutyDayKind = z.infer<typeof DutyDayKind>;
+const DutyDayNote = z.nullable(z.string().check(z.maxLength(200)));
+export const DutyDayRow = z.object({
+  date: IsoDate,
+  kind: DutyDayKind,
+  note: DutyDayNote,
+  ...Meta,
+});
+export type DutyDayRow = z.infer<typeof DutyDayRow>;
+export const DutyDayInput = z.object({
+  date: IsoDate,
+  kind: DutyDayKind,
+  note: z.optional(DutyDayNote),
+});
+export type DutyDayInput = z.infer<typeof DutyDayInput>;
+
+// ---------------------------------------------------------------------------
 // device_tokens (own rows only)
 // ---------------------------------------------------------------------------
 export const DevicePlatform = z.enum(['ios', 'android', 'web']);
@@ -429,15 +507,18 @@ export type DeviceTokenInsert = z.infer<typeof DeviceTokenInsert>;
 // ---------------------------------------------------------------------------
 // Account RPCs (docs/ASSIGNMENTS.md): rows returned by my_assignments / my_link / list_accounts
 // ---------------------------------------------------------------------------
-export const AssignmentKind = z.enum(['carrito', 'programa', 'salida']);
+export const AssignmentKind = z.enum(['carrito', 'programa', 'salida', 'privilegio']);
 export type AssignmentKind = z.infer<typeof AssignmentKind>;
 
 export const MyAssignment = z.object({
-  /** Stable id: carrito:<assignment id>:<date> | programa:<kind>:<date>:<index or field> | salida:<meeting id>. */
+  /**
+   * Stable id: carrito:<assignment id>:<date> | programa:<kind>:<date>:<index or field> |
+   * salida:<meeting id> | privilegio:<date>:<role>:<slot>.
+   */
   key: z.string().check(z.minLength(1)),
   kind: AssignmentKind,
   date: IsoDate,
-  /** "HH:MM", or null (e.g. a weekend program role). */
+  /** "HH:MM", or null (e.g. a weekend program role, a privilegio). */
   start_time: z.nullable(z.string()),
   title: z.string(),
   place: z.nullable(z.string()),
@@ -462,8 +543,51 @@ export const AccountRow = z.object({
   person_id: z.nullable(Uuid),
   person_name: z.nullable(z.string()),
   created_at: Timestamp,
+  /** Stored grants (the admin toggles); editors/admins can edit both regardless. */
+  can_edit_programa: z.boolean(),
+  can_edit_privilegios: z.boolean(),
 });
 export type AccountRow = z.infer<typeof AccountRow>;
+
+/** public.my_permissions(): the caller's role and EFFECTIVE permissions (true for editors/admins). */
+export const MyPermissions = z.object({
+  role: Role,
+  can_edit_programa: z.boolean(),
+  can_edit_privilegios: z.boolean(),
+  /** Show the Privilegios route: editor/admin, can_edit_privilegios or linked person has a duty. */
+  sees_privilegios: z.boolean(),
+});
+export type MyPermissions = z.infer<typeof MyPermissions>;
+
+// ---------------------------------------------------------------------------
+// People directory RPCs (docs/PRIVILEGIOS.md)
+// ---------------------------------------------------------------------------
+export const NameSourceKind = z.enum(['programa', 'salida', 'privilegio']);
+export type NameSourceKind = z.infer<typeof NameSourceKind>;
+/** public.name_sources(): one distinct (normalised) name, unmatched first. Editor only. */
+export const NameSource = z.object({
+  /** Most common spelling (whitespace collapsed). */
+  name: z.string(),
+  /** private.norm_name(name): lower, unaccented, single spaces. */
+  norm: z.string(),
+  sources: z.array(NameSourceKind),
+  uses: z.int().check(z.minimum(1)),
+  first_date: z.nullable(IsoDate),
+  last_date: z.nullable(IsoDate),
+  /** The person it matches by name or alias; null = "Nombres sin vincular". */
+  person_id: z.nullable(Uuid),
+  person_name: z.nullable(z.string()),
+});
+export type NameSource = z.infer<typeof NameSource>;
+
+/** public.duty_people(): roster pickers for editors and can_edit_privilegios users. */
+export const DutyPerson = z.object({
+  id: Uuid,
+  name: z.string(),
+  duties: z.array(DutyRole),
+  aliases: z.array(z.string()),
+});
+export type DutyPerson = z.infer<typeof DutyPerson>;
 
 // ---------------------------------------------------------------------------
 // Table registry
@@ -483,6 +607,8 @@ export const rowSchemas = {
   cart_blackouts: CartBlackoutRow,
   program_weeks: ProgramWeekRow,
   device_tokens: DeviceTokenRow,
+  duty_roster: DutyRosterRow,
+  duty_days: DutyDayRow,
 } as const;
 export type TableName = keyof typeof rowSchemas;
 export type RowOf<T extends TableName> = z.infer<(typeof rowSchemas)[T]>;

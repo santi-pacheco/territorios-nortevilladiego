@@ -3,35 +3,17 @@
  * Everything except the push subscriptions goes through SECURITY DEFINER RPCs; the
  * permission checks (linked person, editor, admin) live in the database.
  */
-import type { z } from 'zod/mini';
 import type { TerritoriosClient } from '../client';
-import { DataError, SchemaError } from '../errors';
-import { AccountRow, DeviceTokenRow, MyAssignment, MyLink, type AccountRole } from '../schemas';
-import { from, insertRow, run } from './base';
-
-interface RpcClient {
-  rpc(
-    fn: string,
-    args?: object,
-  ): PromiseLike<{
-    data: unknown;
-    error: { message: string; code?: string; details?: string | null; hint?: string | null } | null;
-    status: number;
-  }>;
-}
-
-function rpc(sb: TerritoriosClient, fn: string, args?: object): Promise<unknown> {
-  return run((sb as unknown as RpcClient).rpc(fn, args));
-}
-
-function parseRpcRows<S extends z.ZodMiniType>(fn: string, schema: S, data: unknown): z.infer<S>[] {
-  const list = data == null ? [] : Array.isArray(data) ? data : [data];
-  return list.map((d) => {
-    const r = schema.safeParse(d);
-    if (!r.success) throw new SchemaError(fn, r.error.message, { cause: r.error });
-    return r.data;
-  });
-}
+import { DataError } from '../errors';
+import {
+  AccountRow,
+  DeviceTokenRow,
+  MyAssignment,
+  MyLink,
+  MyPermissions,
+  type AccountRole,
+} from '../schemas';
+import { callRpc as rpc, from, insertRow, parseRpcRows, run } from './base';
 
 /**
  * Assignments of the caller's linked person between two YYYY-MM-DD dates (inclusive).
@@ -80,6 +62,39 @@ export async function setAccountRole(
   role: AccountRole,
 ): Promise<void> {
   await rpc(sb, 'set_account_role', { p_user: userId, p_role: role });
+}
+
+/**
+ * The caller's role and effective permissions (docs/PRIVILEGIOS.md). Always one row; a
+ * signed-in user without a profile is a viewer with every flag false.
+ */
+export async function myPermissions(sb: TerritoriosClient): Promise<MyPermissions> {
+  const [row] = parseRpcRows('my_permissions', MyPermissions, await rpc(sb, 'my_permissions'));
+  return (
+    row ?? {
+      role: 'viewer',
+      can_edit_programa: false,
+      can_edit_privilegios: false,
+      sees_privilegios: false,
+    }
+  );
+}
+
+/**
+ * Admin only (42501 otherwise). Grants/revokes "Puede editar programa" and "Puede editar
+ * privilegios"; `null` leaves that flag unchanged.
+ */
+export async function setAccountPermissions(
+  sb: TerritoriosClient,
+  userId: string,
+  programa: boolean | null,
+  privilegios: boolean | null,
+): Promise<void> {
+  await rpc(sb, 'set_account_permissions', {
+    p_user: userId,
+    p_programa: programa,
+    p_privilegios: privilegios,
+  });
 }
 
 /** Accepts the PushSubscription itself or its JSON string; the stored token is the string. */

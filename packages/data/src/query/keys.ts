@@ -24,6 +24,20 @@ export const qk = {
 
   program: ['tm', 'program'] as const,
   programWeek: (weekStart: string) => ['tm', 'program', 'week', weekStart] as const,
+  /** Program editor: every row between two dates. */
+  programRange: (from: string, to: string) => ['tm', 'program', 'range', from, to] as const,
+
+  /**
+   * People directory derived data (name_sources). Editor-only, never persisted. Its own scope
+   * (not under `people`) so roster optimistic patches never touch it.
+   */
+  directory: ['tm', 'directory'] as const,
+  nameSources: ['tm', 'directory', 'name-sources'] as const,
+
+  /** Privilegios roster + its pickers. Restricted (RLS), never persisted, dropped on sign-out. */
+  privilegios: ['tm', 'privilegios'] as const,
+  dutyRoster: (from: string, to: string) => ['tm', 'privilegios', 'roster', from, to] as const,
+  dutyPeople: ['tm', 'privilegios', 'people'] as const,
 
   /** Session + role. Never persisted (tokens / stale privileges). */
   auth: ['tm', 'auth'] as const,
@@ -35,6 +49,8 @@ export const qk = {
   myAssignments: (userId: string | null, from: string, to: string) =>
     ['tm', 'auth', 'my-assignments', userId ?? 'anon', from, to] as const,
   accounts: ['tm', 'auth', 'accounts'] as const,
+  myPermissions: (userId: string | null) =>
+    ['tm', 'auth', 'permissions', userId ?? 'anon'] as const,
   webPush: ['tm', 'auth', 'web-push'] as const,
 } as const;
 
@@ -43,23 +59,33 @@ export const qk = {
 export const tableScopes: Record<TableName, readonly QueryKey[]> = {
   territories: [qk.territories],
   service_weeks: [qk.salidas, qk.myAssignmentsAll],
-  service_meetings: [qk.salidas, qk.myAssignmentsAll],
+  // Conductor names feed name_sources().
+  service_meetings: [qk.salidas, qk.myAssignmentsAll, qk.directory],
   cart_places: [qk.cart, qk.myAssignmentsAll],
   cart_slots: [qk.cart, qk.myAssignmentsAll],
   cart_schedules: [qk.cart],
   cart_assignments: [qk.cart, qk.myAssignmentsAll],
   cart_blackouts: [qk.cart, qk.myAssignmentsAll],
-  // A rename/delete rewrites cart_assignments.person_names too (that table fires its own event).
-  people: [qk.people],
+  // A rename/delete rewrites cart_assignments.person_names and duty_roster.person_name too
+  // (those tables fire their own events); names/aliases/duties also change the directory
+  // matches and the duty pickers.
+  people: [qk.people, qk.directory, qk.privilegios],
   person_availability: [qk.people],
   person_pairs: [qk.people],
-  program_weeks: [qk.program, qk.myAssignmentsAll],
+  program_weeks: [qk.program, qk.myAssignmentsAll, qk.directory],
   profiles: [qk.auth],
   device_tokens: [],
+  duty_roster: [qk.privilegios, qk.myAssignmentsAll, qk.directory],
+  duty_days: [qk.privilegios, qk.myAssignmentsAll],
 };
 
 /** Scopes that must never reach the non-sensitive persisted cache. */
-export const privateScopes: readonly QueryKey[] = [qk.auth, qk.people];
+export const privateScopes: readonly QueryKey[] = [
+  qk.auth,
+  qk.people,
+  qk.directory,
+  qk.privilegios,
+];
 
 export function startsWith(key: QueryKey, prefix: QueryKey): boolean {
   return prefix.every((p, i) => key[i] === p);

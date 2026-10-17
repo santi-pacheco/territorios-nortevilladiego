@@ -5,7 +5,7 @@
  * `cart_schedules`, `cart_assignments`, `cart_blackouts`) and the editor-only people roster.
  */
 import { useState, type ReactNode } from 'react';
-import { useCartSchedule, usePeople } from '@territorios/data';
+import { carritoPeople, useCartSchedule, usePeople } from '@territorios/data';
 import { GenerarTab } from './GenerarTab';
 import { LugaresTab } from './LugaresTab';
 import { PersonasTab } from './PersonasTab';
@@ -98,7 +98,11 @@ function CarritoBody({
         tab === 'personas' ? (
           <PersonasTab roster={people} slots={data.slots} places={data.places} />
         ) : (
-          <GenerarTab key={data.schedule?.id ?? 'nuevo'} roster={people} board={data} />
+          <GenerarTab
+            key={data.schedule?.id ?? 'nuevo'}
+            roster={carritoPeople(people)}
+            board={data}
+          />
         )
       }
     </RosterGate>

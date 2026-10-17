@@ -71,3 +71,25 @@ insert into public.service_meetings
   ('00000000-0000-4000-8000-000000000101', 4, 1, 'normal', '17:30', '3',     'Conductor Ejemplo E', 'Esquina Inventada 250',   '{2,3}', '{}'),
   ('00000000-0000-4000-8000-000000000101', 4, 2, 'normal', '19:00', 'Todos', 'Conductor Ejemplo F', 'Salón',                   '{}',    '{}'),
   ('00000000-0000-4000-8000-000000000101', 5, 0, 'normal', '10:00', '2',     'Conductor Ejemplo G', 'Plaza Ficticia',          '{3}',   '{}');
+
+-- People directory + Privilegios (docs/PRIVILEGIOS.md).
+-- Duty tags on two carrito people; 'Hermano Ejemplo' is not in the carrito and appears only in
+-- the program (presidente / oración), so name_sources() shows him as matched.
+update public.people set duties = '{computadora,microfonista}' where id = '00000000-0000-4000-8000-000000000402';
+update public.people set duties = '{sonido,acomodador}'        where id = '00000000-0000-4000-8000-000000000404';
+
+insert into public.people (id, name, gender, in_carrito) values
+  ('00000000-0000-4000-8000-000000000406', 'Hermano Ejemplo', 'M', false);
+
+-- Roster for Tuesday 10-13 and Saturday 10-17. One free-text (unmatched) microfonista.
+insert into public.duty_roster (date, role, slot, person_id, person_name) values
+  ('2026-10-13', 'computadora',  1, '00000000-0000-4000-8000-000000000402', null),
+  ('2026-10-13', 'sonido',       1, '00000000-0000-4000-8000-000000000404', null),
+  ('2026-10-13', 'microfonista', 1, '00000000-0000-4000-8000-000000000402', null),
+  ('2026-10-13', 'microfonista', 2, null, 'Hermano Libre'),
+  ('2026-10-17', 'sonido',       1, '00000000-0000-4000-8000-000000000404', null),
+  ('2026-10-17', 'acomodador',   1, '00000000-0000-4000-8000-000000000404', null);
+
+-- An assembly week (shown as a banner row; no privilegios that day).
+insert into public.duty_days (date, kind, note) values
+  ('2026-10-24', 'asamblea', 'Asamblea de circuito');

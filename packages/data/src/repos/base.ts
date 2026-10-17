@@ -174,6 +174,50 @@ export async function casDelete<S extends z.ZodMiniType>(
   if (data == null) await conflict(sb, table, schema, key, expectedVersion);
 }
 
+/**
+ * Insert keyed by a natural key. A 23505 (someone created that key first) becomes a
+ * ConflictError with `expectedVersion` 0 and the row that won, like a CAS miss.
+ */
+export async function insertOrConflict<S extends z.ZodMiniType>(
+  sb: TerritoriosClient,
+  table: TableName,
+  schema: S,
+  key: RowKey,
+  payload: object,
+): Promise<z.infer<S>> {
+  try {
+    return await insertRow(sb, table, schema, payload);
+  } catch (e) {
+    if (e instanceof DataError && e.isUniqueViolation) return conflict(sb, table, schema, key, 0);
+    throw e;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// RPCs
+// ---------------------------------------------------------------------------
+interface RpcClient {
+  rpc(fn: string, args?: object): PromiseLike<PgResponse>;
+}
+
+export function callRpc(sb: TerritoriosClient, fn: string, args?: object): Promise<unknown> {
+  return run((sb as unknown as RpcClient).rpc(fn, args));
+}
+
+/** RPC rows (an array, a single object or null) parsed one by one. */
+export function parseRpcRows<S extends z.ZodMiniType>(
+  fn: string,
+  schema: S,
+  data: unknown,
+): z.infer<S>[] {
+  const list = data == null ? [] : Array.isArray(data) ? data : [data];
+  return list.map((d) => {
+    const r = schema.safeParse(d);
+    if (!r.success) throw new SchemaError(fn, r.error.message, { cause: r.error });
+    return r.data;
+  });
+}
+
 /** YYYY-MM-DD + n days (UTC arithmetic, no DST drift). */
 export function addDays(isoDate: string, n: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);

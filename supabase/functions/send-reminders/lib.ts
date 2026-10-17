@@ -3,7 +3,7 @@
  * No Deno or network APIs here, so it runs under `deno test` (and any TS test runner).
  */
 
-export type AssignmentKind = 'carrito' | 'programa' | 'salida';
+export type AssignmentKind = 'carrito' | 'programa' | 'salida' | 'privilegio';
 
 /** One row of public.reminder_candidates (same columns as public.my_assignments + user_id). */
 export interface Candidate {
@@ -85,6 +85,8 @@ function label(a: Candidate): string {
       return 'Salida (Conductor)';
     case 'programa':
       return a.role ? `${a.title} (${a.role})` : a.title;
+    case 'privilegio':
+      return a.title;
   }
 }
 

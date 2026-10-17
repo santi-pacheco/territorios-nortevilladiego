@@ -22,6 +22,8 @@ import type { CartBoard } from '../repos/carrito';
 import * as cartRepo from '../repos/carrito';
 import type { PeopleRoster } from '../repos/people';
 import * as peopleRepo from '../repos/people';
+import type { DutyRoster } from '../repos/privilegios';
+import * as privilegiosRepo from '../repos/privilegios';
 import type { ProgramWeek } from '../repos/program';
 import * as programRepo from '../repos/program';
 import type { ServiceWeek } from '../repos/salidas';
@@ -38,12 +40,19 @@ import type {
   CartScheduleUpdate,
   CartSlotInsert,
   CartSlotUpdate,
+  DutyCellInput,
+  DutyDayInput,
+  DutyRole,
+  Gender,
   PersonAvailabilityInsert,
   PersonInsert,
   PersonPairInsert,
   PersonUpdate,
   ProfileUpdate,
+  ProgramData,
+  ProgramKind,
   ProgramWeekInsert,
+  ProgramWeekRow,
   ProgramWeekUpdate,
   ServiceMeetingInsert,
   ServiceMeetingUpdate,
@@ -311,8 +320,11 @@ export const cartMutations = {
   ),
 };
 
-/** People writes also change cart_assignments.person_names server-side. */
-const peopleSide = [qk.cart] as const;
+/**
+ * People writes also change cart_assignments.person_names and duty_roster.person_name
+ * server-side, and names/aliases/duties change the directory matches and duty pickers.
+ */
+const peopleSide = [qk.cart, qk.directory, qk.privilegios] as const;
 
 export const peopleMutations = {
   createPerson: define(qk.people, 'createPerson', (sb, v: PersonInsert) =>
@@ -369,6 +381,24 @@ export const peopleMutations = {
     },
   ),
   addPair: define(qk.people, 'addPair', (sb, v: PersonPairInsert) => peopleRepo.addPair(sb, v)),
+  /** "Crear persona" from an unmatched name (docs/PRIVILEGIOS.md). Returns the new id. */
+  createPersonFromName: define(
+    qk.people,
+    'createPersonFromName',
+    (sb, v: { name: string; gender: Gender; inCarrito?: boolean }) =>
+      peopleRepo.createPersonFromName(sb, v.name, v.gender, v.inCarrito ?? false),
+    undefined,
+    [qk.directory, qk.privilegios],
+  ),
+  /** "Es otro nombre de…": the alias also starts matching program/salida assignments. */
+  addPersonAlias: define(
+    qk.people,
+    'addPersonAlias',
+    (sb, v: { personId: string; alias: string }) =>
+      peopleRepo.addPersonAlias(sb, v.personId, v.alias),
+    undefined,
+    [qk.directory, qk.privilegios, qk.myAssignmentsAll],
+  ),
   removePair: define<{ person_a: string; person_b: string; version: number }, void, PeopleRoster>(
     qk.people,
     'removePair',
@@ -412,6 +442,104 @@ export const programMutations = {
   deleteProgramWeek: define(qk.program, 'deleteProgramWeek', (sb, v: CasDel) =>
     programRepo.deleteProgramWeek(sb, v.id, v.version),
   ),
+  /** Program editor save: insert when `version` is absent, else CAS update on (kind, date). */
+  saveProgramWeek: define<SaveProgramVars, ProgramWeekRow, ProgramWeekRow[]>(
+    qk.program,
+    'saveProgramWeek',
+    (sb, v) => programRepo.saveProgramWeek(sb, v.kind, v.date, v.data, v.version),
+    {
+      target: () => [...qk.program, 'range'],
+      apply: (old, v) =>
+        old.map((r) => (r.kind === v.kind && r.date === v.date ? { ...r, data: v.data } : r)),
+    },
+    [qk.directory],
+  ),
+};
+
+interface SaveProgramVars {
+  kind: ProgramKind;
+  date: string;
+  data: ProgramData;
+  /** The row's version when editing an existing week; omit to create it. */
+  version?: number;
+}
+
+/**
+ * Pass the picked person's name in `person_name` too: the optimistic cell shows it until the
+ * server's snapshot (people.name) arrives.
+ */
+type DutyCellVars = DutyCellInput & {
+  /** The cell's version when it already has a row; omit to fill an empty cell. */
+  version?: number;
+};
+interface DutyCellKeyVars {
+  date: string;
+  role: DutyRole;
+  slot: number;
+  version: number;
+}
+const sameCell = (
+  r: { date: string; role: string; slot: number },
+  v: DutyCellKeyVars | DutyCellVars,
+) => r.date === v.date && r.role === v.role && r.slot === v.slot;
+const rosterTarget = () => [...qk.privilegios, 'roster'];
+
+/** Privilegios writes change "Mis asignaciones" (kind privilegio) server-side. */
+export const privilegiosMutations = {
+  upsertDutyCell: define<
+    DutyCellVars,
+    Awaited<ReturnType<typeof privilegiosRepo.upsertDutyCell>>,
+    DutyRoster
+  >(
+    qk.privilegios,
+    'upsertDutyCell',
+    (sb, { version, ...cell }) => privilegiosRepo.upsertDutyCell(sb, cell, version),
+    {
+      target: rosterTarget,
+      apply: (old, v) => ({
+        ...old,
+        rows: old.rows.map((r) =>
+          sameCell(r, v)
+            ? {
+                ...r,
+                person_id: v.person_id,
+                person_name: v.person_name ?? r.person_name,
+                note: v.note === undefined ? r.note : v.note,
+              }
+            : r,
+        ),
+      }),
+    },
+    [qk.myAssignmentsAll, qk.directory],
+  ),
+  clearDutyCell: define<DutyCellKeyVars, void, DutyRoster>(
+    qk.privilegios,
+    'clearDutyCell',
+    (sb, v) => privilegiosRepo.clearDutyCell(sb, v, v.version),
+    {
+      target: rosterTarget,
+      apply: (old, v) => ({ ...old, rows: old.rows.filter((r) => !sameCell(r, v)) }),
+    },
+    [qk.myAssignmentsAll, qk.directory],
+  ),
+  setDutyDay: define(
+    qk.privilegios,
+    'setDutyDay',
+    (sb, { version, ...day }: DutyDayInput & { version?: number }) =>
+      privilegiosRepo.setDutyDay(sb, day, version),
+    undefined,
+    [qk.myAssignmentsAll],
+  ),
+  clearDutyDay: define<{ date: string; version: number }, void, DutyRoster>(
+    qk.privilegios,
+    'clearDutyDay',
+    (sb, v) => privilegiosRepo.clearDutyDay(sb, v.date, v.version),
+    {
+      target: rosterTarget,
+      apply: (old, v) => ({ ...old, days: old.days.filter((d) => d.date !== v.date) }),
+    },
+    [qk.myAssignmentsAll],
+  ),
 };
 
 export const profileMutations = {
@@ -436,7 +564,19 @@ export const accountMutations = {
     (sb, v: { userId: string; role: AccountRole }) =>
       accountsRepo.setAccountRole(sb, v.userId, v.role),
     undefined,
-    [[...qk.auth, 'role']],
+    [
+      [...qk.auth, 'role'],
+      [...qk.auth, 'permissions'],
+    ],
+  ),
+  /** Admin: "Puede editar programa" / "Puede editar privilegios" (null = unchanged). */
+  setAccountPermissions: define(
+    qk.accounts,
+    'setAccountPermissions',
+    (sb, v: { userId: string; programa: boolean | null; privilegios: boolean | null }) =>
+      accountsRepo.setAccountPermissions(sb, v.userId, v.programa, v.privilegios),
+    undefined,
+    [[...qk.auth, 'permissions']],
   ),
   saveWebPushSubscription: define(
     qk.webPush,
@@ -458,6 +598,7 @@ export const mutations = {
   ...cartMutations,
   ...peopleMutations,
   ...programMutations,
+  ...privilegiosMutations,
   ...profileMutations,
   ...accountMutations,
 };
@@ -486,6 +627,19 @@ export const useUpdateCartAssignment = (h?: MutationHooks) =>
 export const useUpdatePerson = (h?: MutationHooks) => useDataMutation(mutations.updatePerson, h);
 export const useUpdateProgramWeek = (h?: MutationHooks) =>
   useDataMutation(mutations.updateProgramWeek, h);
+export const useSaveProgramWeek = (h?: MutationHooks) =>
+  useDataMutation(mutations.saveProgramWeek, h);
+export const useCreatePersonFromName = (h?: MutationHooks) =>
+  useDataMutation(mutations.createPersonFromName, h);
+export const useAddPersonAlias = (h?: MutationHooks) =>
+  useDataMutation(mutations.addPersonAlias, h);
+export const useUpsertDutyCell = (h?: MutationHooks) =>
+  useDataMutation(mutations.upsertDutyCell, h);
+export const useClearDutyCell = (h?: MutationHooks) => useDataMutation(mutations.clearDutyCell, h);
+export const useSetDutyDay = (h?: MutationHooks) => useDataMutation(mutations.setDutyDay, h);
+export const useClearDutyDay = (h?: MutationHooks) => useDataMutation(mutations.clearDutyDay, h);
+export const useSetAccountPermissions = (h?: MutationHooks) =>
+  useDataMutation(mutations.setAccountPermissions, h);
 export const useLinkAccount = (h?: MutationHooks) => useDataMutation(mutations.linkAccount, h);
 export const useSetAccountRole = (h?: MutationHooks) =>
   useDataMutation(mutations.setAccountRole, h);

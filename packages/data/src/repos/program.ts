@@ -1,10 +1,17 @@
 import type { TerritoriosClient } from '../client';
-import { ProgramWeekInsert, ProgramWeekRow, ProgramWeekUpdate } from '../schemas';
+import {
+  ProgramWeekInsert,
+  ProgramWeekRow,
+  ProgramWeekUpdate,
+  type ProgramData,
+  type ProgramKind,
+} from '../schemas';
 import {
   addDays,
   casDelete,
   casUpdate,
   from,
+  insertOrConflict,
   insertRow,
   parsePayload,
   parseRows,
@@ -33,6 +40,44 @@ export async function fetchProgramWeek(
     midweek: rows.find((r) => r.kind === 'midweek' && r.date === tuesday) ?? null,
     weekend: rows.find((r) => r.kind === 'weekend' && r.date === saturday) ?? null,
   };
+}
+
+/** Every program row (midweek Tuesdays and weekend Saturdays) between two dates, by date. */
+export async function fetchProgramWeeks(
+  sb: TerritoriosClient,
+  fromDate: string,
+  toDate: string,
+): Promise<ProgramWeekRow[]> {
+  const data = await run(
+    from(sb, 'program_weeks')
+      .select('*')
+      .gte('date', fromDate)
+      .lte('date', toDate)
+      .order('date')
+      .order('kind'),
+  );
+  return parseRows('program_weeks', ProgramWeekRow, data);
+}
+
+/**
+ * Program editor save. Without `expectedVersion` the row is inserted (a row created by
+ * someone else meanwhile ⇒ ConflictError, expectedVersion 0); with it, a CAS update on
+ * (kind, date). Editors or can_edit_programa (RLS).
+ */
+export async function saveProgramWeek(
+  sb: TerritoriosClient,
+  kind: ProgramKind,
+  date: string,
+  data: ProgramData,
+  expectedVersion?: number,
+): Promise<ProgramWeekRow> {
+  const key = { kind, date };
+  if (expectedVersion === undefined) {
+    const body = parsePayload('program_weeks', ProgramWeekInsert, { kind, date, data });
+    return insertOrConflict(sb, 'program_weeks', ProgramWeekRow, key, body);
+  }
+  const patch = parsePayload('program_weeks', ProgramWeekUpdate, { data });
+  return casUpdate(sb, 'program_weeks', ProgramWeekRow, key, expectedVersion, patch);
 }
 
 /** Races on (kind, date) surface as DataError with code 23505. */

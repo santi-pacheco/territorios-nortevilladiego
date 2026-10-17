@@ -12,6 +12,9 @@ export function bindAuth(qc: QueryClient, sb: TerritoriosClient): () => void {
     qc.setQueryData(qk.session, session);
     if (event === 'SIGNED_OUT') {
       qc.removeQueries({ queryKey: qk.people });
+      qc.removeQueries({ queryKey: qk.directory });
+      qc.removeQueries({ queryKey: qk.privilegios });
+      qc.removeQueries({ queryKey: [...qk.auth, 'permissions'] });
       qc.removeQueries({ queryKey: [...qk.auth, 'role'] });
       qc.removeQueries({ queryKey: [...qk.auth, 'my-link'] });
       qc.removeQueries({ queryKey: qk.myAssignmentsAll });
@@ -20,6 +23,7 @@ export function bindAuth(qc: QueryClient, sb: TerritoriosClient): () => void {
     }
     if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
       void qc.invalidateQueries({ queryKey: [...qk.auth, 'role'] });
+      void qc.invalidateQueries({ queryKey: [...qk.auth, 'permissions'] });
     }
   });
   return () => data.subscription.unsubscribe();

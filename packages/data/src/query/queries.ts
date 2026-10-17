@@ -4,12 +4,13 @@
  */
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { withDb } from '../client';
-import { listAccounts, myAssignments, myLink } from '../repos/accounts';
+import { listAccounts, myAssignments, myLink, myPermissions } from '../repos/accounts';
 import { fetchRole, fetchSession, isEditorRole, type AppRole } from '../repos/auth';
 import { addDays } from '../repos/base';
 import { fetchCartBoard } from '../repos/carrito';
-import { fetchPeople } from '../repos/people';
-import { fetchProgramWeek } from '../repos/program';
+import { fetchDutyPeople, fetchNameSources, fetchPeople } from '../repos/people';
+import { fetchDutyRoster } from '../repos/privilegios';
+import { fetchProgramWeek, fetchProgramWeeks } from '../repos/program';
 import { fetchServiceWeek } from '../repos/salidas';
 import { fetchTerritories } from '../repos/territories';
 import { qk } from './keys';
@@ -78,6 +79,33 @@ export const myAssignmentsQuery = (userId: string | null, from: string, to: stri
 export const accountsQuery = () =>
   queryOptions({ queryKey: qk.accounts, queryFn: () => withDb(listAccounts) });
 
+export const myPermissionsQuery = (userId: string | null) =>
+  queryOptions({
+    queryKey: qk.myPermissions(userId),
+    queryFn: () => withDb(myPermissions),
+    staleTime: 5 * 60_000,
+  });
+
+/** `from`/`to` are YYYY-MM-DD (inclusive). */
+export const programWeeksQuery = (from: string, to: string) =>
+  queryOptions({
+    queryKey: qk.programRange(from, to),
+    queryFn: () => withDb((sb) => fetchProgramWeeks(sb, from, to)),
+  });
+
+export const nameSourcesQuery = () =>
+  queryOptions({ queryKey: qk.nameSources, queryFn: () => withDb(fetchNameSources) });
+
+/** `from`/`to` are YYYY-MM-DD (inclusive). */
+export const dutyRosterQuery = (from: string, to: string) =>
+  queryOptions({
+    queryKey: qk.dutyRoster(from, to),
+    queryFn: () => withDb((sb) => fetchDutyRoster(sb, from, to)),
+  });
+
+export const dutyPeopleQuery = () =>
+  queryOptions({ queryKey: qk.dutyPeople, queryFn: () => withDb(fetchDutyPeople) });
+
 // ---------------------------------------------------------------------------
 // Hooks
 // ---------------------------------------------------------------------------
@@ -140,4 +168,44 @@ export function useMyAssignments(opts: { from?: string; to?: string; enabled?: b
 export function useAccounts(opts: { enabled?: boolean } = {}) {
   const { isEditor } = useRole();
   return useQuery({ ...accountsQuery(), enabled: opts.enabled ?? isEditor });
+}
+
+/**
+ * The caller's role and effective permissions (`can_edit_programa`, `can_edit_privilegios`,
+ * `sees_privilegios`). Disabled without a session (data undefined ⇒ treat as all false).
+ */
+export function useMyPermissions() {
+  const session = useSession();
+  const userId = session.data?.user.id ?? null;
+  return useQuery({ ...myPermissionsQuery(userId), enabled: userId !== null });
+}
+
+/** Program editor: rows between two dates (e.g. a month). Public read. */
+export const useProgramWeeks = (from: string, to: string) => useQuery(programWeeksQuery(from, to));
+
+/** Gestión ▸ Personas "Nombres sin vincular". Editor-only: disabled unless editor/admin. */
+export function useNameSources(opts: { enabled?: boolean } = {}) {
+  const { isEditor } = useRole();
+  return useQuery({ ...nameSourcesQuery(), enabled: opts.enabled ?? isEditor });
+}
+
+/**
+ * Privilegios table (`rows` + `days`) between two dates. Enabled when my_permissions says
+ * `sees_privilegios` (override with `enabled`).
+ */
+export function useDutyRoster(from: string, to: string, opts: { enabled?: boolean } = {}) {
+  const perms = useMyPermissions();
+  return useQuery({
+    ...dutyRosterQuery(from, to),
+    enabled: opts.enabled ?? perms.data?.sees_privilegios === true,
+  });
+}
+
+/** Person pickers for Gestión ▸ Privilegios. Enabled when the caller can edit privilegios. */
+export function useDutyPeople(opts: { enabled?: boolean } = {}) {
+  const perms = useMyPermissions();
+  return useQuery({
+    ...dutyPeopleQuery(),
+    enabled: opts.enabled ?? perms.data?.can_edit_privilegios === true,
+  });
 }

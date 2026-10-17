@@ -7,6 +7,7 @@ export const KIND_LABEL: Record<AssignmentKind, string> = {
   carrito: 'Carrito',
   programa: 'Reunión',
   salida: 'Salida',
+  privilegio: 'Privilegio',
 };
 
 /** "HH:MM", or null when the assignment has no time of its own. */

@@ -1,6 +1,11 @@
-/** Carrito roster. Editor/admin only (RLS); viewers get empty arrays, never an error. */
+/**
+ * People directory (carrito roster, privilegios tags, aliases). Editor/admin only (RLS);
+ * viewers get empty arrays, never an error.
+ */
 import type { TerritoriosClient } from '../client';
 import {
+  DutyPerson,
+  NameSource,
   PersonAvailabilityInsert,
   PersonAvailabilityRow,
   PersonInsert,
@@ -8,8 +13,19 @@ import {
   PersonPairRow,
   PersonRow,
   PersonUpdate,
+  type Gender,
 } from '../schemas';
-import { casDelete, casUpdate, from, insertRow, parsePayload, parseRows, run } from './base';
+import {
+  callRpc,
+  casDelete,
+  casUpdate,
+  from,
+  insertRow,
+  parsePayload,
+  parseRows,
+  parseRpcRows,
+  run,
+} from './base';
 
 export interface PeopleRoster {
   people: PersonRow[];
@@ -28,6 +44,21 @@ export async function fetchPeople(sb: TerritoriosClient): Promise<PeopleRoster> 
     people: parseRows('people', PersonRow, people),
     availability: parseRows('person_availability', PersonAvailabilityRow, availability),
     pairs: parseRows('person_pairs', PersonPairRow, pairs),
+  };
+}
+
+/**
+ * The carrito part of the roster: people with `in_carrito`, their availability, and only the
+ * pairs where both partners are in the carrito. Feed this (not the whole roster) to the
+ * scheduler (Generar) and the carrito person pickers.
+ */
+export function carritoPeople(roster: PeopleRoster): PeopleRoster {
+  const people = roster.people.filter((p) => p.in_carrito);
+  const ids = new Set(people.map((p) => p.id));
+  return {
+    people,
+    availability: roster.availability.filter((a) => ids.has(a.person_id)),
+    pairs: roster.pairs.filter((p) => ids.has(p.person_a) && ids.has(p.person_b)),
   };
 }
 
@@ -105,4 +136,54 @@ export async function removePair(
     { person_a: a, person_b: b },
     expectedVersion,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Directory RPCs (docs/PRIVILEGIOS.md)
+// ---------------------------------------------------------------------------
+/**
+ * Every distinct name used in the program, salidas and free-text roster cells, with the
+ * person it already matches (by name or alias). Unmatched names come first. Editor only.
+ */
+export async function fetchNameSources(sb: TerritoriosClient): Promise<NameSource[]> {
+  return parseRpcRows('name_sources', NameSource, await callRpc(sb, 'name_sources'));
+}
+
+/**
+ * "Crear persona" from an unmatched name; returns the new id. `inCarrito` defaults to false.
+ * 23505 when the name already matches someone (name or alias). Editor only.
+ */
+export async function createPersonFromName(
+  sb: TerritoriosClient,
+  name: string,
+  gender: Gender,
+  inCarrito = false,
+): Promise<string> {
+  const id = await callRpc(sb, 'create_person_from_name', {
+    p_name: name,
+    p_gender: gender,
+    p_in_carrito: inCarrito,
+  });
+  if (typeof id !== 'string') throw new TypeError('create_person_from_name: expected an id');
+  return id;
+}
+
+/**
+ * "Es otro nombre de…": append `alias` to the person's aliases (no-op when it already
+ * matches them; 23505 when it matches someone else). Editor only.
+ */
+export async function addPersonAlias(
+  sb: TerritoriosClient,
+  personId: string,
+  alias: string,
+): Promise<void> {
+  await callRpc(sb, 'add_person_alias', { p_person: personId, p_alias: alias });
+}
+
+/**
+ * People with any duty, for the Privilegios pickers and the Excel paste resolver. Works for
+ * editors and can_edit_privilegios users (who cannot read `people`); 42501 otherwise.
+ */
+export async function fetchDutyPeople(sb: TerritoriosClient): Promise<DutyPerson[]> {
+  return parseRpcRows('duty_people', DutyPerson, await callRpc(sb, 'duty_people'));
 }

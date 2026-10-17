@@ -106,6 +106,23 @@ Deno.test('composeMessage: programa without role, salida', () => {
   assertEquals(s.body, 'martes 20 · 09:45 · Salón');
 });
 
+Deno.test('composeMessage: privilegio (title = role label, no time)', () => {
+  const m = composeMessage(
+    carrito({
+      kind: 'privilegio',
+      key: 'privilegio:2026-10-14:sonido:1',
+      title: 'Sonido',
+      start_time: null,
+      place: null,
+      date: '2026-10-14',
+    }),
+    1,
+  );
+  assertEquals(m.title, 'Mañana: Sonido');
+  assertEquals(m.body, 'miércoles 14');
+  assertEquals(m.tag, 'privilegio:2026-10-14:sonido:1:1');
+});
+
 Deno.test('composeMessage never leaks other people (detail)', () => {
   const m = composeMessage(carrito({ detail: 'Bruno Prueba · Llevar exhibidor' }), 7);
   assertEquals(JSON.stringify(m).includes('Bruno'), false);

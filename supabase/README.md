@@ -9,14 +9,16 @@ supabase/
 ├─ migrations/
 │  ├─ 20261016185013_schema.sql         tables, constraints, triggers
 │  ├─ 20261016185225_rls_policies.sql   is_editor()/is_admin(), grants, RLS policies, realtime
-│  └─ 20261017024539_member_accounts.sql member accounts, assignment feed, reminders + cron
+│  ├─ 20261017024539_member_accounts.sql member accounts, assignment feed, reminders + cron
+│  └─ 20261017152708_people_directory_privilegios.sql people directory, permissions, Privilegios roster
 ├─ functions/
 │  └─ send-reminders/                   daily Web Push reminders (Deno; lib.ts is the pure part)
 ├─ seed.sql                             FAKE data for local dev only (never pushed)
 └─ tests/
    ├─ 00_schema_test.sql                RLS coverage, version trigger, constraints, derived data
    ├─ 01_rls_test.sql                   anon / viewer / no-profile / editor / admin personas
-   └─ 02_accounts_test.sql              new-user trigger, name matching, each kind, account RPCs
+   ├─ 02_accounts_test.sql              new-user trigger, name matching, each kind, account RPCs
+   └─ 03_privilegios_test.sql           name_sources, directory/permission RPCs, program + roster RLS
 ```
 
 ## Access model
@@ -58,6 +60,40 @@ supabase/
   `people.aliases` (e.g. "D. Gomez"). Editors add an alias when a PDF spells a name differently.
 - Permission failures raise `42501` (PostgREST answers 403).
 - `reminder_log` has RLS on and no grants. Only the secret key (the function) touches it.
+
+### People directory, permissions and Privilegios (docs/PRIVILEGIOS.md)
+
+| Who                                                     | duty_roster / duty_days | program_weeks write |
+| ------------------------------------------------------- | ----------------------- | ------------------- |
+| anon                                                    | nothing (no grant)      | no                  |
+| viewer                                                  | nothing (0 rows)        | no                  |
+| viewer whose linked person has any `people.duties` tag  | read                    | no                  |
+| `profiles.can_edit_programa`                            | nothing                 | yes                 |
+| `profiles.can_edit_privilegios`                         | read + write            | no                  |
+| editor / admin                                          | read + write            | yes                 |
+
+- Policies use `private.can_edit_programa()`, `private.can_edit_privilegios()` (invoker, own
+  profile row) and `private.sees_privilegios()` (DEFINER: it reads the linked person's duties).
+  `authenticated` has USAGE on `private` and EXECUTE on these three only; `private` is not an
+  exposed API schema.
+- `people.in_carrito` (default true): the scheduler and carrito pickers use only these
+  (`carritoPeople()` in packages/data). `people.duties` ⊆ computadora, sonido, microfonista, acomodador.
+- `duty_roster.person_name` is a trigger snapshot of `people.name` when `person_id` is set
+  (refreshed on rename; kept as free text when the person is deleted), otherwise free text.
+  Non-editors cannot read `people`, so the roster always shows `person_name`.
+- `my_assignments` kind `privilegio`: by `person_id`, or by name/alias for free-text cells;
+  key `privilegio:<date>:<role>:<slot>`, no start time; `duty_days` asamblea / sin_reunion
+  dates are skipped.
+
+| RPC                                                         | Who                              | What                                                                                       |
+| ----------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `name_sources()`                                            | editor/admin                     | distinct names in program, salida conductors and free-text roster cells, matched person or null (unmatched first) |
+| `create_person_from_name(p_name, p_gender, p_in_carrito)`   | editor/admin                     | new person (in_carrito default false); 23505 if the name/alias already matches someone     |
+| `add_person_alias(p_person, p_alias)`                       | editor/admin                     | append alias; no-op if it already matches the person, 23505 if it matches someone else     |
+| `set_account_permissions(p_user, p_programa, p_privilegios)` | admin                            | set the two grants (null = unchanged)                                                      |
+| `my_permissions()`                                          | authenticated                    | `(role, can_edit_programa, can_edit_privilegios, sees_privilegios)`, effective (editors: true) |
+| `duty_people()`                                             | editor/admin, can_edit_privilegios | `(id, name, duties, aliases)` of people with any duty (roster pickers)                    |
+| `list_accounts()`                                           | editor/admin                     | now also returns the stored `can_edit_programa`, `can_edit_privilegios`                    |
 
 ### Decisions to review (flagged for the coordinator/owner)
 

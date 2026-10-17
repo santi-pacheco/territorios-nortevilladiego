@@ -16,8 +16,8 @@ select is(
 
 select is(
   (select count(*)::int from pg_tables where schemaname = 'public'),
-  15,
-  'public has exactly the 15 planned tables'
+  17,
+  'public has exactly the 17 planned tables'
 );
 
 select is(

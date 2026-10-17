@@ -30,13 +30,16 @@ export const PUBLIC_REALTIME_TABLES = [
 ] as const satisfies readonly TableName[];
 
 /**
- * Editor-only tables (no anon grant). Kept on their own channel so a rejected binding can
- * never take the public channel down, and viewers never get their PK-only DELETE events.
+ * Editor-only / restricted tables (no anon grant). Kept on their own channel so a rejected
+ * binding can never take the public channel down, and viewers never get their PK-only DELETE
+ * events. The Privilegios tables ride along: non-editors who may read them refetch on focus.
  */
 export const EDITOR_REALTIME_TABLES = [
   'people',
   'person_availability',
   'person_pairs',
+  'duty_roster',
+  'duty_days',
 ] as const satisfies readonly TableName[];
 
 export const REALTIME_TABLES = [...PUBLIC_REALTIME_TABLES, ...EDITOR_REALTIME_TABLES] as const;
@@ -73,7 +76,7 @@ export interface RealtimeOptions {
   supabase: TerritoriosClient;
   queryClient: QueryClient;
   lifecycle?: AppLifecycle;
-  /** Also listen to people/person_availability/person_pairs. Enable only for editors. */
+  /** Also listen to EDITOR_REALTIME_TABLES (people…, duty_roster, duty_days). Enable only for editors. */
   includeEditorTables?: boolean;
   channelName?: string;
 }
