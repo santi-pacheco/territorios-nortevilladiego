@@ -16,6 +16,7 @@ import { DayStrip } from './DayStrip';
 import { shortRange } from '../programa/model';
 import { StationLine } from './StationLine';
 import { NextAssignment } from './NextAssignment';
+import { ShareWeekButton } from './ShareWeekButton';
 
 // Desktop splits Salidas with the day's map. The pane is a separate chunk (it carries maplibre),
 // requested only once the wide layout is actually shown.
@@ -112,6 +113,11 @@ export function SalidasScreen() {
             onPrev={() => setMonday(addDaysIso(monday, -7))}
             onNext={() => setMonday(addDaysIso(monday, 7))}
           />
+          {(week.data?.meetings.length ?? 0) > 0 && (
+            <div className="mx-auto flex w-full max-w-3xl justify-end px-4 pt-2">
+              <ShareWeekButton monday={monday} meetings={week.data!.meetings} />
+            </div>
+          )}
           {days.length > 0 && (
             <DayStrip
               days={days}

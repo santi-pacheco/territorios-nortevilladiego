@@ -1,15 +1,17 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Share2 } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { useCartSchedule, type CartBoard } from '@territorios/data';
 import { AccountButton } from '../../shell/AccountSheet';
 import { ScreenSkeleton } from '../../shell/AppShell';
 import { matchesMe, useMeName } from '../../lib/me';
+import { shareNodeAsPng } from '../../lib/shareImage';
 import { DAY_NAME, addDaysIso, fromIso, longDate, mondayOf, toIso } from '../../lib/week';
 import { shortRange } from '../programa/model';
+import { MonthShareCard } from './MonthShareCard';
 
 /** One rendered row of the schedule: a slot on a concrete date. */
-interface Turn {
+export interface Turn {
   date: string;
   dateObj: Date;
   weekday: string;
@@ -23,7 +25,7 @@ interface Turn {
   isMine: boolean;
 }
 
-interface WeekSection {
+export interface WeekSection {
   weekStart: string;
   heading: string;
   turns: Turn[];
@@ -236,6 +238,9 @@ export function Component() {
   const board = useCartSchedule(params.get('horario') ?? undefined);
   const me = useMeName();
   const [showPast, setShowPast] = useState(false);
+  const shareRef = useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(false);
 
   // The week table header sticks right under the screen header, whose height changes
   // with the caption, theme and text size; measure it instead of hardcoding.
@@ -271,6 +276,21 @@ export function Component() {
   const choices = (board.data?.schedules ?? [])
     .filter((s) => s.end_date >= today)
     .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+  async function shareMonth() {
+    const node = shareRef.current;
+    if (!node || !schedule) return;
+    setShareError(false);
+    setSharing(true);
+    try {
+      const range = shortRange(schedule.start_date, schedule.end_date);
+      await shareNodeAsPng(node, `carrito-${schedule.start_date}.png`, `${schedule.name} · ${range}`);
+    } catch {
+      setShareError(true);
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return (
     <main className="flex flex-1 flex-col">
@@ -317,6 +337,26 @@ export function Component() {
                   </span>
                 </label>
               ))}
+            </div>
+          </div>
+        )}
+        {schedule && sections.length > 0 && (
+          <div className="mx-auto flex w-full max-w-3xl justify-end px-4 pb-3" data-export-hide>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                type="button"
+                className="btn-secondary inline-flex items-center justify-center gap-2"
+                disabled={sharing}
+                onClick={shareMonth}
+              >
+                <Share2 aria-hidden size={24} />
+                {sharing ? 'Preparando imagen…' : 'Compartir mes'}
+              </button>
+              {shareError && (
+                <p role="alert" className="text-secondary text-danger">
+                  No pudimos preparar la imagen. Probá de nuevo.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -390,6 +430,10 @@ export function Component() {
           </>
         )}
       </div>
+
+      {schedule && sections.length > 0 && (
+        <MonthShareCard cardRef={shareRef} schedule={schedule} sections={sections} />
+      )}
     </main>
   );
 }
