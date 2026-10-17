@@ -16,7 +16,6 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Position } from '@territorios/platform';
 import type { TerritoryRow } from '@territorios/data';
 import { boundsOf, circleRing } from './model';
-import { colorForId } from '@territorios/core';
 
 export type MapTheme = 'light' | 'dark' | 'sol';
 
@@ -295,20 +294,20 @@ function paint(): void {
   const surface = token('--tk-bg-surface', '#ffffff');
   const meColor = token('--tk-map-me', '#1a73e8');
   tintBasemap(m);
-  // Salida territories wear their salida's colour; every other territory keeps its own soft
-  // v1 hue, so the map has colour without competing with the day's work.
-  m.setPaintProperty('terr-fill', 'fill-color', [
-    'coalesce',
-    ['feature-state', 'color'],
-    ['get', 'base'],
-  ]);
+  // Only the day's salida territories are filled, each in its salida's colour; the rest are
+  // outlines, so the day's work is the only colour on the map.
+  // A tapped territory outside the day's salidas is highlighted in neutral ink, never in a
+  // colour that could be mistaken for a salida.
+  m.setPaintProperty('terr-fill', 'fill-color', ['coalesce', ['feature-state', 'color'], ink]);
   m.setPaintProperty('terr-fill', 'fill-opacity', [
     'case',
-    selectedState,
+    ['all', selectedState, hasColor],
     0.8,
+    selectedState,
+    0.3,
     hasColor,
     0.62,
-    0.16,
+    0,
   ]);
   m.setPaintProperty('terr-line', 'line-color', [
     'case',
@@ -358,7 +357,7 @@ function territoryData(): GeoData {
       type: 'Feature',
       id: t.id,
       geometry: t.geometry,
-      properties: { id: t.id, base: colorForId(t.id).fill },
+      properties: { id: t.id },
     })),
   );
 }

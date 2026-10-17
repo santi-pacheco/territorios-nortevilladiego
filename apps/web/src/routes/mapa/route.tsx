@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { useSearchParams } from 'react-router';
 import { Compass, LocateFixed, LocateOff, Navigation } from 'lucide-react';
 import { useServiceWeek, useTerritories, type ServiceMeetingRow } from '@territorios/data';
-import { platform } from '@territorios/platform';
 import { AccountButton } from '../../shell/AccountSheet';
 import {
   DAY_NAME,
@@ -17,8 +16,7 @@ import { DayStrip } from '../salidas/DayStrip';
 import { dayColors } from '../../lib/salidaColors';
 import * as engine from './engine';
 import { Locator } from './locate';
-import { directionsUrl, meetingsForTerritory, parseTerritoryParam, type LocateMode } from './model';
-import { TerritorySheet } from './TerritorySheet';
+import { parseTerritoryParam, type LocateMode } from './model';
 import { subscribeTheme, themeSnapshot } from './theme';
 import './mapa.css';
 
@@ -112,11 +110,6 @@ export function Component() {
     if (territories.data) engine.focus(focusIds, tParam ?? 'all');
   }, [territories.data, focusIds, tParam]);
 
-  // ---- territory sheet -----------------------------------------------------
-  const sheetRef = useRef<HTMLDialogElement>(null);
-  const [sheetId, setSheetId] = useState<number | null>(null);
-  const sheetTerritory = territories.data?.find((t) => t.id === sheetId) ?? null;
-
   // ---- locate ----------------------------------------------------------------
   const [locate, setLocate] = useState<{ mode: LocateMode; message: string | null }>({
     mode: 'off',
@@ -127,9 +120,8 @@ export function Component() {
 
   useEffect(() => {
     engine.handlers.onTerritoryTap = (id) => {
-      setTap({ id, from: tParam });
-      setSheetId(id);
-      if (!sheetRef.current?.open) sheetRef.current?.showModal();
+      // A tap highlights that territory; tapping it again clears the highlight.
+      setTap((prev) => (prev && prev.id === id && prev.from === tParam ? null : { id, from: tParam }));
     };
     engine.handlers.onUserGesture = () => {
       if (locator.mode !== 'off') locator.set('off');
@@ -231,35 +223,6 @@ export function Component() {
         </div>
       )}
 
-      <dialog
-        ref={sheetRef}
-        className="sheet"
-        aria-labelledby="territory-title"
-        style={
-          day === null
-            ? undefined
-            : ({ '--day': `var(--tk-day-${DAY_TOKEN[day]}-accent)` } as React.CSSProperties)
-        }
-      >
-        {sheetTerritory && (
-          <TerritorySheet
-            territoryId={sheetTerritory.id}
-            dayLabel={dayLabel}
-            uses={meetingsForTerritory(dayMeetings, sheetTerritory.id)}
-            directions={directionsUrl(
-              sheetTerritory.centroid_lat,
-              sheetTerritory.centroid_lng,
-              `Territorio ${sheetTerritory.id}`,
-              {
-                kind: platform().kind,
-                userAgent: navigator.userAgent,
-                maxTouchPoints: navigator.maxTouchPoints,
-              },
-            )}
-            onClose={() => sheetRef.current?.close()}
-          />
-        )}
-      </dialog>
     </main>
   );
 }
