@@ -47,7 +47,11 @@ let map: MapLibreMap | null = null;
 let container: HTMLDivElement | null = null;
 let styleUrl = '';
 let rows: TerritoryRow[] = [];
-let highlight = { day: null as string | null, assigned: new Set<number>(), selected: new Set<number>() };
+let highlight = {
+  day: null as string | null,
+  assigned: new Set<number>(),
+  selected: new Set<number>(),
+};
 let me: Position | null = null;
 let lastFitKey: string | null = null;
 
@@ -111,6 +115,7 @@ export function setTheme(theme: MapTheme): void {
 
 function bind(m: MapLibreMap): void {
   m.on('style.load', () => {
+    tuneBasemap(m);
     install(m);
     render();
   });
@@ -135,13 +140,21 @@ function install(m: MapLibreMap): void {
   m.addSource('labels', { type: 'geojson', data: labelData() });
   m.addSource('me', { type: 'geojson', data: meData() });
   const clear = 'rgba(0,0,0,0)';
-  m.addLayer({ id: 'terr-fill', type: 'fill', source: 'territories', paint: { 'fill-color': clear } });
-  m.addLayer({
-    id: 'terr-line',
-    type: 'line',
-    source: 'territories',
-    paint: { 'line-color': clear, 'line-width': 1.5 },
-  });
+  // Fills and outlines sit under the basemap's labels so street names stay readable on top.
+  const firstLabel = m.getStyle().layers.find((l) => l.type === 'symbol')?.id;
+  m.addLayer(
+    { id: 'terr-fill', type: 'fill', source: 'territories', paint: { 'fill-color': clear } },
+    firstLabel,
+  );
+  m.addLayer(
+    {
+      id: 'terr-line',
+      type: 'line',
+      source: 'territories',
+      paint: { 'line-color': clear, 'line-width': 1.5 },
+    },
+    firstLabel,
+  );
   m.addLayer({
     id: 'terr-label-bg',
     type: 'circle',
@@ -157,7 +170,10 @@ function install(m: MapLibreMap): void {
       'text-font': LABEL_FONT,
       'text-size': 13,
       'text-allow-overlap': true,
-      'text-ignore-placement': true,
+      // Numbers always show, and their footprint (the 13 px circle) pushes street
+      // names aside instead of being drawn on top of them.
+      'text-ignore-placement': false,
+      'text-padding': 9,
     },
     paint: { 'text-color': clear },
   });
@@ -175,6 +191,65 @@ function install(m: MapLibreMap): void {
     filter: ['==', ['geometry-type'], 'Point'],
     paint: { 'circle-radius': 7, 'circle-stroke-width': 3, 'circle-color': clear },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Basemap legibility. CARTO draws minor street names only from z16, at 9 px, in
+// light grey: unreadable outdoors. Members navigate by street name, so names show
+// from z14.5, larger, in ink with a halo, and street outlines get more contrast.
+// ---------------------------------------------------------------------------
+const ROAD_NAMES: Record<string, { minzoom: number; size: ExpressionSpecification }> = {
+  roadname_minor: {
+    minzoom: 14.5,
+    size: ['interpolate', ['linear'], ['zoom'], 14.5, 11, 16, 13, 18, 16],
+  },
+  roadname_sec: {
+    minzoom: 13.5,
+    size: ['interpolate', ['linear'], ['zoom'], 13.5, 11.5, 16, 14, 18, 17],
+  },
+  roadname_pri: {
+    minzoom: 13,
+    size: ['interpolate', ['linear'], ['zoom'], 13, 12, 16, 15, 18, 18],
+  },
+  roadname_major: {
+    minzoom: 12,
+    size: ['interpolate', ['linear'], ['zoom'], 12, 12, 16, 15, 18, 18],
+  },
+};
+const ROAD_CASINGS = ['road_minor_case', 'road_sec_case_noramp', 'road_service_case'];
+
+function tuneBasemap(m: MapLibreMap): void {
+  for (const [id, cfg] of Object.entries(ROAD_NAMES)) {
+    if (!m.getLayer(id)) continue;
+    m.setLayerZoomRange(id, cfg.minzoom, 24);
+    m.setLayoutProperty(id, 'text-size', cfg.size);
+    m.setLayoutProperty(id, 'text-font', [
+      'Montserrat Medium',
+      'Open Sans Semibold',
+      'Noto Sans Regular',
+    ]);
+    m.setLayoutProperty(id, 'text-padding', 2);
+    // Repeat names more often along a street, so one hidden by a territory number shows again nearby.
+    m.setLayoutProperty(id, 'symbol-spacing', 140);
+  }
+  // Minor street outlines from z13 so the grid reads before names appear.
+  if (m.getLayer('road_minor_case')) m.setLayerZoomRange('road_minor_case', 13, 24);
+  if (m.getLayer('road_minor_fill')) m.setLayerZoomRange('road_minor_fill', 13, 24);
+  tintBasemap(m);
+}
+
+function tintBasemap(m: MapLibreMap): void {
+  const ink = token('--tk-text-primary', '#14181f');
+  const surface = token('--tk-bg-surface', '#ffffff');
+  const casing = token('--tk-border-strong', '#8994a6');
+  for (const id of Object.keys(ROAD_NAMES)) {
+    if (!m.getLayer(id)) continue;
+    m.setPaintProperty(id, 'text-color', ink);
+    m.setPaintProperty(id, 'text-halo-color', surface);
+    m.setPaintProperty(id, 'text-halo-width', 2);
+    m.setPaintProperty(id, 'text-halo-blur', 0);
+  }
+  for (const id of ROAD_CASINGS) if (m.getLayer(id)) m.setPaintProperty(id, 'line-color', casing);
 }
 
 function ready(): MapLibreMap | null {
@@ -213,6 +288,7 @@ function paint(): void {
   const ink = token('--tk-text-primary', '#14181f');
   const surface = token('--tk-bg-surface', '#ffffff');
   const meColor = token('--tk-map-me', '#1a73e8');
+  tintBasemap(m);
   m.setPaintProperty('terr-fill', 'fill-color', fill);
   m.setPaintProperty('terr-line', 'line-color', token('--tk-map-outline', ink));
   m.setPaintProperty('terr-label-bg', 'circle-color', ink);
@@ -244,7 +320,12 @@ function render(): void {
 // ---------------------------------------------------------------------------
 function territoryData(): GeoData {
   return collection(
-    rows.map((t) => ({ type: 'Feature', id: t.id, geometry: t.geometry, properties: { id: t.id } })),
+    rows.map((t) => ({
+      type: 'Feature',
+      id: t.id,
+      geometry: t.geometry,
+      properties: { id: t.id },
+    })),
   );
 }
 
@@ -282,7 +363,11 @@ export function setTerritories(next: TerritoryRow[]): void {
 }
 
 /** `day` is the token slug (e.g. "jueves"); null when the week has no salidas. */
-export function setHighlight(day: string | null, assigned: Set<number>, selected: Set<number>): void {
+export function setHighlight(
+  day: string | null,
+  assigned: Set<number>,
+  selected: Set<number>,
+): void {
   const dayChanged = day !== highlight.day;
   highlight = { day, assigned, selected };
   if (dayChanged) paint();
