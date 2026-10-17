@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import type { GroupTerritories, ServiceMeetingRow } from '@territorios/data';
 import { DAY_SLUGS, DAY_TOKEN, minutesOf, untilLabel } from '../../lib/week';
 import { changedSinceSeen, markSeen } from '../../lib/seen';
+import { dayColors } from '../../lib/salidaColors';
 
 interface Props {
   dow: number;
@@ -29,8 +30,10 @@ function stateOf(m: ServiceMeetingRow, nowMin: number | null, nextId: string | n
 /** The day drawn as a train line: each salida is a station, in time order. */
 export function StationLine({ dow, meetings, now, onHover, onShow }: Props) {
   const nowMin = now ? now.getHours() * 60 + now.getMinutes() : null;
+  const colors = dayColors(meetings).byKey;
   const ordered = [...meetings].sort(
-    (a, b) => (minutesOf(a.start_time) ?? 0) - (minutesOf(b.start_time) ?? 0) || a.position - b.position,
+    (a, b) =>
+      (minutesOf(a.start_time) ?? 0) - (minutesOf(b.start_time) ?? 0) || a.position - b.position,
   );
   const next =
     nowMin === null
@@ -89,10 +92,20 @@ export function StationLine({ dow, meetings, now, onHover, onShow }: Props) {
                 </p>
               )}
               {m.kind === 'domingo' && (
-                <GroupRows dow={dow} groups={m.group_territories} onShow={onShow} />
+                <GroupRows
+                  dow={dow}
+                  groups={m.group_territories}
+                  onShow={onShow}
+                  colorOf={(g) => colors.get(`${m.id}:${g}`)}
+                />
               )}
               {m.territory_ids.length > 0 && (
-                <Roundels dow={dow} ids={m.territory_ids} onShow={onShow} />
+                <Roundels
+                  dow={dow}
+                  ids={m.territory_ids}
+                  onShow={onShow}
+                  color={colors.get(m.id)}
+                />
               )}
             </article>
           </li>
@@ -115,11 +128,14 @@ function Roundels({
   ids,
   label,
   onShow,
+  color,
 }: {
   dow: number;
   ids: number[];
   label?: string;
   onShow: ShowFn;
+  /** The salida's colour, the same one its territories wear on the map. */
+  color?: string | undefined;
 }) {
   return (
     <Link
@@ -137,7 +153,11 @@ function Roundels({
       }
     >
       {ids.map((id) => (
-        <span key={id} className="roundel">
+        <span
+          key={id}
+          className="roundel"
+          style={color ? { background: color, color: '#fff' } : undefined}
+        >
           {id}
         </span>
       ))}
@@ -150,10 +170,12 @@ function GroupRows({
   dow,
   groups,
   onShow,
+  colorOf,
 }: {
   dow: number;
   groups: GroupTerritories;
   onShow: ShowFn;
+  colorOf: (group: string) => string | undefined;
 }) {
   const keys = (['G1', 'G2', 'G3', 'G4'] as const).filter((g) => (groups[g]?.length ?? 0) > 0);
   if (!keys.length) return null;
@@ -163,7 +185,13 @@ function GroupRows({
         <div key={g} className="contents">
           <dt className="font-mono text-secondary font-bold">{g}</dt>
           <dd>
-            <Roundels dow={dow} ids={groups[g]!} label={`Grupo ${g.slice(1)}`} onShow={onShow} />
+            <Roundels
+              dow={dow}
+              ids={groups[g]!}
+              label={`Grupo ${g.slice(1)}`}
+              onShow={onShow}
+              color={colorOf(g)}
+            />
           </dd>
         </div>
       ))}

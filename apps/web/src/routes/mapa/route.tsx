@@ -4,17 +4,20 @@ import { Compass, LocateFixed, LocateOff, Navigation } from 'lucide-react';
 import { useServiceWeek, useTerritories, type ServiceMeetingRow } from '@territorios/data';
 import { platform } from '@territorios/platform';
 import { AccountButton } from '../../shell/AccountSheet';
-import { DAY_NAME, DAY_SLUGS, DAY_TOKEN, WEEK_ORDER, dateOfDow, mondayOf, slugToDow } from '../../lib/week';
+import {
+  DAY_NAME,
+  DAY_SLUGS,
+  DAY_TOKEN,
+  WEEK_ORDER,
+  dateOfDow,
+  mondayOf,
+  slugToDow,
+} from '../../lib/week';
 import { DayStrip } from '../salidas/DayStrip';
+import { dayColors } from '../../lib/salidaColors';
 import * as engine from './engine';
 import { Locator } from './locate';
-import {
-  directionsUrl,
-  meetingsForTerritory,
-  parseTerritoryParam,
-  territoriesOfDay,
-  type LocateMode,
-} from './model';
+import { directionsUrl, meetingsForTerritory, parseTerritoryParam, type LocateMode } from './model';
 import { TerritorySheet } from './TerritorySheet';
 import { subscribeTheme, themeSnapshot } from './theme';
 import './mapa.css';
@@ -98,7 +101,11 @@ export function Component() {
 
   useEffect(() => {
     const selected = new Set(selectedKey ? selectedKey.split(',').map(Number) : []);
-    engine.setHighlight(day === null ? null : (DAY_TOKEN[day] ?? null), territoriesOfDay(dayMeetings), selected);
+    engine.setHighlight(
+      day === null ? null : (DAY_TOKEN[day] ?? null),
+      dayColors(dayMeetings).byTerritory,
+      selected,
+    );
   }, [day, dayMeetings, selectedKey]);
 
   useEffect(() => {
@@ -146,7 +153,10 @@ export function Component() {
     <main className="relative min-h-0 flex-1 overflow-hidden">
       <div ref={hostRef} className="mapa-host" aria-label="Mapa de territorios" role="region" />
 
-      <header ref={overlayRef} className="absolute inset-x-0 top-0 z-10 border-b border-line bg-surface">
+      <header
+        ref={overlayRef}
+        className="absolute inset-x-0 top-0 z-10 border-b border-line bg-surface"
+      >
         <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3">
           <div className="min-w-0 flex-1">
             <p className="text-secondary text-ink-soft">
@@ -167,7 +177,13 @@ export function Component() {
             ))}
           </div>
         ) : days.length > 0 ? (
-          <DayStrip days={days} counts={byDow} selected={day} todayDow={todayDow} onSelect={selectDay} />
+          <DayStrip
+            days={days}
+            counts={byDow}
+            selected={day}
+            todayDow={todayDow}
+            onSelect={selectDay}
+          />
         ) : (
           <div className="pb-2" />
         )}
@@ -176,7 +192,10 @@ export function Component() {
       {(!webgl || loadFailed || (territories.data && territories.data.length === 0)) && (
         <div className="mapa-notice" role="status">
           {!webgl ? (
-            <p>Este dispositivo no puede mostrar el mapa. Probá con otro navegador o actualizá el sistema.</p>
+            <p>
+              Este dispositivo no puede mostrar el mapa. Probá con otro navegador o actualizá el
+              sistema.
+            </p>
           ) : loadFailed ? (
             <>
               <p>No pudimos cargar los territorios. Revisá la conexión.</p>
@@ -185,7 +204,9 @@ export function Component() {
               </button>
             </>
           ) : (
-            <p>Todavía no hay territorios cargados. Cuando los encargados los importen, aparecen acá.</p>
+            <p>
+              Todavía no hay territorios cargados. Cuando los encargados los importen, aparecen acá.
+            </p>
           )}
         </div>
       )}
@@ -215,7 +236,9 @@ export function Component() {
         className="sheet"
         aria-labelledby="territory-title"
         style={
-          day === null ? undefined : ({ '--day': `var(--tk-day-${DAY_TOKEN[day]}-accent)` } as React.CSSProperties)
+          day === null
+            ? undefined
+            : ({ '--day': `var(--tk-day-${DAY_TOKEN[day]}-accent)` } as React.CSSProperties)
         }
       >
         {sheetTerritory && (

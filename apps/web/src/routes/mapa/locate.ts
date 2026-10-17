@@ -51,7 +51,8 @@ export class Locator {
         this.firstFix = true;
         this.stopPosition = platform().watchPosition(
           (p) => this.onPosition(p),
-          () => this.set('off', 'No pudimos ubicarte. Revisá que la app tenga permiso de ubicación.'),
+          () =>
+            this.set('off', 'No pudimos ubicarte. Revisá que la app tenga permiso de ubicación.'),
         );
         // A platform without geolocation reports the error synchronously: we are already off.
         if (this.mode === 'off') {
@@ -84,7 +85,10 @@ export class Locator {
       })
       .catch(() => {
         if (run === this.headingRun)
-          this.set('follow', 'No pudimos usar la brújula. Seguimos tu ubicación sin girar el mapa.');
+          this.set(
+            'follow',
+            'No pudimos usar la brújula. Seguimos tu ubicación sin girar el mapa.',
+          );
       });
   }
 

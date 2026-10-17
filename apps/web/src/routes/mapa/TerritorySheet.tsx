@@ -46,7 +46,9 @@ export function TerritorySheet({ territoryId, dayLabel, uses, directions, onClos
                 {m.start_time || 'Sin hora'}
               </time>
               <div className="min-w-0">
-                <p className="text-body font-semibold break-words">{m.place || 'Lugar a confirmar'}</p>
+                <p className="text-body font-semibold break-words">
+                  {m.place || 'Lugar a confirmar'}
+                </p>
                 {(m.conductor || groups.length > 0) && (
                   <p className="text-secondary text-ink-soft break-words">
                     {m.conductor && <>Conduce {m.conductor}</>}

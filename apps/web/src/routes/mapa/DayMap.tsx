@@ -7,8 +7,9 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { useNavigate } from 'react-router';
 import { useTerritories, type ServiceMeetingRow } from '@territorios/data';
 import { DAY_NAME, DAY_SLUGS, DAY_TOKEN } from '../../lib/week';
+import { dayColors } from '../../lib/salidaColors';
 import * as engine from './engine';
-import { territoriesOfDay, territoriesOfMeeting } from './model';
+import { territoriesOfMeeting } from './model';
 import { subscribeTheme, themeSnapshot } from './theme';
 import './mapa.css';
 
@@ -49,22 +50,22 @@ export default function DayMap({ dow, meetings, dayKey, hoverId, pick }: DayMapP
     if (territories.data) engine.setTerritories(territories.data);
   }, [territories.data]);
 
-  const assigned = useMemo(() => territoriesOfDay(meetings), [meetings]);
+  const colors = useMemo(() => dayColors(meetings).byTerritory, [meetings]);
   const hovered = meetings.find((m) => m.id === hoverId);
   const selectedKey = (hovered ? territoriesOfMeeting(hovered) : (pick?.ids ?? [])).join(',');
 
   useEffect(() => {
     const selected = new Set(selectedKey ? selectedKey.split(',').map(Number) : []);
-    engine.setHighlight(DAY_TOKEN[dow] ?? null, assigned, selected);
-  }, [dow, assigned, selectedKey]);
+    engine.setHighlight(DAY_TOKEN[dow] ?? null, colors, selected);
+  }, [dow, colors, selectedKey]);
 
   // Frame the day's territories; a roundel click frames its own and stays until the day changes.
   const loaded = territories.data !== undefined;
   useEffect(() => {
     if (!loaded) return;
     if (pick) engine.focus(pick.ids, `salidas:${dayKey}:pick:${pick.n}`);
-    else engine.focus([...assigned], `salidas:${dayKey}`);
-  }, [loaded, dayKey, pick, assigned]);
+    else engine.focus([...colors.keys()], `salidas:${dayKey}`);
+  }, [loaded, dayKey, pick, colors]);
 
   // A tap on a polygon opens the full Mapa on it: directions and the sheet live there.
   useEffect(() => {

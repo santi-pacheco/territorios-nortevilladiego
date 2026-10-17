@@ -61,10 +61,35 @@ describe('mapa model', () => {
   it('computes bounds across polygons and multipolygons', () => {
     expect(
       boundsOf([
-        { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
-        { type: 'MultiPolygon', coordinates: [[[[-2, 3], [-1, 3], [-1, 4], [-2, 3]]]] },
+        {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+        {
+          type: 'MultiPolygon',
+          coordinates: [
+            [
+              [
+                [-2, 3],
+                [-1, 3],
+                [-1, 4],
+                [-2, 3],
+              ],
+            ],
+          ],
+        },
       ]),
-    ).toEqual([[-2, 0], [1, 4]]);
+    ).toEqual([
+      [-2, 0],
+      [1, 4],
+    ]);
     expect(boundsOf([])).toBeNull();
   });
 
@@ -73,7 +98,9 @@ describe('mapa model', () => {
       directionsUrl(-34.6, -58.4, 'Territorio 1', { kind, userAgent, maxTouchPoints });
     expect(at('android', '')).toMatch(/^geo:-34\.600000,-58\.400000\?q=/);
     expect(at('web', 'Mozilla/5.0 (Linux; Android 14)')).toMatch(/^geo:/);
-    expect(at('web', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)')).toMatch(/^https:\/\/maps\.apple\.com\//);
+    expect(at('web', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)')).toMatch(
+      /^https:\/\/maps\.apple\.com\//,
+    );
     expect(at('web', 'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 5)).toMatch(/maps\.apple\.com/);
     expect(at('web', 'Mozilla/5.0 (Windows NT 10.0)')).toBe(
       'https://www.google.com/maps/dir/?api=1&destination=-34.600000,-58.400000',
@@ -95,7 +122,12 @@ describe('territory sheet', () => {
       <TerritorySheet
         territoryId={1}
         dayLabel="Jueves 15"
-        uses={[{ meeting: meeting({ place: payload, conductor: payload, territory_ids: [1] }), groups: [] }]}
+        uses={[
+          {
+            meeting: meeting({ place: payload, conductor: payload, territory_ids: [1] }),
+            groups: [],
+          },
+        ]}
         directions="https://www.google.com/maps/dir/?api=1&destination=0,0"
         onClose={() => {}}
       />,
@@ -113,7 +145,13 @@ describe('territory sheet', () => {
       1,
     );
     const html = renderToStaticMarkup(
-      <TerritorySheet territoryId={1} dayLabel="Jueves 15" uses={uses} directions="geo:0,0" onClose={() => {}} />,
+      <TerritorySheet
+        territoryId={1}
+        dayLabel="Jueves 15"
+        uses={uses}
+        directions="geo:0,0"
+        onClose={() => {}}
+      />,
     );
     expect(html).toContain('2 salidas');
     expect(html).toContain('Primera');

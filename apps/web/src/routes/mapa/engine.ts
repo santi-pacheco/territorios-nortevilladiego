@@ -16,6 +16,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { Position } from '@territorios/platform';
 import type { TerritoryRow } from '@territorios/data';
 import { boundsOf, circleRing } from './model';
+import { colorForId } from '@territorios/core';
 
 export type MapTheme = 'light' | 'dark' | 'sol';
 
@@ -49,7 +50,8 @@ let styleUrl = '';
 let rows: TerritoryRow[] = [];
 let highlight = {
   day: null as string | null,
-  assigned: new Set<number>(),
+  /** Territory id -> colour of the salida that works it that day. */
+  colors: new Map<number, string>(),
   selected: new Set<number>(),
 };
 let me: Position | null = null;
@@ -287,25 +289,42 @@ function token(name: string, fallback = 'rgba(0,0,0,0)'): string {
 function paint(): void {
   const m = ready();
   if (!m) return;
-  const day = highlight.day;
-  const assigned = day ? token(`--tk-map-assigned-${day}`) : 'rgba(0,0,0,0)';
-  const selected = day ? token(`--tk-map-selected-${day}`) : token('--tk-border-strong');
-  const fill: ExpressionSpecification = [
-    'case',
-    ['boolean', ['feature-state', 'selected'], false],
-    selected,
-    ['boolean', ['feature-state', 'assigned'], false],
-    assigned,
-    'rgba(0,0,0,0)',
-  ];
+  const hasColor: ExpressionSpecification = ['to-boolean', ['feature-state', 'color']];
+  const selectedState: ExpressionSpecification = ['boolean', ['feature-state', 'selected'], false];
   const ink = token('--tk-text-primary', '#14181f');
   const surface = token('--tk-bg-surface', '#ffffff');
   const meColor = token('--tk-map-me', '#1a73e8');
   tintBasemap(m);
-  m.setPaintProperty('terr-fill', 'fill-color', fill);
-  m.setPaintProperty('terr-line', 'line-color', token('--tk-map-outline', ink));
-  m.setPaintProperty('terr-label-bg', 'circle-color', ink);
-  m.setPaintProperty('terr-label', 'text-color', surface);
+  // Salida territories wear their salida's colour; every other territory keeps its own soft
+  // v1 hue, so the map has colour without competing with the day's work.
+  m.setPaintProperty('terr-fill', 'fill-color', [
+    'coalesce',
+    ['feature-state', 'color'],
+    ['get', 'base'],
+  ]);
+  m.setPaintProperty('terr-fill', 'fill-opacity', [
+    'case',
+    selectedState,
+    0.8,
+    hasColor,
+    0.62,
+    0.16,
+  ]);
+  m.setPaintProperty('terr-line', 'line-color', [
+    'case',
+    hasColor,
+    ['feature-state', 'color'],
+    token('--tk-map-outline', ink),
+  ]);
+  m.setPaintProperty('terr-line', 'line-width', ['case', selectedState, 3.5, hasColor, 2.5, 1.25]);
+  m.setPaintProperty('terr-label-bg', 'circle-color', [
+    'coalesce',
+    ['feature-state', 'color'],
+    ink,
+  ]);
+  m.setPaintProperty('terr-label-bg', 'circle-stroke-color', '#ffffff');
+  m.setPaintProperty('terr-label-bg', 'circle-stroke-width', ['case', hasColor, 2, 0]);
+  m.setPaintProperty('terr-label', 'text-color', ['case', hasColor, '#ffffff', surface]);
   m.setPaintProperty('me-accuracy', 'fill-color', meColor);
   m.setPaintProperty('me-accuracy', 'fill-opacity', 0.15);
   m.setPaintProperty('me-dot', 'circle-color', meColor);
@@ -316,10 +335,12 @@ function states(): void {
   const m = ready();
   if (!m) return;
   for (const t of rows) {
-    m.setFeatureState(
-      { source: 'territories', id: t.id },
-      { assigned: highlight.assigned.has(t.id), selected: highlight.selected.has(t.id) },
-    );
+    const state = {
+      color: highlight.colors.get(t.id) ?? null,
+      selected: highlight.selected.has(t.id),
+    };
+    m.setFeatureState({ source: 'territories', id: t.id }, state);
+    m.setFeatureState({ source: 'labels', id: t.id }, state);
   }
 }
 
@@ -337,7 +358,7 @@ function territoryData(): GeoData {
       type: 'Feature',
       id: t.id,
       geometry: t.geometry,
-      properties: { id: t.id },
+      properties: { id: t.id, base: colorForId(t.id).fill },
     })),
   );
 }
@@ -378,11 +399,11 @@ export function setTerritories(next: TerritoryRow[]): void {
 /** `day` is the token slug (e.g. "jueves"); null when the week has no salidas. */
 export function setHighlight(
   day: string | null,
-  assigned: Set<number>,
+  colors: Map<number, string>,
   selected: Set<number>,
 ): void {
   const dayChanged = day !== highlight.day;
-  highlight = { day, assigned, selected };
+  highlight = { day, colors, selected };
   if (dayChanged) paint();
   states();
 }

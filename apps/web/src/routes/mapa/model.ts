@@ -24,7 +24,10 @@ export interface MeetingUse {
 }
 
 /** All salidas of the day that use `territoryId`, in time order. */
-export function meetingsForTerritory(meetings: ServiceMeetingRow[], territoryId: number): MeetingUse[] {
+export function meetingsForTerritory(
+  meetings: ServiceMeetingRow[],
+  territoryId: number,
+): MeetingUse[] {
   const uses: MeetingUse[] = [];
   for (const m of meetings) {
     const groups = groupsUsing(m.group_territories, territoryId);
@@ -70,7 +73,12 @@ export function boundsOf(geometries: TerritoryGeometry[]): Bounds | null {
     const polygons = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
     for (const poly of polygons) for (const ring of poly) ring.forEach(visit);
   }
-  return Number.isFinite(w) ? [[w, s], [e, n]] : null;
+  return Number.isFinite(w)
+    ? [
+        [w, s],
+        [e, n],
+      ]
+    : null;
 }
 
 export interface DeviceHint {
