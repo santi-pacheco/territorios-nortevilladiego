@@ -1,17 +1,38 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { ServiceMeetingRow } from '@territorios/data';
 import { colorForDow } from '@territorios/core';
-import { DAY_NAME, WEEK_ORDER, addDaysIso, dateOfDow, fromIso, minutesOf } from '../../lib/week';
+import {
+  DAY_NAME,
+  WEEK_ORDER,
+  addDaysIso,
+  dateOfDow,
+  displayTime,
+  fromIso,
+  minutesOf,
+} from '../../lib/week';
 
 /** Export width in CSS px; the snapshot runs at pixelRatio 2, so WhatsApp gets a crisp image. */
 const WIDTH = 1080;
 const GROUPS = ['G1', 'G2', 'G3', 'G4'] as const;
 const MONTHS = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
 ];
-/** HORA · LUGAR · CONDUCTOR · GRUPOS · TERRITORIO. */
-const COLUMNS = '160px minmax(0,1.75fr) minmax(0,1.65fr) minmax(0,0.75fr) minmax(0,1.25fr)';
+/**
+ * HORA · LUGAR · CONDUCTOR · GRUPOS · TERRITORIO. Fixed widths for the short columns so every
+ * day block lines up; "Congregacional" and four territory numbers fit without splitting words.
+ */
+const COLUMNS = '96px minmax(0,1.3fr) minmax(0,1.1fr) 186px 204px';
 
 /** "12 al 18 de octubre", or "28 de septiembre al 4 de octubre" across months. */
 export function weekLabel(monday: string): string {
@@ -23,7 +44,11 @@ export function weekLabel(monday: string): string {
 }
 
 function byTime(a: ServiceMeetingRow, b: ServiceMeetingRow): number {
-  return (minutesOf(a.start_time) ?? 0) - (minutesOf(b.start_time) ?? 0) || a.position - b.position;
+  // Unreadable times go last instead of first.
+  return (
+    (minutesOf(a.start_time) ?? 24 * 60) - (minutesOf(b.start_time) ?? 24 * 60) ||
+    a.position - b.position
+  );
 }
 
 /**
@@ -55,10 +80,7 @@ export function WeekShareCard({
   const days = WEEK_ORDER.filter((d) => byDow.has(d));
 
   return (
-    <div
-      aria-hidden
-      style={{ position: 'fixed', left: -100_000, top: 0, pointerEvents: 'none' }}
-    >
+    <div aria-hidden style={{ position: 'fixed', left: -100_000, top: 0, pointerEvents: 'none' }}>
       <div
         ref={ref}
         style={{
@@ -88,7 +110,15 @@ export function WeekShareCard({
   );
 }
 
-function DayBlock({ dow, date, meetings }: { dow: number; date: Date; meetings: ServiceMeetingRow[] }) {
+function DayBlock({
+  dow,
+  date,
+  meetings,
+}: {
+  dow: number;
+  date: Date;
+  meetings: ServiceMeetingRow[];
+}) {
   const color = colorForDow(dow);
   const rows = [...meetings].sort(byTime);
   return (
@@ -108,7 +138,7 @@ function DayBlock({ dow, date, meetings }: { dow: number; date: Date; meetings: 
         style={{
           display: 'grid',
           gridTemplateColumns: COLUMNS,
-          gap: 0,
+          gap: '0 12px',
           background: color.band,
           color: color.ink,
           fontSize: 17,
@@ -144,11 +174,11 @@ function MeetingRow({ meeting, last }: { meeting: ServiceMeetingRow; last: boole
       }}
     >
       <span style={{ fontFamily: 'var(--tk-font-numeric)', fontWeight: 700 }}>
-        {meeting.start_time || '—'}
+        {meeting.start_time ? displayTime(meeting.start_time) : '—'}
       </span>
-      <span style={{ overflowWrap: 'anywhere' }}>{meeting.place || 'A confirmar'}</span>
-      <span style={{ overflowWrap: 'anywhere' }}>{meeting.conductor || '—'}</span>
-      <span style={{ overflowWrap: 'anywhere' }}>{meeting.groups || '—'}</span>
+      <span style={{ overflowWrap: 'break-word' }}>{meeting.place || 'A confirmar'}</span>
+      <span style={{ overflowWrap: 'break-word' }}>{meeting.conductor || '—'}</span>
+      <span style={{ overflowWrap: 'break-word' }}>{meeting.groups || '—'}</span>
       <Territories meeting={meeting} />
     </div>
   );
@@ -157,7 +187,8 @@ function MeetingRow({ meeting, last }: { meeting: ServiceMeetingRow; last: boole
 function Territories({ meeting }: { meeting: ServiceMeetingRow }) {
   if (meeting.kind === 'domingo') {
     const entries = GROUPS.filter((g) => (meeting.group_territories[g]?.length ?? 0) > 0);
-    if (entries.length === 0) return <span style={{ color: '#4A5363' }}>—</span>;
+    // Domingo without a per-group split lists its territories like any other day.
+    if (entries.length === 0) return <TerritoryList ids={meeting.territory_ids} />;
     return (
       <span
         style={{
@@ -170,16 +201,19 @@ function Territories({ meeting }: { meeting: ServiceMeetingRow }) {
       >
         {entries.map((g) => (
           <span key={g}>
-            {g} {(meeting.group_territories[g] ?? []).join(',')}
+            {g} {(meeting.group_territories[g] ?? []).join(', ')}
           </span>
         ))}
       </span>
     );
   }
-  if (meeting.territory_ids.length === 0) return <span style={{ color: '#4A5363' }}>—</span>;
+  return <TerritoryList ids={meeting.territory_ids} />;
+}
+
+function TerritoryList({ ids }: { ids: number[] }) {
+  if (ids.length === 0) return <span style={{ color: '#4A5363' }}>—</span>;
+  // Spaces after the commas let a long list wrap between numbers, never inside one.
   return (
-    <span style={{ fontFamily: 'var(--tk-font-numeric)', fontWeight: 700 }}>
-      {meeting.territory_ids.join(',')}
-    </span>
+    <span style={{ fontFamily: 'var(--tk-font-numeric)', fontWeight: 700 }}>{ids.join(', ')}</span>
   );
 }

@@ -7,6 +7,9 @@ import type { ServiceMeetingRow } from '@territorios/data';
 const WeekShareCard = lazy(() =>
   import('./WeekShareCard').then((m) => ({ default: m.WeekShareCard })),
 );
+const ShareImageSheet = lazy(() =>
+  import('../../shell/ShareImageSheet').then((m) => ({ default: m.ShareImageSheet })),
+);
 
 const TITLE = 'Salidas · Cong. Norte Villa Diego';
 
@@ -24,6 +27,7 @@ export function ShareWeekButton({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [node, setNode] = useState<HTMLElement | null>(null);
+  const [blob, setBlob] = useState<Blob | null>(null);
   // Guards the export against re-entry (React Strict Mode runs effects twice in dev).
   const started = useRef(false);
 
@@ -35,8 +39,8 @@ export function ShareWeekButton({
     void (async () => {
       try {
         // Loaded on first use together with html-to-image: neither ships in the startup bundle.
-        const { shareNodeAsPng } = await import('../../lib/shareImage');
-        await shareNodeAsPng(node, `salidas-${monday}.png`, TITLE);
+        const { renderPng } = await import('../../lib/shareImage');
+        setBlob(await renderPng(node));
       } catch {
         setFailed(true);
       } finally {
@@ -71,6 +75,16 @@ export function ShareWeekButton({
       {busy && (
         <Suspense fallback={null}>
           <WeekShareCard monday={monday} meetings={meetings} onReady={onReady} />
+        </Suspense>
+      )}
+      {blob && (
+        <Suspense fallback={null}>
+          <ShareImageSheet
+            blob={blob}
+            fileName={`salidas-${monday}.png`}
+            title={TITLE}
+            onClose={() => setBlob(null)}
+          />
         </Suspense>
       )}
     </div>

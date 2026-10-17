@@ -77,9 +77,19 @@ export function slugToDow(slug: string | undefined): number | null {
 
 /** Minutes since midnight for "HH:MM" (tolerates "9.30", "9:30 hs"). Null when unparseable. */
 export function minutesOf(time: string): number | null {
-  const m = /(\d{1,2})[:.](\d{2})/.exec(time);
+  // "17:" (a typo carried over from v1) reads as 17:00 rather than "no time".
+  const m = /(\d{1,2})(?:[:.](\d{2})?|\s*h)/.exec(time);
   if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
+  const h = Number(m[1]);
+  const min = Number(m[2] ?? 0);
+  return h < 24 && min < 60 ? h * 60 + min : null;
+}
+
+/** "9:30" → "09:30", "17:" → "17:00"; anything unreadable is shown as typed. */
+export function displayTime(time: string): string {
+  const mins = minutesOf(time);
+  if (mins === null) return time;
+  return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 }
 
 export function untilLabel(mins: number): string {

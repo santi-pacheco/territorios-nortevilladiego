@@ -99,7 +99,9 @@ export function SalidasScreen() {
             caption={
               <>
                 Cong. Norte Villa Diego · {isThisWeek ? 'Esta semana' : 'Semana'}{' '}
-                <span className="whitespace-nowrap">{shortRange(monday, addDaysIso(monday, 6))}</span>
+                <span className="whitespace-nowrap">
+                  {shortRange(monday, addDaysIso(monday, 6))}
+                </span>
               </>
             }
             title={

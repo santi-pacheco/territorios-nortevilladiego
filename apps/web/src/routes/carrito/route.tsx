@@ -5,7 +5,8 @@ import { useCartSchedule, type CartBoard } from '@territorios/data';
 import { AccountButton } from '../../shell/AccountSheet';
 import { ScreenSkeleton } from '../../shell/AppShell';
 import { matchesMe, useMeName } from '../../lib/me';
-import { shareNodeAsPng } from '../../lib/shareImage';
+import { renderPng } from '../../lib/shareImage';
+import { ShareImageSheet } from '../../shell/ShareImageSheet';
 import { DAY_NAME, addDaysIso, fromIso, longDate, mondayOf, toIso } from '../../lib/week';
 import { shortRange } from '../programa/model';
 import { MonthShareCard } from './MonthShareCard';
@@ -165,7 +166,10 @@ function MobileWeekList({ turns, me }: { turns: Turn[]; me: string }) {
   return (
     <ul className="flex flex-col border-t border-line lg:hidden">
       {turns.map((turn) => (
-        <li key={turn.date + turn.timeRange} className="flex flex-col gap-1 border-b border-line py-3">
+        <li
+          key={turn.date + turn.timeRange}
+          className="flex flex-col gap-1 border-b border-line py-3"
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <div>
               <span className="text-body font-semibold">{turn.weekday}</span>{' '}
@@ -181,7 +185,9 @@ function MobileWeekList({ turns, me }: { turns: Turn[]; me: string }) {
           <span className="text-body break-words">
             {turn.isBlackout ? <BlackoutText /> : <NameList people={turn.people} me={me} />}
           </span>
-          {turn.note && <span className="text-secondary text-ink-soft break-words">{turn.note}</span>}
+          {turn.note && (
+            <span className="text-secondary text-ink-soft break-words">{turn.note}</span>
+          )}
         </li>
       ))}
     </ul>
@@ -198,7 +204,10 @@ function MyTurns({ turns, me }: { turns: Turn[]; me: string }) {
         {turns.map((turn) => {
           const companions = turn.people.filter((name) => !matchesMe(me, name));
           return (
-            <li key={turn.date + turn.timeRange} className="flex flex-col gap-1 border-b border-line py-3">
+            <li
+              key={turn.date + turn.timeRange}
+              className="flex flex-col gap-1 border-b border-line py-3"
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <span className="text-body font-semibold">
                   {turn.weekday} {longDate(turn.dateObj)}
@@ -215,7 +224,9 @@ function MyTurns({ turns, me }: { turns: Turn[]; me: string }) {
                   Con {companions.join(', ')}
                 </span>
               )}
-              {turn.note && <span className="text-secondary text-ink-soft break-words">{turn.note}</span>}
+              {turn.note && (
+                <span className="text-secondary text-ink-soft break-words">{turn.note}</span>
+              )}
             </li>
           );
         })}
@@ -241,6 +252,7 @@ export function Component() {
   const shareRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const [shareBlob, setShareBlob] = useState<Blob | null>(null);
 
   // The week table header sticks right under the screen header, whose height changes
   // with the caption, theme and text size; measure it instead of hardcoding.
@@ -260,9 +272,7 @@ export function Component() {
   const today = toIso(new Date());
   const myTurns = useMemo(
     () =>
-      sections
-        .flatMap((s) => s.turns)
-        .filter((t) => t.isMine && !t.isBlackout && t.date >= today),
+      sections.flatMap((s) => s.turns).filter((t) => t.isMine && !t.isBlackout && t.date >= today),
     [sections, today],
   );
   const upcoming = sections.filter((s) => {
@@ -283,8 +293,7 @@ export function Component() {
     setShareError(false);
     setSharing(true);
     try {
-      const range = shortRange(schedule.start_date, schedule.end_date);
-      await shareNodeAsPng(node, `carrito-${schedule.start_date}.png`, `${schedule.name} · ${range}`);
+      setShareBlob(await renderPng(node));
     } catch {
       setShareError(true);
     } finally {
@@ -433,6 +442,14 @@ export function Component() {
 
       {schedule && sections.length > 0 && (
         <MonthShareCard cardRef={shareRef} schedule={schedule} sections={sections} />
+      )}
+      {shareBlob && schedule && (
+        <ShareImageSheet
+          blob={shareBlob}
+          fileName={`carrito-${schedule.start_date}.png`}
+          title={`${schedule.name} · ${shortRange(schedule.start_date, schedule.end_date)}`}
+          onClose={() => setShareBlob(null)}
+        />
       )}
     </main>
   );
