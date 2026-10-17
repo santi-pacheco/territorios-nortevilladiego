@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { useProgramWeek } from '@territorios/data';
 import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
-import { AccountButton } from '../../shell/AccountSheet';
+import { ScreenHeader } from '../../shell/ScreenHeader';
 import { readMe } from '../../lib/me';
 import { addDaysIso, fromIso, mondayOf } from '../../lib/week';
 import {
@@ -53,36 +53,18 @@ export function Component() {
   return (
     <main className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-surface">
-        <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3 pb-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1 text-secondary text-ink-soft">
-              <button
-                type="button"
-                className="icon-btn -ml-3"
-                aria-label="Semana anterior"
-                onClick={() => shiftWeek(-7)}
-              >
-                <ChevronLeft aria-hidden size={22} />
-              </button>
-              {/* The range never truncates; at large text the "Esta semana" prefix does. */}
-              <span className="flex min-w-0">
-                <span className="truncate whitespace-pre">{isThisWeek ? 'Esta semana · ' : 'Semana '}</span>
-                <span className="shrink-0">{shortRange(monday, addDaysIso(monday, 6))}</span>
-              </span>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Semana siguiente"
-                onClick={() => shiftWeek(7)}
-              >
-                <ChevronRight aria-hidden size={22} />
-              </button>
-            </div>
-            <h1 className="mt-1 text-display font-bold">Programa</h1>
-          </div>
-          <div className="lg:hidden">
-            <AccountButton />
-          </div>
+        <div className="pb-2">
+          <ScreenHeader
+            caption={
+              <>
+                {isThisWeek ? 'Esta semana' : 'Semana'}{' '}
+                <span className="whitespace-nowrap">{shortRange(monday, addDaysIso(monday, 6))}</span>
+              </>
+            }
+            title="Programa"
+            onPrev={() => shiftWeek(-7)}
+            onNext={() => shiftWeek(7)}
+          />
         </div>
       </header>
 

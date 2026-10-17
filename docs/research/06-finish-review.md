@@ -87,3 +87,33 @@ Lower, not counted above: Gestión Carrito › Personas desktop rows show "Libre
 ## keep
 
 The day line itself: 8 px accent stripe, station dots, 28 px mono times, ink roundels, the 2 px ink "Próxima" card, tick-counted day tabs, and the exact `#EEF1F4` ground. Fix around it; do not soften it into list cards.
+
+## Verdict pass 1
+
+Scoring only. A fresh-context worker ran this pass on 2026-10-16. It did not build the fixes. Captures were taken fresh on dev server `:5321` with local Supabase, Chromium `--lang=es-AR --use-angle=swiftshader --enable-unsafe-swiftshader`, and a fixed Playwright clock for the time-of-day states. The editor was the local `encargado-review@example.com`, recreated per `gestion/README.md`. 200% text was simulated with `html { font-size: 200% }`. All captures are in `apps/web/.impeccable/review/verdict-1/`. The fix worker's `fixes/REPORT.md` was not used as evidence. No capture had horizontal page overflow. The working tree also held uncommitted Carrito schedule-switcher edits (`routes/carrito/route.tsx`, `routes/gestion/carrito/index.tsx`) that are not part of this fix batch. They show up in the Carrito captures but are not scored.
+
+### verdict
+
+| # | Fix | Score | Evidence |
+|---|---|---|---|
+| 1 | Desktop Salidas + Mapa split | resolved | `salidas-jue-0820-desktop-light.png`: the station line sits left, and the right pane shows the day's map with roundels 1–3 drawn on the territory polygons. No empty canvas. |
+| 2 | Congregation in Salidas caption, truncate week not congregation | partial | `salidas-jue-0820-mobile-light.png`: the caption reads "Cong. Norte Villa Diego · Esta …". The congregation is back and the chevrons are kept, but at 390 px the week is cut to one word, so the caption no longer says which week the chevrons move through. On desktop it only gets as far as "Esta semana del 1…". At 200% text (`salidas-jue-200-mobile-light.png`) the congregation wraps one word per line over four lines and the week disappears. The fix traded the missing congregation for a missing week. |
+| 3 | Past stations hollow + faded, no dashes | resolved | `salidas-vie-1100-mobile-light.png` (Fri 11:00): the 10:00 station has a hollow dot (white centre, tinted accent ring) and a borderless faded card. There are no dashed borders, and the sr-only `(ya salió)` text is in the DOM. |
+| 4 | Gestión › Programa nested header removed | resolved | `gestion-programa-{mobile,desktop}-light.png`: a plain "Programa" section heading matches Carrito, and there is one AccountButton. |
+| 5 | "Encargados" kicker removed | resolved | The text "Encargados" is absent from every Gestión capture's `innerText`. The heading is "Gestión" alone. |
+| 6 | Gestión mobile nav fits | resolved | `.gestion-nav` scrollWidth 358 = clientWidth 358 on every Gestión screen at 390 px. The active "Programa" pill is fully visible (`gestion-programa-mobile-light.png`). |
+| 7 | Grupo / Grupos copy | resolved | The rendered text reads "Grupos 1 y 2", "Grupo 3" and "Grupo 2" (`salidas-jue-0820`, `salidas-vie-1100`). |
+| 8 | Carrito / Programa captions fit at 390 and at 200% | partial | At 390 px both fit: "Octubre (ejemplo) · 12–25 oct" (`carrito-mobile-light.png`) and "Esta semana · 12–18 oct" (`programa-mobile-light.png`). Carrito at 200% works as intended: the name truncates and the range is kept. Programa at 200% (`programa-200-mobile-light.png`, and the fix worker's own `fixes/text200-programa-semana=2026-10-12.png`) draws the next-week chevron on top of "oct" ("12–18 ›oct"). The range is a `shrink-0` span that overflows its box under the chevron. |
+| ceiling | Programa midweek timetable rail | resolved | `programa-mobile-light.png`: mono `19:00` and "Canción y oración" share a baseline and weight, so the time column holds its rail. |
+
+Regressions introduced by the fix batch (at most three):
+- Salidas caption at 200% text: the congregation wraps word by word into a four-line block between the chevrons, which pushes "Jueves 15" down. This is counted under fix 2, not as a separate item.
+
+### remaining
+
+- Fix 2: keep the week legible beside the congregation. For example, reuse `shortRange()` so the caption reads "Cong. Norte Villa Diego · 12–18 oct", the same pattern Programa uses. At 200% text, let the congregation truncate or move onto its own line, not wrap word by word.
+- Fix 8: Programa caption at 200% text. The `shrink-0` range must not run under the next-week chevron: let the caption box shrink-wrap its content, or let the range wrap below.
+
+disposition: fix
+
+This pass scored only fixes 1–8 and the Programa ceiling item. Ship stays blocked until fixes 2 and 8 are resolved, so DESIGN.md and design.json were not written.

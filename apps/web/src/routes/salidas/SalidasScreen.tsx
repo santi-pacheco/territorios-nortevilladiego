@@ -1,8 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useServiceWeek, type ServiceMeetingRow } from '@territorios/data';
-import { AccountButton } from '../../shell/AccountSheet';
+import { ScreenHeader } from '../../shell/ScreenHeader';
 import { ScreenSkeleton } from '../../shell/AppShell';
 import {
   DAY_NAME,
@@ -10,12 +9,11 @@ import {
   WEEK_ORDER,
   addDaysIso,
   dateOfDow,
-  longDate,
   mondayOf,
   slugToDow,
-  fromIso,
 } from '../../lib/week';
 import { DayStrip } from './DayStrip';
+import { shortRange } from '../programa/model';
 import { StationLine } from './StationLine';
 
 // Desktop splits Salidas with the day's map. The pane is a separate chunk (it carries maplibre),
@@ -95,44 +93,24 @@ export function SalidasScreen() {
     >
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 border-b border-line bg-surface">
-          <div className="mx-auto flex w-full max-w-3xl items-start gap-2 px-4 pt-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1 text-secondary text-ink-soft">
-                <button
-                  type="button"
-                  className="icon-btn -ml-3"
-                  aria-label="Semana anterior"
-                  onClick={() => setMonday(addDaysIso(monday, -7))}
-                >
-                  <ChevronLeft aria-hidden size={22} />
-                </button>
-                {/* The week part gives way first; the congregation only wraps, at large text. */}
-                <span className="flex min-w-0 flex-1">
-                  <span className="max-w-full shrink-0">Cong. Norte Villa Diego&nbsp;·&nbsp;</span>
-                  <span className="truncate">
-                    {isThisWeek ? 'Esta semana' : 'Semana'} del {longDate(fromIso(monday))}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Semana siguiente"
-                  onClick={() => setMonday(addDaysIso(monday, 7))}
-                >
-                  <ChevronRight aria-hidden size={22} />
-                </button>
-              </div>
-              <h1 className="mt-1 text-display font-bold">
+          <ScreenHeader
+            caption={
+              <>
+                Cong. Norte Villa Diego · {isThisWeek ? 'Esta semana' : 'Semana'}{' '}
+                <span className="whitespace-nowrap">{shortRange(monday, addDaysIso(monday, 6))}</span>
+              </>
+            }
+            title={
+              <>
                 {selected === null || !selectedDate
                   ? 'Salidas'
                   : `${DAY_NAME[selected]} ${selectedDate.getDate()}`}
                 {isToday && <span className="sr-only">, hoy</span>}
-              </h1>
-            </div>
-            <div className="lg:hidden">
-              <AccountButton />
-            </div>
-          </div>
+              </>
+            }
+            onPrev={() => setMonday(addDaysIso(monday, -7))}
+            onNext={() => setMonday(addDaysIso(monday, 7))}
+          />
           {days.length > 0 && (
             <DayStrip
               days={days}
