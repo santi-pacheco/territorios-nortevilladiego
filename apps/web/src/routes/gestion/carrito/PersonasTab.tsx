@@ -97,7 +97,7 @@ export function PersonasTab({
             type="search"
             className="field"
             value={query}
-            placeholder="Ej: Gómez"
+            placeholder="Ej: Pérez"
             onChange={(e) => setQuery(e.target.value)}
           />
         </Field>
@@ -379,7 +379,7 @@ function PersonSheet({
           className="field"
           value={name}
           autoComplete="off"
-          placeholder="Ej: Gómez, Ana"
+          placeholder="Ej: Pérez, Ana"
           onChange={(e) => onNameChange(e.target.value)}
         />
       </Field>

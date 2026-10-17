@@ -590,7 +590,7 @@ function PersonPicker({
           className="field"
           value={query}
           autoComplete="off"
-          placeholder="Ej: Gómez"
+          placeholder="Ej: Pérez"
           onChange={(e) => setQuery(e.target.value)}
         />
       </Field>
