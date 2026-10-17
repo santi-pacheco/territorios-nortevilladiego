@@ -18,6 +18,7 @@
     "@territorios/data": "workspace:*",
     "@territorios/platform": "workspace:*",
     "@territorios/ui-tokens": "workspace:*",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^1.58.0",
     "maplibre-gl": "^6.14.0",
     "pdfjs-dist": "^6.4.299",

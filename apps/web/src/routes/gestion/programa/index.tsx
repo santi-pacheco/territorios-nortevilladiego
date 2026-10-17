@@ -30,6 +30,7 @@ import {
   type StagedFile,
 } from './model';
 import { readPdfPages } from './pdf';
+import { EditarPrograma } from './editar/EditarTab';
 
 function useOnline(): boolean {
   return useSyncExternalStore(
@@ -40,7 +41,46 @@ function useOnline(): boolean {
 
 type Outcome = { ok: number; failed: string[] };
 
+type ProgramaTab = 'pdf' | 'editar';
+
+const PROGRAMA_TABS: readonly { value: ProgramaTab; label: string }[] = [
+  { value: 'pdf', label: 'Cargar PDF' },
+  { value: 'editar', label: 'Editar' },
+];
+
 export function GestionPrograma() {
+  const [tab, setTab] = useState<ProgramaTab>('pdf');
+  return (
+    <div className="flex flex-col gap-4">
+      {/* The Gestión layout owns the page h1; this is the section heading. */}
+      <h2 className="text-title font-bold">Programa</h2>
+
+      <div
+        className="segmented"
+        role="radiogroup"
+        aria-label="Secciones del programa"
+        style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
+      >
+        {PROGRAMA_TABS.map((t) => (
+          <label key={t.value} className="segmented-item">
+            <input
+              type="radio"
+              name="programa-tab"
+              value={t.value}
+              checked={tab === t.value}
+              onChange={() => setTab(t.value)}
+            />
+            <span>{t.label}</span>
+          </label>
+        ))}
+      </div>
+
+      {tab === 'pdf' ? <CargarPdf /> : <EditarPrograma />}
+    </div>
+  );
+}
+
+function CargarPdf() {
   const online = useOnline();
   const list = useProgramWeekList();
   const published = useMemo(() => list.data ?? [], [list.data]);
@@ -147,9 +187,6 @@ export function GestionPrograma() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* The Gestión layout owns the page h1; this is the section heading. */}
-      <h2 className="text-title font-bold">Programa</h2>
-
       <div className="flex flex-col gap-8">
         <UploadForm
           year={year}
