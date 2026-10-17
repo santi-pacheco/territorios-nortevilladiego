@@ -32,11 +32,17 @@ export function ScreenHeader({
       {/* At large text sizes the chevrons wrap under the title instead of splitting words. */}
       <div className="flex flex-wrap items-center gap-x-1">
         <h1 className="mr-auto text-display font-bold">{title}</h1>
-        <div className="flex">
+        <div className="flex items-center">
           {onPrev && (
             <button type="button" className="icon-btn" aria-label={prevLabel} onClick={onPrev}>
               <ChevronLeft aria-hidden size={24} />
             </button>
+          )}
+          {/* Says what the arrows move, so they never read as previous/next day. */}
+          {(onPrev || onNext) && (
+            <span aria-hidden className="text-secondary font-semibold text-ink-soft">
+              Semana
+            </span>
           )}
           {onNext && (
             <button
