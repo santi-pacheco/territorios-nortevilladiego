@@ -26,7 +26,11 @@ type RosterQuery = ReturnType<typeof usePeople>;
 
 export function GestionCarrito() {
   const [tab, setTab] = useState<Tab>('personas');
-  const board = useCartSchedule();
+  const [scheduleId, setScheduleId] = useState<string | undefined>(undefined);
+  const board = useCartSchedule(scheduleId);
+  const schedules = [...(board.data?.schedules ?? [])].sort((a, b) =>
+    b.start_date.localeCompare(a.start_date),
+  );
   const roster = usePeople();
 
   return (
@@ -35,6 +39,23 @@ export function GestionCarrito() {
       <h2 className="text-title font-bold">Carrito</h2>
 
       <SubTabs value={tab} onChange={setTab} tabs={TABS} />
+
+      {tab === 'generar' && schedules.length > 1 && (
+        <label className="flex flex-col gap-1">
+          <span className="text-secondary text-ink-soft">Cronograma</span>
+          <select
+            className="field"
+            value={board.data?.schedule?.id ?? ''}
+            onChange={(e) => setScheduleId(e.target.value)}
+          >
+            {schedules.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <CarritoBody tab={tab} board={board} roster={roster} />
     </div>
@@ -77,7 +98,7 @@ function CarritoBody({
         tab === 'personas' ? (
           <PersonasTab roster={people} slots={data.slots} places={data.places} />
         ) : (
-          <GenerarTab roster={people} board={data} />
+          <GenerarTab key={data.schedule?.id ?? 'nuevo'} roster={people} board={data} />
         )
       }
     </RosterGate>

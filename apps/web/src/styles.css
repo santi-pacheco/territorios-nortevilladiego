@@ -109,7 +109,7 @@
     opacity: 0;
     inset: 0;
   }
-  .segmented-item span {
+  .segmented-item > span {
     display: grid;
     place-items: center;
     min-height: 40px;
@@ -117,12 +117,22 @@
     font-weight: 600;
     color: var(--tk-text-secondary);
   }
-  .segmented-item input:checked + span {
+  .segmented-item > input:checked + span {
     background: var(--tk-bg-surface);
     color: var(--tk-text-primary);
     box-shadow: var(--tk-shadow-card);
   }
-  .segmented-item input:focus-visible + span {
+  /* Sol: canvas and surface are both white, so the control needs a frame and an inverted selection. */
+  [data-theme='sol'] .segmented {
+    border: 2px solid var(--tk-border-strong);
+    background: var(--tk-bg-surface);
+  }
+  [data-theme='sol'] .segmented-item > input:checked + span {
+    background: var(--tk-brand);
+    color: var(--tk-on-brand);
+    box-shadow: none;
+  }
+  .segmented-item > input:focus-visible + span {
     outline: 3px solid var(--tk-focus-ring);
   }
 

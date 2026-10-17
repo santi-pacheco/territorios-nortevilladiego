@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { useCartSchedule, type CartBoard } from '@territorios/data';
 import { AccountButton } from '../../shell/AccountSheet';
 import { ScreenSkeleton } from '../../shell/AppShell';
@@ -231,7 +232,8 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 export function Component() {
-  const board = useCartSchedule();
+  const [params, setParams] = useSearchParams();
+  const board = useCartSchedule(params.get('horario') ?? undefined);
   const me = readMe();
   const [showPast, setShowPast] = useState(false);
 
@@ -265,6 +267,10 @@ export function Component() {
   const past = sections.filter((s) => addDaysIso(s.weekStart, 6) < today);
 
   const schedule = board.data?.schedule;
+  // Current and future schedules a member can switch between (e.g. next month, published early).
+  const choices = (board.data?.schedules ?? [])
+    .filter((s) => s.end_date >= today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
   return (
     <main className="flex flex-1 flex-col">
@@ -289,6 +295,31 @@ export function Component() {
             <AccountButton />
           </div>
         </div>
+        {choices.length > 1 && schedule && (
+          <div className="mx-auto w-full max-w-3xl px-4 pb-3">
+            <div
+              className="segmented w-full"
+              role="radiogroup"
+              aria-label="Cronograma"
+              style={{ gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))` }}
+            >
+              {choices.map((c) => (
+                <label key={c.id} className="segmented-item">
+                  <input
+                    type="radio"
+                    name="horario"
+                    value={c.id}
+                    checked={c.id === schedule.id}
+                    onChange={() => setParams({ horario: c.id }, { replace: true })}
+                  />
+                  <span className="px-2">
+                    <span className="block max-w-full truncate">{c.name}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-5">
