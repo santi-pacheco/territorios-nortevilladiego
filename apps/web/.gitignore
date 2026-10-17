@@ -1,2 +1,5 @@
 .impeccable/review/
 .impeccable/questions/
+
+.vercel
+.env*
