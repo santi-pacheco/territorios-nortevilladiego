@@ -48,8 +48,22 @@
   }
 }
 
-/* Four sections on a phone: labels only, so every tab stays in view at 390 px. */
+/* Up to six sections on a phone: labels only, three per row, so every tab stays in view. */
 @media (max-width: 639.98px) {
+  .gestion-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+  /* At 200% text a long label breaks inside its cell instead of overflowing it. */
+  .gestion-nav-link {
+    min-width: 0;
+    padding: 0 4px;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
   .gestion-nav-link svg {
     display: none;
   }

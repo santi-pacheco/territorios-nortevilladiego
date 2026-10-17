@@ -349,7 +349,7 @@ const personFields = {
   gender: Gender,
   /** 0 = unlimited. */
   target_appearances: z.int().check(z.minimum(0), z.maximum(999)),
-  /** Other spellings of the name in program PDFs / as salida conductor (e.g. "D. Gomez"). */
+  /** Other spellings of the name in program PDFs / as salida conductor (e.g. "D. Perez"). */
   aliases: z.array(z.string().check(z.minLength(1), z.maxLength(120))).check(z.maxLength(20)),
   /** Takes part in the carrito (scheduler + pickers). See `carritoPeople()`. */
   in_carrito: z.boolean(),

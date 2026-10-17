@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { AccountRow } from '../../../lib/accounts';
 import { filterPeople, sortAccounts } from './model';
 
-const people = [{ name: 'Ana Prueba' }, { name: 'José Gómez' }, { name: 'Ana Ejemplo' }];
+const people = [{ name: 'Ana Prueba' }, { name: 'José Pérez' }, { name: 'Ana Ejemplo' }];
 
 describe('gestión usuarios model', () => {
   it('filters people by word prefixes, ignoring accents and case', () => {
     expect(filterPeople(people, 'ana pr').map((p) => p.name)).toEqual(['Ana Prueba']);
-    expect(filterPeople(people, 'jose GOM').map((p) => p.name)).toEqual(['José Gómez']);
+    expect(filterPeople(people, 'jose PER').map((p) => p.name)).toEqual(['José Pérez']);
     expect(filterPeople(people, '  ')).toHaveLength(3);
   });
 

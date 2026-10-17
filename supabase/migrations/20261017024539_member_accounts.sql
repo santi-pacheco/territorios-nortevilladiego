@@ -27,7 +27,7 @@ alter table public.people
   add column aliases text[] not null default '{}'
     check (cardinality(aliases) <= 20 and pg_column_size(aliases) <= 4096);
 comment on column public.people.aliases is
-  'Other spellings of the name as they appear in program PDFs or as salida conductor (e.g. "D. Gomez").';
+  'Other spellings of the name as they appear in program PDFs or as salida conductor (e.g. "D. Perez").';
 
 -- ---------------------------------------------------------------------------
 -- New auth user → viewer profile. Must never raise: a failure here blocks sign-in.

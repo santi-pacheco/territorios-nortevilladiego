@@ -1,6 +1,12 @@
 import { useId, useMemo, useState } from 'react';
 import { Link2, Search } from 'lucide-react';
-import { useRole, useSession, usePeople, type PersonRow } from '@territorios/data';
+import {
+  useRole,
+  useSession,
+  usePeople,
+  useSetAccountPermissions,
+  type PersonRow,
+} from '@territorios/data';
 import {
   useAccounts,
   useLinkAccount,
@@ -174,12 +180,91 @@ function AccountItem({
         </div>
       </div>
 
+      {isAdmin && <PermissionSwitches account={account} />}
+
       {setRole.isError && (
         <p role="alert" className="usr-error text-secondary text-danger">
           {roleError(setRole.error)}
         </p>
       )}
     </li>
+  );
+}
+
+/**
+ * Admin grants for members: the stored flags from list_accounts (an editor or admin can edit
+ * both anyway, which the note says). Each switch sends only its own flag (null = unchanged).
+ */
+function PermissionSwitches({ account }: { account: AccountRow }) {
+  const setPermissions = useSetAccountPermissions();
+  const pending = setPermissions.isPending ? setPermissions.variables : null;
+  const programa = pending?.programa ?? account.can_edit_programa;
+  const privilegios = pending?.privilegios ?? account.can_edit_privilegios;
+  const isStaff = account.role !== 'viewer';
+
+  function toggle(flag: 'programa' | 'privilegios', value: boolean) {
+    if (setPermissions.isPending) return;
+    setPermissions.mutate({
+      userId: account.user_id,
+      programa: flag === 'programa' ? value : null,
+      privilegios: flag === 'privilegios' ? value : null,
+    });
+  }
+
+  return (
+    <div className="usr-perms">
+      <div className="usr-switches" role="group" aria-label={`Permisos de ${account.display_name ?? account.email ?? 'esta cuenta'}`}>
+        <PermissionSwitch
+          label="Puede editar programa"
+          checked={programa}
+          busy={setPermissions.isPending}
+          onChange={(v) => toggle('programa', v)}
+        />
+        <PermissionSwitch
+          label="Puede editar privilegios"
+          checked={privilegios}
+          busy={setPermissions.isPending}
+          onChange={(v) => toggle('privilegios', v)}
+        />
+      </div>
+      {isStaff && (
+        <p className="text-secondary text-ink-soft">
+          Como {ROLE_LABEL[account.role].toLowerCase()} ya puede editar los dos.
+        </p>
+      )}
+      {setPermissions.isError && (
+        <p role="alert" className="text-secondary text-danger">
+          {errorCode(setPermissions.error) === '42501'
+            ? 'Solo un administrador puede cambiar permisos.'
+            : 'No se pudo guardar el permiso. Revisá la conexión y volvé a intentar.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PermissionSwitch({
+  label,
+  checked,
+  busy,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  busy: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="usr-switch">
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        aria-disabled={busy || undefined}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -227,7 +312,7 @@ function PersonPicker({
     <Sheet title={title} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <label htmlFor={searchId} className="text-secondary text-ink-soft">
-          Buscar en las personas del carrito
+          Buscar en las personas
         </label>
         <div className="usr-search">
           <Search aria-hidden size={20} />
@@ -273,7 +358,7 @@ function PersonPicker({
             })}
             {shown.length === 0 && (
               <p className="px-3 py-3 text-secondary text-ink-soft">
-                Nadie coincide con “{query.trim()}”. Agregá a la persona en Gestión ▸ Carrito ▸ Personas.
+                Nadie coincide con “{query.trim()}”. Agregá a la persona en Gestión ▸ Personas.
               </p>
             )}
           </fieldset>

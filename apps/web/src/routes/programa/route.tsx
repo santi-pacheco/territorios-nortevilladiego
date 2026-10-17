@@ -1,6 +1,6 @@
-import { useSearchParams } from 'react-router';
-import { CalendarDays } from 'lucide-react';
-import { useProgramWeek } from '@territorios/data';
+import { Link, useSearchParams } from 'react-router';
+import { CalendarDays, Mic } from 'lucide-react';
+import { useMyPermissions, useProgramWeek } from '@territorios/data';
 import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import { ScreenHeader } from '../../shell/ScreenHeader';
 import { useMeName } from '../../lib/me';
@@ -29,6 +29,7 @@ export function Component() {
   const monday = parseSemanaParam(params.get('semana'), fromIso(thisMonday));
   const isThisWeek = monday === thisMonday;
   const me = useMeName();
+  const seesPrivilegios = useMyPermissions().data?.sees_privilegios === true;
 
   const week = useProgramWeek(monday);
 
@@ -67,6 +68,17 @@ export function Component() {
           />
         </div>
       </header>
+      {seesPrivilegios && (
+        <div className="mx-auto flex w-full max-w-3xl justify-end px-4">
+          <Link
+            to="/privilegios"
+            className="inline-flex min-h-touch items-center gap-2 text-secondary font-semibold underline"
+          >
+            <Mic aria-hidden size={20} />
+            Privilegios
+          </Link>
+        </div>
+      )}
 
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-5">
         {week.isPending ? (

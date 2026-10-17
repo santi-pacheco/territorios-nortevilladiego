@@ -1,0 +1,106 @@
+/* Privilegios: the printed roster as a table on wide screens, one block per date on phones. */
+
+.priv-table {
+  display: none;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--tk-bg-surface);
+  border: 1px solid var(--tk-border-subtle);
+  border-radius: var(--tk-radius-md);
+  table-layout: fixed;
+}
+.priv-table th,
+.priv-table td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--tk-border-subtle);
+}
+.priv-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.priv-table thead th {
+  font-size: var(--tk-type-secondary-size);
+  line-height: var(--tk-type-secondary-leading);
+  font-weight: 650;
+  color: var(--tk-text-secondary);
+}
+.priv-table thead th:first-child,
+.priv-date {
+  width: 7.5rem;
+}
+.priv-date {
+  font-weight: 400;
+}
+.priv-date time {
+  display: block;
+  white-space: nowrap;
+}
+
+/* The next meeting gets the same 2 px ink outline as the next station; past dates go soft. */
+.priv-table tr.is-next {
+  outline: 2px solid var(--tk-text-primary);
+  outline-offset: -2px;
+}
+.priv-table tr.is-past,
+.priv-card.is-past {
+  color: var(--tk-text-secondary);
+}
+.priv-next-tag {
+  display: block;
+  font-size: var(--tk-type-secondary-size);
+  line-height: var(--tk-type-secondary-leading);
+  font-weight: 700;
+}
+
+/* Asamblea / sin reunión: one row across every role, like the printed sheet. */
+.priv-banner {
+  font-size: var(--tk-type-heading-size);
+  line-height: var(--tk-type-heading-leading);
+  font-weight: 700;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.priv-table td.priv-banner {
+  text-align: center;
+  vertical-align: middle;
+  background: var(--tk-bg-canvas);
+}
+
+.priv-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.priv-card {
+  padding: 12px 16px 14px;
+  background: var(--tk-bg-surface);
+  border: 1px solid var(--tk-border-subtle);
+  border-radius: var(--tk-radius-md);
+}
+.priv-card.is-next {
+  border: 2px solid var(--tk-text-primary);
+}
+.priv-card.is-past {
+  background: transparent;
+}
+.priv-card .priv-banner {
+  margin-top: 8px;
+  padding: 10px 0;
+}
+.priv-card-roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin-top: 8px;
+}
+
+@media (min-width: 640px) {
+  .priv-table {
+    display: table;
+  }
+  .priv-cards {
+    display: none;
+  }
+}

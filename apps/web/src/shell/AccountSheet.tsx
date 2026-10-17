@@ -1,8 +1,8 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ListChecks, UserRound, X } from 'lucide-react';
-import { useRole, useSession, withDb } from '@territorios/data';
+import { ChevronDown, ListChecks, Mic, UserRound, X } from 'lucide-react';
+import { useMyPermissions, useRole, useSession, withDb } from '@territorios/data';
 import { readTheme, saveTheme, type ThemeChoice } from '../lib/theme';
 import { readMe, saveMe } from '../lib/me';
 import { deleteWebPushSubscription, useMyLink } from '../lib/accounts';
@@ -145,6 +145,9 @@ function SignedIn({
 }) {
   const { clearPersisted } = useBoot();
   const qc = useQueryClient();
+  // Members granted "Puede editar programa/privilegios" also get Gestión (only those sections).
+  const perms = useMyPermissions().data;
+  const opensGestion = isEditor || perms?.can_edit_programa === true || perms?.can_edit_privilegios === true;
   return (
     <section className="flex flex-col gap-3">
       <div>
@@ -166,7 +169,17 @@ function SignedIn({
         <ListChecks aria-hidden size={20} />
         Mis asignaciones
       </Link>
-      {isEditor && (
+      {perms?.sees_privilegios && (
+        <Link
+          to="/privilegios"
+          className="btn-secondary inline-flex items-center justify-center gap-2"
+          onClick={onClose}
+        >
+          <Mic aria-hidden size={20} />
+          Privilegios
+        </Link>
+      )}
+      {opensGestion && (
         <Link to="/gestion" className="btn-primary text-center" onClick={onClose}>
           Abrir gestión
         </Link>

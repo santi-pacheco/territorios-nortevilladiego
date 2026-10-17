@@ -10,7 +10,7 @@ Google Play app later on the same backend.
 - `profiles.person_id uuid unique null references people(id) on delete set null`.
   Clients cannot write it; only the editor RPCs below.
 - `people.aliases text[] not null default '{}'`: other spellings of the person's name as they
-  appear in program PDFs or as salida conductor (e.g. "D. Gomez"). Editor-writable like the rest of `people`.
+  appear in program PDFs or as salida conductor (e.g. "D. Perez"). Editor-writable like the rest of `people`.
 - Trigger on `auth.users` insert → `profiles(id, role 'viewer', display_name = raw_user_meta_data.full_name)`.
 - Name matching: `private.norm_name(text)` = lower(unaccent(trim)), collapse spaces. A person matches
   a text when `norm_name(text)` equals `norm_name(people.name)` or any alias.

@@ -4,6 +4,7 @@
  * shows the inline "Alguien cambió esto" bar instead of clobbering.
  */
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { inferGender, type Gender } from '@territorios/core';
@@ -36,6 +37,7 @@ export function PersonasTab({
   places: CartPlaceRow[];
 }) {
   const [query, setQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [sheet, setSheet] = useState<{ person: PersonRow | null } | null>(null);
   const qc = useQueryClient();
 
@@ -46,11 +48,15 @@ export function PersonasTab({
   const nameById = useMemo(() => new Map(roster.people.map((p) => [p.id, p.name])), [roster.people]);
   const slotById = useMemo(() => new Map(slots.map((s) => [s.id, s])), [slots]);
 
+  // The carrito works with in_carrito people; the rest of the directory is one toggle away.
+  const inCarrito = useMemo(() => new Set(roster.people.filter((p) => p.in_carrito).map((p) => p.id)), [roster.people]);
+  const outside = roster.people.length - inCarrito.size;
   const filtered = useMemo(() => {
     const q = normalize(query.trim());
-    if (!q) return people;
-    return people.filter((p) => normalize(p.name).includes(q));
-  }, [people, query]);
+    const pool = showAll ? people : people.filter((p) => inCarrito.has(p.id));
+    if (!q) return pool;
+    return pool.filter((p) => normalize(p.name).includes(q));
+  }, [people, query, showAll, inCarrito]);
 
   const deletePerson = useDataMutation(mutations.deletePerson);
   const write = useWriteState();
@@ -91,6 +97,13 @@ export function PersonasTab({
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-secondary text-ink-soft">
+        Las personas se administran en{' '}
+        <Link to="/gestion/personas" className="font-semibold text-ink underline">
+          Gestión ▸ Personas
+        </Link>
+        . Acá van los datos del carrito: turnos, con quién va y participaciones.
+      </p>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <Field label="Buscar por nombre" className="lg:max-w-xs">
           <input
@@ -111,6 +124,18 @@ export function PersonasTab({
         </button>
       </div>
 
+      {outside > 0 && (
+        <label className="flex min-h-touch items-center gap-2 self-start text-body">
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={showAll}
+            onChange={(e) => setShowAll(e.target.checked)}
+          />
+          Mostrar también a quienes no están en el carrito ({outside})
+        </label>
+      )}
+
       <ConflictBar write={write} onUseTheirs={useTheirChanges} />
 
       {people.length === 0 ? (
@@ -118,7 +143,11 @@ export function PersonasTab({
           Todavía no hay personas. Agregá la primera para poder generar el cronograma.
         </p>
       ) : filtered.length === 0 ? (
-        <p className="py-6 text-body text-ink-soft">Ninguna persona coincide con “{query}”.</p>
+        <p className="py-6 text-body text-ink-soft">
+          {query.trim()
+            ? `Ninguna persona coincide con “${query}”.`
+            : 'Nadie está marcado “En carrito”. Marcalo en Gestión ▸ Personas.'}
+        </p>
       ) : (
         <ul className="flex flex-col border-t border-line">
           {filtered.map((p) => (
@@ -129,6 +158,9 @@ export function PersonasTab({
               <div className="min-w-0">
                 <span className="text-body-strong font-semibold break-words">{p.name}</span>
                 <span className="ml-2 text-secondary text-ink-soft">{GENDER_LABEL[p.gender]}</span>
+                {!inCarrito.has(p.id) && (
+                  <span className="ml-2 text-secondary text-ink-soft">· Fuera del carrito</span>
+                )}
               </div>
               <div className="min-w-0 text-secondary text-ink-soft break-words">
                 <span className="lg:hidden">Turnos: </span>
@@ -242,10 +274,11 @@ function PersonSheet({
     removePair.isPending;
 
   const dayGroups = useMemo(() => groupByDay(slots), [slots]);
-  const otherPeople = useMemo(
-    () => roster.people.filter((p) => p.id !== person?.id),
-    [roster.people, person?.id],
-  );
+  // Partners come from the carrito, plus anyone already paired (so an old pair can be undone).
+  const otherPeople = useMemo(() => {
+    const paired = new Set(person ? pairsOf(roster, person.id) : []);
+    return roster.people.filter((p) => p.id !== person?.id && (p.in_carrito || paired.has(p.id)));
+  }, [roster, person]);
 
   function onNameChange(value: string) {
     setName(value);

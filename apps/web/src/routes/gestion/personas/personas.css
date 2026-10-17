@@ -1,0 +1,263 @@
+/* Gestión ▸ Personas: hairline rows; duty tags and spellings are small pill controls. */
+
+/* "Nombres sin vincular": the one block of pending work, set apart on a white surface. */
+.ps-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--tk-border-subtle);
+  border-radius: var(--tk-radius-md);
+  background: var(--tk-bg-surface);
+}
+[data-theme='sol'] .ps-panel {
+  border: 2px solid var(--tk-border-strong);
+}
+.ps-name {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--tk-border-subtle);
+}
+.ps-name-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (min-width: 1024px) {
+  .ps-name {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 24px;
+  }
+}
+
+.ps-filters {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .ps-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 12rem);
+    align-items: end;
+  }
+}
+
+.ps-search {
+  position: relative;
+}
+.ps-search > svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tk-text-secondary);
+  pointer-events: none;
+}
+.ps-search > input {
+  padding-left: 44px;
+}
+
+.ps-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--tk-border-subtle);
+}
+.ps-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ps-row-head > p {
+  padding-top: 10px;
+}
+
+/* Switch: a native checkbox (role=switch) drawn as a track; the label stays visible. */
+.ps-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tk-touch-min);
+  font-size: var(--tk-type-secondary-size);
+  line-height: var(--tk-type-secondary-leading);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ps-switch input {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: 999px;
+  border: 2px solid var(--tk-border-strong);
+  background: var(--tk-bg-surface);
+  cursor: pointer;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out;
+}
+.ps-switch input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--tk-border-strong);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms ease-out;
+}
+.ps-switch input:checked {
+  border-color: var(--tk-brand);
+  background: var(--tk-brand);
+}
+.ps-switch input:checked::after {
+  transform: translateX(18px);
+  background: var(--tk-on-brand);
+}
+.ps-switch input[aria-disabled='true'] {
+  opacity: 0.6;
+}
+
+/* Duty tags: toggle buttons; "on" is ink-filled with a check, so state survives no colour. */
+.ps-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tk-touch-min);
+  padding: 0 14px;
+  border: 1px solid var(--tk-border-strong);
+  border-radius: 999px;
+  background: var(--tk-bg-surface);
+  color: var(--tk-text-primary);
+  font-size: var(--tk-type-secondary-size);
+  line-height: var(--tk-type-secondary-leading);
+  font-weight: 600;
+}
+.ps-chip:hover {
+  background: color-mix(in srgb, var(--tk-text-primary) 6%, var(--tk-bg-surface));
+}
+.ps-chip[aria-pressed='true'] {
+  border-color: var(--tk-brand);
+  background: var(--tk-brand);
+  color: var(--tk-on-brand);
+}
+.ps-chip[aria-disabled='true'],
+.ps-alias-remove[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.ps-aliases {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 4px;
+}
+.ps-aliases > .ps-alias-form,
+.ps-aliases > [role='alert'] {
+  flex-basis: 100%;
+}
+.ps-alias-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ps-alias {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--tk-touch-min);
+  padding-left: 14px;
+  border-radius: 999px;
+  background: var(--tk-bg-canvas);
+  font-size: var(--tk-type-secondary-size);
+  line-height: var(--tk-type-secondary-leading);
+}
+[data-theme='sol'] .ps-alias {
+  border: 1px solid var(--tk-border-strong);
+}
+.ps-alias-remove {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--tk-touch-min);
+  height: var(--tk-touch-min);
+  border-radius: 999px;
+  color: var(--tk-text-secondary);
+}
+.ps-alias-remove:hover {
+  color: var(--tk-text-primary);
+  background: color-mix(in srgb, var(--tk-text-primary) 8%, transparent);
+}
+.ps-alias-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tk-touch-min);
+  padding: 0 14px;
+  border: 1px dashed var(--tk-border-strong);
+  border-radius: 999px;
+  font-size: var(--tk-type-secondary-size);
+  font-weight: 600;
+  color: var(--tk-text-primary);
+}
+.ps-alias-add:disabled {
+  opacity: 0.6;
+}
+.ps-alias-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ps-alias-form > input {
+  flex: 1 1 12rem;
+}
+
+.ps-radio {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--tk-text-primary);
+}
+
+/* Person picker inside the "Es otro nombre de…" sheet; scrolls so the buttons stay in view. */
+.ps-options {
+  max-height: min(50dvh, 26rem);
+  overflow-y: auto;
+  border: 1px solid var(--tk-border-subtle);
+  border-radius: var(--tk-radius-sm);
+}
+.ps-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tk-touch-row);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--tk-border-subtle);
+  cursor: pointer;
+}
+.ps-option:last-child {
+  border-bottom: 0;
+}
+.ps-option input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--tk-text-primary);
+}
+.ps-option:has(input:checked) {
+  background: var(--tk-bg-canvas);
+  font-weight: 650;
+}

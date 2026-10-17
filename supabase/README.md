@@ -57,7 +57,7 @@ supabase/
 
 - Matching: carrito by `person_ids`. Program and salida by name: `private.norm_name` =
   lower(unaccent(trim)) with spaces collapsed, compared with `people.name` and every entry of
-  `people.aliases` (e.g. "D. Gomez"). Editors add an alias when a PDF spells a name differently.
+  `people.aliases` (e.g. "D. Perez"). Editors add an alias when a PDF spells a name differently.
 - Permission failures raise `42501` (PostgREST answers 403).
 - `reminder_log` has RLS on and no grants. Only the secret key (the function) touches it.
 
