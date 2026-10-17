@@ -21,3 +21,4 @@ export * from './programa/week';
 export * from './programa/merge';
 export * from './programa/parseMidweek';
 export * from './programa/parseWeekend';
+export * from './programa/workbook';

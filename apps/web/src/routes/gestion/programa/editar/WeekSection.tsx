@@ -6,6 +6,10 @@
  * mutations: insert when the row does not exist, CAS update with the row version when it does.
  * A CAS conflict (or a concurrent insert) shows "Alguien cambió esta semana" and offers a reload
  * that re-reads the row and resets the form.
+ *
+ * "Traer de la Guía de actividades" (per week, or a `guide` delivered by "Traer el mes") opens a
+ * proposal over the midweek form; nothing changes until "Aplicar", nothing is saved until
+ * "Guardar semana".
  */
 import { useId, useState, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient, onlineManager } from '@tanstack/react-query';
@@ -13,16 +17,24 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   DataError,
   isConflictError,
+  loadWorkbook,
   mutations,
   programWeekQuery,
   useDataMutation,
   type ProgramWeek,
   type ProgramWeekRow,
+  WorkbookError,
 } from '@territorios/data';
-import type { MidweekWeek, WeekendMeeting } from '@territorios/core';
+import {
+  workbookWeekToMidweek,
+  type MidweekWeek,
+  type WeekendMeeting,
+  type WorkbookWeek,
+} from '@territorios/core';
 import { addDaysIso } from '../../../../lib/week';
 import { MidweekEditor } from './MidweekEditor';
 import { WeekendEditor } from './WeekendEditor';
+import { MEETING_START, mergeGuide, type GuideDelivery, type GuideProposal } from './guide';
 import {
   cleanMidweek,
   cleanWeekend,
@@ -55,11 +67,19 @@ function weekBadge(data: ProgramWeek): string {
 export function WeekSection({
   weekStart,
   defaultOpen,
+  guide,
 }: {
   weekStart: string;
   defaultOpen: boolean;
+  guide: GuideDelivery | null;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  // A week delivered by "Traer el mes" opens so its proposal is visible.
+  const [seenGuide, setSeenGuide] = useState<number | null>(null);
+  if (guide && guide.nonce !== seenGuide) {
+    setSeenGuide(guide.nonce);
+    setOpen(true);
+  }
   const [reset, setReset] = useState(0);
   const bodyId = useId();
   const week = useQuery({ ...programWeekQuery(weekStart), enabled: open });
@@ -102,7 +122,13 @@ export function WeekSection({
             </button>
           </div>
         ) : week.data ? (
-          <WeekForm key={reset} weekStart={weekStart} data={week.data} onReload={reload} />
+          <WeekForm
+            key={reset}
+            weekStart={weekStart}
+            data={week.data}
+            guide={guide}
+            onReload={reload}
+          />
         ) : null}
       </div>
     </section>
@@ -118,13 +144,22 @@ function saveError(err: unknown): string {
   return 'no se pudo guardar. Revisá la conexión y probá de nuevo.';
 }
 
+const GUIDE_ERROR = 'No pudimos traer la Guía de esta semana. Probá de nuevo o cargala a mano.';
+
+function guideError(err: unknown): string {
+  if (err instanceof WorkbookError && err.status === 403) return 'No tenés permiso para traer la Guía.';
+  return GUIDE_ERROR;
+}
+
 function WeekForm({
   weekStart,
   data,
+  guide,
   onReload,
 }: {
   weekStart: string;
   data: ProgramWeek;
+  guide: GuideDelivery | null;
   onReload: () => Promise<void>;
 }) {
   const online = useOnline();
@@ -148,6 +183,52 @@ function WeekForm({
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [copying, setCopying] = useState(false);
   const [copyNote, setCopyNote] = useState<string | null>(null);
+  const [fetchingGuide, setFetchingGuide] = useState(false);
+  // The preview plus the converted Guía week: "Aplicar" merges again against the form as it is
+  // then, so names typed while the preview is open are not lost.
+  const [proposal, setProposal] = useState<{ preview: GuideProposal; guide: MidweekWeek } | null>(null);
+
+  function propose(found: WorkbookWeek | null) {
+    setProposal(null);
+    if (!found) {
+      setCopyNote('La Guía de esta semana todavía no está publicada. Cargala a mano.');
+    } else if (mid.asamblea?.trim()) {
+      setCopyNote('Esta semana es de asamblea: no hace falta traer la Guía.');
+    } else {
+      setCopyNote(null);
+      const guideMid = workbookWeekToMidweek(found, { start: MEETING_START });
+      setProposal({ preview: mergeGuide(mid, guideMid), guide: guideMid });
+    }
+  }
+
+  // "Traer el mes" hands each week its Guía; turn a new delivery into a proposal.
+  const [seenGuide, setSeenGuide] = useState<number | null>(null);
+  if (guide && guide.nonce !== seenGuide) {
+    setSeenGuide(guide.nonce);
+    propose(guide.week);
+  }
+
+  async function fetchGuide() {
+    setFetchingGuide(true);
+    setCopyNote(null);
+    try {
+      const res = await loadWorkbook({ weekStart });
+      propose(res.weeks.find((w) => w.weekStart === weekStart) ?? null);
+    } catch (err) {
+      setProposal(null);
+      setCopyNote(guideError(err));
+    } finally {
+      setFetchingGuide(false);
+    }
+  }
+
+  function applyGuide() {
+    if (!proposal) return;
+    const { guide: guideMid } = proposal;
+    setMid((cur) => mergeGuide(cur, guideMid).week);
+    setProposal(null);
+    setCopyNote('Trajimos la Guía de actividades. Completá los nombres y guardá la semana.');
+  }
 
   async function copyPrevious() {
     setCopying(true);
@@ -230,6 +311,11 @@ function WeekForm({
         onCopyPrevious={copyPrevious}
         copying={copying}
         note={copyNote}
+        onFetchGuide={fetchGuide}
+        fetchingGuide={fetchingGuide}
+        proposal={proposal?.preview ?? null}
+        onApplyGuide={applyGuide}
+        onDiscardGuide={() => setProposal(null)}
       />
       <WeekendEditor value={wend} onChange={setWend} />
 

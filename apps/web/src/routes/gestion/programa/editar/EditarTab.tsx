@@ -3,11 +3,16 @@
  *
  * A month picker over the weeks of that month; each week expands into the midweek and weekend
  * editors (see `WeekSection`). The week containing today opens by default.
+ *
+ * "Traer el mes" fetches the Guía de actividades for every week of the month once and hands each
+ * week its part; each week then shows its own proposal to apply and save.
  */
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { loadWorkbook, WorkbookError } from '@territorios/data';
 import { mondayOf } from '../../../../lib/week';
-import { monthLabel, shiftMonth, weekStartsOfMonth } from './model';
+import { monthLabel, shiftMonth, weekLabel, weekStartsOfMonth } from './model';
+import type { GuideDelivery } from './guide';
 import { WeekSection } from './WeekSection';
 
 export function EditarPrograma() {
@@ -19,6 +24,46 @@ export function EditarPrograma() {
 
   const weeks = useMemo(() => weekStartsOfMonth(cursor.year, cursor.month), [cursor]);
 
+  const [guides, setGuides] = useState<Record<string, GuideDelivery>>({});
+  const [fetchingMonth, setFetchingMonth] = useState(false);
+  const [monthNote, setMonthNote] = useState<string | null>(null);
+
+  function moveMonth(delta: number) {
+    setCursor((c) => shiftMonth(c.year, c.month, delta));
+    setGuides({});
+    setMonthNote(null);
+  }
+
+  async function fetchMonth() {
+    setFetchingMonth(true);
+    setMonthNote(null);
+    const month = `${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`;
+    try {
+      const res = await loadWorkbook({ month });
+      const nonce = Date.now();
+      const next: Record<string, GuideDelivery> = {};
+      for (const weekStart of weeks) {
+        next[weekStart] = { week: res.weeks.find((w) => w.weekStart === weekStart) ?? null, nonce };
+      }
+      setGuides(next);
+      const missing = weeks.filter((w) => !next[w]?.week);
+      setMonthNote(
+        res.weeks.length === 0
+          ? 'La Guía de este mes todavía no está publicada. Cargá el mes a mano.'
+          : `Trajimos la Guía de ${res.weeks.length === 1 ? 'una semana' : `${res.weeks.length} semanas`}. Revisá los cambios de cada una y guardala.` +
+              (missing.length ? ` Sin Guía todavía: ${missing.map(weekLabel).join(', ')}.` : ''),
+      );
+    } catch (err) {
+      setMonthNote(
+        err instanceof WorkbookError && err.status === 403
+          ? 'No tenés permiso para traer la Guía.'
+          : 'No pudimos traer la Guía de este mes. Probá de nuevo o cargala a mano.',
+      );
+    } finally {
+      setFetchingMonth(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
@@ -26,7 +71,7 @@ export function EditarPrograma() {
           type="button"
           className="icon-btn"
           aria-label="Mes anterior"
-          onClick={() => setCursor((c) => shiftMonth(c.year, c.month, -1))}
+          onClick={() => moveMonth(-1)}
         >
           <ChevronLeft aria-hidden size={24} />
         </button>
@@ -37,20 +82,41 @@ export function EditarPrograma() {
           type="button"
           className="icon-btn"
           aria-label="Mes siguiente"
-          onClick={() => setCursor((c) => shiftMonth(c.year, c.month, 1))}
+          onClick={() => moveMonth(1)}
         >
           <ChevronRight aria-hidden size={24} />
         </button>
       </div>
 
       <p className="max-w-prose text-body text-ink-soft">
-        Elegí una semana para cargar o corregir sus reuniones a mano.
+        Elegí una semana para cargar o corregir sus reuniones a mano, o traé la estructura de la
+        Guía de actividades y completá solo los nombres.
       </p>
+
+      <div className="flex flex-col items-start gap-2">
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={fetchingMonth}
+          onClick={fetchMonth}
+        >
+          {fetchingMonth ? 'Trayendo el mes…' : 'Traer el mes de la Guía de actividades'}
+        </button>
+        {monthNote && (
+          <p role="status" className="max-w-prose text-secondary text-ink-soft">
+            {monthNote}
+          </p>
+        )}
+      </div>
 
       <ul className="flex flex-col gap-3">
         {weeks.map((weekStart) => (
           <li key={weekStart}>
-            <WeekSection weekStart={weekStart} defaultOpen={weekStart === thisMonday} />
+            <WeekSection
+              weekStart={weekStart}
+              defaultOpen={weekStart === thisMonday}
+              guide={guides[weekStart] ?? null}
+            />
           </li>
         ))}
       </ul>

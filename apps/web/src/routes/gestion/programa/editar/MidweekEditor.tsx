@@ -5,10 +5,14 @@
  *
  * The state lives in the parent (`WeekForm`); this component only renders `value` and calls
  * `onChange` with a new value. All the transforms are pure helpers from `./model`.
+ *
+ * "Traer de la Guía de actividades" asks the parent for a proposal (`./guide`); it is shown as a
+ * list of changes with "Aplicar" / "Descartar" and only touches the form when applied.
  */
 import { useId } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import type { MidweekPart, MidweekSection, MidweekWeek, ProgramaPerson } from '@territorios/core';
+import type { GuideProposal } from './guide';
 import {
   SECTION_LABEL,
   SECTION_ORDER,
@@ -27,12 +31,22 @@ export function MidweekEditor({
   onCopyPrevious,
   copying,
   note,
+  onFetchGuide,
+  fetchingGuide,
+  proposal,
+  onApplyGuide,
+  onDiscardGuide,
 }: {
   value: MidweekWeek;
   onChange: (week: MidweekWeek) => void;
   onCopyPrevious: () => void;
   copying: boolean;
   note: string | null;
+  onFetchGuide: () => void;
+  fetchingGuide: boolean;
+  proposal: GuideProposal | null;
+  onApplyGuide: () => void;
+  onDiscardGuide: () => void;
 }) {
   const id = useId();
   const asamblea = value.asamblea ?? '';
@@ -75,7 +89,19 @@ export function MidweekEditor({
             <button type="button" className="btn-secondary" disabled={copying} onClick={onCopyPrevious}>
               {copying ? 'Copiando…' : 'Copiar estructura de la semana anterior'}
             </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={fetchingGuide}
+              onClick={onFetchGuide}
+            >
+              {fetchingGuide ? 'Trayendo…' : 'Traer de la Guía de actividades'}
+            </button>
           </div>
+
+          {proposal && (
+            <GuidePreview proposal={proposal} onApply={onApplyGuide} onDiscard={onDiscardGuide} />
+          )}
 
           {note && (
             <p role="status" className="text-secondary text-ink-soft">
@@ -110,6 +136,56 @@ export function MidweekEditor({
         </>
       )}
     </section>
+  );
+}
+
+function GuidePreview({
+  proposal,
+  onApply,
+  onDiscard,
+}: {
+  proposal: GuideProposal;
+  onApply: () => void;
+  onDiscard: () => void;
+}) {
+  const id = useId();
+  return (
+    <div
+      role="region"
+      aria-labelledby={`${id}-h`}
+      className="flex flex-col gap-3 rounded-md border border-line bg-canvas px-3 py-3"
+    >
+      <p id={`${id}-h`} className="text-body-strong font-bold">
+        Guía de actividades: cambios para esta semana
+      </p>
+      {proposal.changes.length === 0 ? (
+        <p className="text-body text-ink-soft">La semana ya coincide con la Guía.</p>
+      ) : (
+        <ul className="flex list-disc flex-col gap-1 pl-5 text-body">
+          {proposal.changes.map((change, i) => (
+            <li key={i}>{change}</li>
+          ))}
+        </ul>
+      )}
+      {proposal.keptNames > 0 && (
+        <p className="text-secondary text-ink-soft">
+          {proposal.keptNames === 1
+            ? 'Una parte conserva sus nombres.'
+            : `${proposal.keptNames} partes conservan sus nombres.`}
+        </p>
+      )}
+      <p className="text-secondary text-ink-soft">
+        Nada se guarda hasta que toques “Guardar semana”.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-primary" onClick={onApply}>
+          Aplicar
+        </button>
+        <button type="button" className="btn-secondary" onClick={onDiscard}>
+          Descartar
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -1,0 +1,258 @@
+{
+  "source": "mwb_S_202609 (structure only: titles, minutes, sections, songs)",
+  "weeks": [
+    {
+      "weekStart": "2026-10-12",
+      "label": "12-18 DE OCTUBRE",
+      "bibleReading": "JEREMÍAS 42-44",
+      "songs": [
+        103,
+        47,
+        129
+      ],
+      "parts": [
+        {
+          "section": "inicio",
+          "number": null,
+          "title": "Palabras de introducción",
+          "minutes": 1,
+          "kind": "intro"
+        },
+        {
+          "section": "tesoros",
+          "number": 1,
+          "title": "Pidieron guía y luego la rechazaron",
+          "minutes": 10,
+          "kind": "tesoros"
+        },
+        {
+          "section": "tesoros",
+          "number": 2,
+          "title": "Busquemos perlas escondidas",
+          "minutes": 10,
+          "kind": "perlas"
+        },
+        {
+          "section": "tesoros",
+          "number": 3,
+          "title": "Lectura de la Biblia",
+          "minutes": 4,
+          "kind": "lectura"
+        },
+        {
+          "section": "maestros",
+          "number": 4,
+          "title": "Empiece conversaciones",
+          "minutes": 3,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 5,
+          "title": "Haga revisitas",
+          "minutes": 4,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 6,
+          "title": "¿Qué diría?",
+          "minutes": 6,
+          "kind": "analisis"
+        },
+        {
+          "section": "vida",
+          "number": 7,
+          "title": "Necesidades de la congregación",
+          "minutes": 15,
+          "kind": "parte"
+        },
+        {
+          "section": "vida",
+          "number": 8,
+          "title": "Estudio bíblico de la congregación",
+          "minutes": 30,
+          "kind": "estudio"
+        },
+        {
+          "section": "vida",
+          "number": null,
+          "title": "Palabras de conclusión",
+          "minutes": 3,
+          "kind": "conclusion"
+        }
+      ]
+    },
+    {
+      "weekStart": "2026-10-19",
+      "label": "19-25 DE OCTUBRE",
+      "bibleReading": "JEREMÍAS 45, 46",
+      "songs": [
+        21,
+        117,
+        87
+      ],
+      "parts": [
+        {
+          "section": "inicio",
+          "number": null,
+          "title": "Palabras de introducción",
+          "minutes": 1,
+          "kind": "intro"
+        },
+        {
+          "section": "tesoros",
+          "number": 1,
+          "title": "La esperanza es clave para estar contentos",
+          "minutes": 10,
+          "kind": "tesoros"
+        },
+        {
+          "section": "tesoros",
+          "number": 2,
+          "title": "Busquemos perlas escondidas",
+          "minutes": 10,
+          "kind": "perlas"
+        },
+        {
+          "section": "tesoros",
+          "number": 3,
+          "title": "Lectura de la Biblia",
+          "minutes": 4,
+          "kind": "lectura"
+        },
+        {
+          "section": "maestros",
+          "number": 4,
+          "title": "Empiece conversaciones",
+          "minutes": 3,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 5,
+          "title": "Empiece conversaciones",
+          "minutes": 2,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 6,
+          "title": "Empiece conversaciones",
+          "minutes": 2,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 7,
+          "title": "Discurso",
+          "minutes": 4,
+          "kind": "discurso"
+        },
+        {
+          "section": "vida",
+          "number": 8,
+          "title": "“No se olviden [...] de compartir lo que tienen”",
+          "minutes": 15,
+          "kind": "parte"
+        },
+        {
+          "section": "vida",
+          "number": 9,
+          "title": "Estudio bíblico de la congregación",
+          "minutes": 30,
+          "kind": "estudio"
+        },
+        {
+          "section": "vida",
+          "number": null,
+          "title": "Palabras de conclusión",
+          "minutes": 3,
+          "kind": "conclusion"
+        }
+      ]
+    },
+    {
+      "weekStart": "2026-10-26",
+      "label": "26 DE OCTUBRE A 1 DE NOVIEMBRE",
+      "bibleReading": "JEREMÍAS 47, 48",
+      "songs": [
+        125,
+        158,
+        54
+      ],
+      "parts": [
+        {
+          "section": "inicio",
+          "number": null,
+          "title": "Palabras de introducción",
+          "minutes": 1,
+          "kind": "intro"
+        },
+        {
+          "section": "tesoros",
+          "number": 1,
+          "title": "Jehová es un juez justo y misericordioso",
+          "minutes": 10,
+          "kind": "tesoros"
+        },
+        {
+          "section": "tesoros",
+          "number": 2,
+          "title": "Busquemos perlas escondidas",
+          "minutes": 10,
+          "kind": "perlas"
+        },
+        {
+          "section": "tesoros",
+          "number": 3,
+          "title": "Lectura de la Biblia",
+          "minutes": 4,
+          "kind": "lectura"
+        },
+        {
+          "section": "maestros",
+          "number": 4,
+          "title": "Empiece conversaciones",
+          "minutes": 3,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 5,
+          "title": "Haga revisitas",
+          "minutes": 4,
+          "kind": "estudiante"
+        },
+        {
+          "section": "maestros",
+          "number": 6,
+          "title": "Haga discípulos",
+          "minutes": 5,
+          "kind": "estudiante"
+        },
+        {
+          "section": "vida",
+          "number": 7,
+          "title": "Necesidades de la congregación",
+          "minutes": 15,
+          "kind": "parte"
+        },
+        {
+          "section": "vida",
+          "number": 8,
+          "title": "Estudio bíblico de la congregación",
+          "minutes": 30,
+          "kind": "estudio"
+        },
+        {
+          "section": "vida",
+          "number": null,
+          "title": "Palabras de conclusión",
+          "minutes": 3,
+          "kind": "conclusion"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0",
+    "fflate": "npm:fflate@0.8.2",
+    "linkedom": "npm:linkedom@0.18.12"
+  }
+}
