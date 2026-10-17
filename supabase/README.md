@@ -183,8 +183,10 @@ npx supabase stop
 ### Creating editor accounts (one per editor)
 
 1. Dashboard ▸ Authentication ▸ Users ▸ **Add user** ▸ _Create new user_. Enter the editor's
-   email and a temporary password, and tick _Auto confirm user_. You can also use
-   _Send invitation_, which works even with sign-up disabled.
+   email and a temporary password, and tick _Auto confirm user_. No email is sent.
+   Do **not** use _Send invitation_ or password-reset emails until the app is deployed and
+   Authentication ▸ URL Configuration ▸ **Site URL** points at it: the default Site URL is
+   `http://localhost:3000`, so those email links fail.
 2. Dashboard ▸ SQL Editor. Give the user a role:
    ```sql
    insert into public.profiles (id, role, display_name)
