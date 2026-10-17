@@ -47,3 +47,10 @@
     background: var(--tk-bg-canvas);
   }
 }
+
+/* Four sections on a phone: labels only, so every tab stays in view at 390 px. */
+@media (max-width: 639.98px) {
+  .gestion-nav-link svg {
+    display: none;
+  }
+}

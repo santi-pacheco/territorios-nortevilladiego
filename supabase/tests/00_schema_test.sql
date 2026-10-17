@@ -16,14 +16,15 @@ select is(
 
 select is(
   (select count(*)::int from pg_tables where schemaname = 'public'),
-  14,
-  'public has exactly the 14 planned tables'
+  15,
+  'public has exactly the 15 planned tables'
 );
 
 select is(
   (select count(*)::int
      from pg_tables t
     where t.schemaname = 'public'
+      and t.tablename <> 'reminder_log'  -- append-only log, no CAS
       and (select count(*) from information_schema.columns c
             where c.table_schema = 'public' and c.table_name = t.tablename
               and c.column_name in ('updated_at', 'version', 'updated_by')) <> 3),
@@ -35,6 +36,7 @@ select is(
   (select count(*)::int
      from pg_tables t
     where t.schemaname = 'public'
+      and t.tablename <> 'reminder_log'
       and not exists (select 1 from pg_trigger g
                        where g.tgrelid = format('public.%I', t.tablename)::regclass
                          and g.tgname = t.tablename || '_bump_version')),

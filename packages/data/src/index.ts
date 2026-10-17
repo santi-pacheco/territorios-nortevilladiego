@@ -16,6 +16,7 @@ export * from './repos/carrito';
 export * from './repos/people';
 export * from './repos/program';
 export * from './repos/auth';
+export * from './repos/accounts';
 
 export { qk, tableScopes, privateScopes, isPrivateKey } from './query/keys';
 export {

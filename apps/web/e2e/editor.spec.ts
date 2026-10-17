@@ -74,9 +74,11 @@ async function signIn(page: Page) {
   await expect(page.getByRole('heading', { name: 'Necesitás iniciar sesión como encargado' })).toBeVisible();
   await page.getByRole('button', { name: 'Tu cuenta y ajustes' }).locator('visible=true').first().click();
   const sheet = page.getByRole('dialog', { name: 'Ajustes' });
+  // Staff sign-in sits folded under "Soy encargado", below the members' Google button.
+  await sheet.getByText('Soy encargado').click();
   await sheet.getByLabel('Correo').fill(EMAIL!);
   await sheet.getByLabel('Contraseña').fill(PASSWORD!);
-  await sheet.getByRole('button', { name: 'Entrar' }).click();
+  await sheet.getByRole('button', { name: 'Entrar', exact: true }).click();
   // Once the editor role loads, the sign-in screen (and the sheet it owns) gives way to Gestión.
   await expect(page.getByRole('navigation', { name: 'Secciones de gestión' })).toBeVisible();
   await expect(sheet).toHaveCount(0);

@@ -59,6 +59,8 @@ export default defineConfig(({ mode, command }) => ({
         ],
       },
       workbox: {
+        // Push + notificationclick handlers for the "Mis asignaciones" reminders.
+        importScripts: ['push-sw.js'],
         // App shell + self-hosted fonts. Lazy route chunks are precached too so every screen
         // opens offline; pdf.js (editors only) is left to the network.
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,kml}'],

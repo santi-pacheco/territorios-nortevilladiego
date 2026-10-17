@@ -8,11 +8,15 @@ supabase/
 ├─ config.toml                          local stack config (sign-up disabled, analytics off)
 ├─ migrations/
 │  ├─ 20261016185013_schema.sql         tables, constraints, triggers
-│  └─ 20261016185225_rls_policies.sql   is_editor()/is_admin(), grants, RLS policies, realtime
+│  ├─ 20261016185225_rls_policies.sql   is_editor()/is_admin(), grants, RLS policies, realtime
+│  └─ 20261017024539_member_accounts.sql member accounts, assignment feed, reminders + cron
+├─ functions/
+│  └─ send-reminders/                   daily Web Push reminders (Deno; lib.ts is the pure part)
 ├─ seed.sql                             FAKE data for local dev only (never pushed)
 └─ tests/
    ├─ 00_schema_test.sql                RLS coverage, version trigger, constraints, derived data
-   └─ 01_rls_test.sql                   anon / viewer / no-profile / editor / admin personas
+   ├─ 01_rls_test.sql                   anon / viewer / no-profile / editor / admin personas
+   └─ 02_accounts_test.sql              new-user trigger, name matching, each kind, account RPCs
 ```
 
 ## Access model
@@ -28,14 +32,32 @@ supabase/
   `(select public.is_editor())`. This is a `SECURITY INVOKER` SQL function that reads the
   caller's own profile row, so nothing bypasses RLS. Changing a role takes effect on the next
   request. No token refresh is needed because the role is not read from a JWT claim.
-- Clients can't insert profiles or update `profiles.role`. Only `display_name` has a column
-  grant. Roles are changed by the owner in the SQL editor (see below).
+- Every new auth user gets a `viewer` profile from the `on_auth_user_created` trigger
+  (display_name = Google `full_name`). Clients still can't insert profiles or update
+  `profiles.role` / `profiles.person_id`. Only `display_name` has a column grant. Roles and
+  links change through the account RPCs below (or the SQL editor).
 - Grants are explicit. The RLS migration revokes Supabase's default `ALL` from `anon` and
   `authenticated`. It also changes the default privileges in `public` so that **new tables
   and functions created by `postgres` get no access until a migration grants it**. Future
   RPCs therefore need an explicit `grant execute`.
-- `admin` has the same data rights as `editor` today. It is reserved for future admin-only
-  screens.
+- `admin` has the same data rights as `editor`, plus `set_account_role`.
+
+### Member accounts and "Mis asignaciones" (docs/ASSIGNMENTS.md)
+
+| RPC (all `SECURITY DEFINER`, `search_path = ''`) | Who             | What                                                                                                         |
+| ------------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `my_assignments(p_from, p_to)`                   | authenticated   | carrito turns, program parts and salidas conducted by the caller's linked person. Empty when not linked       |
+| `my_link()`                                      | authenticated   | `(person_id, person_name)` of the caller. Zero rows when not linked                                           |
+| `list_accounts()`                                | editor/admin    | every auth user with email, provider, role and linked person                                                 |
+| `link_account(p_user, p_person)`                 | editor/admin    | link, or unlink with null. A person links to one account only (23505)                                        |
+| `set_account_role(p_user, p_role)`               | admin           | change a role. The last admin cannot be demoted                                                              |
+| `reminder_candidates(p_from, p_to)`              | secret key only | feed for the send-reminders function                                                                         |
+
+- Matching: carrito by `person_ids`. Program and salida by name: `private.norm_name` =
+  lower(unaccent(trim)) with spaces collapsed, compared with `people.name` and every entry of
+  `people.aliases` (e.g. "D. Gomez"). Editors add an alias when a PDF spells a name differently.
+- Permission failures raise `42501` (PostgREST answers 403).
+- `reminder_log` has RLS on and no grants. Only the secret key (the function) touches it.
 
 ### Decisions to review (flagged for the coordinator/owner)
 
@@ -136,6 +158,8 @@ npx supabase stop
 - New migrations: run `npx supabase migration new <name>` and never hand-name the file.
   Each new table needs RLS enabled, explicit `grant`s, a policy set, the
   `<table>_bump_version` trigger, and updated counts in `tests/00_schema_test.sql`.
+- `reminder_log` is the one public table without `version`/`updated_*`/`bump_version`
+  (append-only log). `tests/00_schema_test.sql` excludes it from those checks.
 - Advisors currently report only INFO-level performance notes. The `updated_by` foreign keys
   are unindexed on purpose, because the tables are tiny and auth users are rarely deleted.
   There are no security findings.
@@ -201,4 +225,93 @@ npx supabase stop
    Authentication ▸ Users. Their profile and device tokens cascade away, but already issued
    access tokens stay valid until they expire.
 
-Members (viewers) don't need accounts. All public data is readable without logging in.
+Members don't need an account to read schedules. To see "Mis asignaciones" and get reminders
+they sign in with Google (next section). An editor then links the account to their `people`
+row in Gestión ▸ Usuarios.
+
+### Google sign-in for members (owner decision needed)
+
+`[auth] enable_signup = false` (config.toml, and step 2 above) also blocks **Google** sign-ups:
+a member's first Google login creates their auth user, so with sign-ups off it fails. To let
+members in while keeping email sign-up closed:
+
+1. Authentication ▸ Sign In / Providers ▸ **Google**: enable it with a Google Cloud OAuth
+   client (type Web application, authorised redirect URI
+   `https://<project-ref>.supabase.co/auth/v1/callback`).
+2. Turn **on** "Allow new users to sign up", and under **Email** turn sign-ups **off**.
+   Editors keep signing in with their existing email + password accounts.
+3. Authentication ▸ URL Configuration: Site URL = the deployed app. Add
+   `https://<app-domain>/mis-asignaciones` to the redirect allow-list.
+
+Anyone with a Google account can then create a `viewer` account. That grants nothing beyond
+anonymous access until an editor links it to a person. Locally the same change is
+`[auth] enable_signup = true`, `[auth.email] enable_signup = false` and an
+`[auth.external.google]` block with `env(...)` credentials. config.toml is left unchanged
+until the owner decides.
+
+## Reminders (send-reminders Edge Function)
+
+Every day at 12:00 UTC (09:00 Buenos Aires) `pg_cron` runs `private.invoke_send_reminders()`,
+which POSTs (`pg_net`) to the function with `Authorization: Bearer <reminders_secret>`. The
+function pushes "en 7 días" and "Mañana" reminders to every linked user with a Web Push
+subscription (`device_tokens.platform = 'web'`), logs each send in `reminder_log` so a
+reminder never repeats, and deletes subscriptions that answer 404/410. Until the Vault secrets
+exist the cron job does nothing (it raises a notice).
+
+### Owner setup (once, hosted project)
+
+1. **VAPID keys** (identify this server to the browsers' push services):
+   ```sh
+   npx web-push generate-vapid-keys
+   ```
+   The public key also goes to the web app as `VITE_VAPID_PUBLIC_KEY`. The private key never
+   leaves the function secrets.
+2. **Function secrets.** `REMINDER_SECRET` is any long random string (`openssl rand -hex 32`):
+   ```sh
+   npx supabase secrets set VAPID_PUBLIC_KEY=<public> VAPID_PRIVATE_KEY=<private> \
+     VAPID_SUBJECT=mailto:<owner email> REMINDER_SECRET=<random>
+   ```
+   The function reads the project's secret API key from the platform-provided
+   `SUPABASE_SECRET_KEYS`. If the project has no secret API key yet, create one under
+   Project Settings ▸ API Keys, or set one as the `SB_SECRET_KEY` function secret.
+3. **Deploy.** `verify_jwt = false` comes from config.toml because the cron call carries the
+   shared secret, not a user JWT. The function answers 401 to any other caller.
+   ```sh
+   npx supabase functions deploy send-reminders
+   ```
+4. **Vault secrets** for the cron job (SQL editor):
+   ```sql
+   select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/send-reminders', 'reminders_url');
+   select vault.create_secret('<same REMINDER_SECRET>', 'reminders_secret');
+   ```
+   To rotate: `select vault.update_secret(id, '<new>') from vault.secrets where name = 'reminders_secret';`
+   and `npx supabase secrets set REMINDER_SECRET=<new>`.
+5. **Dry run.** Sends nothing, logs nothing, returns what would be sent. `today` is optional
+   and honoured only in dry runs:
+   ```sh
+   curl -X POST https://<project-ref>.supabase.co/functions/v1/send-reminders \
+     -H "Authorization: Bearer <REMINDER_SECRET>" -H "Content-Type: application/json" \
+     -d '{"dryRun":true}'
+   ```
+6. **Check the job:** `select * from cron.job_run_details order by start_time desc limit 5;`
+   and the HTTP result: `select status_code, content from net._http_response order by id desc limit 5;`
+
+### Local
+
+```sh
+# env file in a scratch dir outside the repo (never commit it):
+#   VAPID_PUBLIC_KEY=…  VAPID_PRIVATE_KEY=…  VAPID_SUBJECT=mailto:you@example.com  REMINDER_SECRET=local-test-secret
+npx supabase functions serve send-reminders --no-verify-jwt --env-file <scratch>/reminders.env
+curl -X POST http://127.0.0.1:54321/functions/v1/send-reminders \
+  -H "Authorization: Bearer local-test-secret" -d '{"dryRun":true,"today":"2026-10-12"}'
+deno test supabase/functions/send-reminders     # unit tests for lib.ts
+```
+
+The seed gives the fake person "Ana Prueba" one assignment of each kind: carrito and a midweek
+part on 2026-10-13, the weekend discourse (through the alias "A. Prueba") and a salida on
+2026-10-17. To see reminders locally, add a user in Studio, link it to
+`00000000-0000-4000-8000-000000000401`, and insert a fake `device_tokens` row with
+`platform = 'web'` and a PushSubscription-shaped JSON token. Dry runs with
+`"today":"2026-10-12"` (Mañana) and `"today":"2026-10-10"` (en 7 días) then list them.
+To exercise the cron path locally, create the Vault secrets with the URL
+`http://kong:8000/functions/v1/send-reminders` and run `select private.invoke_send_reminders();`.

@@ -13,6 +13,9 @@ export function bindAuth(qc: QueryClient, sb: TerritoriosClient): () => void {
     if (event === 'SIGNED_OUT') {
       qc.removeQueries({ queryKey: qk.people });
       qc.removeQueries({ queryKey: [...qk.auth, 'role'] });
+      qc.removeQueries({ queryKey: [...qk.auth, 'my-link'] });
+      qc.removeQueries({ queryKey: qk.myAssignmentsAll });
+      qc.removeQueries({ queryKey: qk.accounts });
       return;
     }
     if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {

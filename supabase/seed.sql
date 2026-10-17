@@ -14,7 +14,7 @@ insert into public.service_weeks (id, week_start, month_label) values
 insert into public.service_meetings
   (week_id, dow, position, kind, start_time, groups, conductor, place, territory_ids, group_territories) values
   ('00000000-0000-4000-8000-000000000101', 3, 0, 'normal',  '09:30', '1 y 2', 'Conductor Ejemplo A', 'Esquina Ficticia 100', '{1,2}', '{}'),
-  ('00000000-0000-4000-8000-000000000101', 6, 0, 'normal',  '10:00', '3',     'Conductor Ejemplo B', 'Plaza Inventada',      '{3}',   '{}'),
+  ('00000000-0000-4000-8000-000000000101', 6, 0, 'normal',  '10:00', '3',     'Ána  Prueba',        'Plaza Inventada',      '{3}',   '{}'),
   ('00000000-0000-4000-8000-000000000101', 0, 0, 'domingo', '09:45', 'G1-G4', 'Conductor Ejemplo C', 'Salón',                '{}',    '{"G1":[1],"G2":[2],"G3":[3],"G4":[]}');
 
 -- Carrito
@@ -26,12 +26,12 @@ insert into public.cart_slots (id, place_id, iso_dow, start_time, end_time, grou
   ('00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000201', 2, '08:30', '10:30', 2, null),
   ('00000000-0000-4000-8000-000000000302', '00000000-0000-4000-8000-000000000202', 6, '10:00', '12:00', 3, 'Sábado mañana');
 
-insert into public.people (id, name, gender, target_appearances) values
-  ('00000000-0000-4000-8000-000000000401', 'Ana Prueba',      'F', 0),
-  ('00000000-0000-4000-8000-000000000402', 'Bruno Prueba',    'M', 2),
-  ('00000000-0000-4000-8000-000000000403', 'Carla Ficticia',  'F', 0),
-  ('00000000-0000-4000-8000-000000000404', 'Dario Ficticio',  'M', 0),
-  ('00000000-0000-4000-8000-000000000405', 'Elena Inventada', 'F', 1);
+insert into public.people (id, name, gender, target_appearances, aliases) values
+  ('00000000-0000-4000-8000-000000000401', 'Ana Prueba',      'F', 0, '{"A. Prueba"}'),
+  ('00000000-0000-4000-8000-000000000402', 'Bruno Prueba',    'M', 2, '{}'),
+  ('00000000-0000-4000-8000-000000000403', 'Carla Ficticia',  'F', 0, '{}'),
+  ('00000000-0000-4000-8000-000000000404', 'Dario Ficticio',  'M', 0, '{}'),
+  ('00000000-0000-4000-8000-000000000405', 'Elena Inventada', 'F', 1, '{}');
 
 insert into public.person_availability (person_id, slot_id) values
   ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000301'),
@@ -57,9 +57,12 @@ insert into public.cart_blackouts (slot_id, date) values
   ('00000000-0000-4000-8000-000000000302', '2026-10-24');
 
 -- Programa: Tuesday (midweek) and Saturday (weekend) keys.
+-- 'Ana Prueba' has one assignment of each kind (docs/ASSIGNMENTS.md): carrito Tue 10-13,
+-- midweek part Tue 10-13, weekend discourse Sat 10-17 (via alias 'A. Prueba'), and conducts
+-- the Saturday 10-17 salida (spelled 'Ána  Prueba' to exercise accent/space matching).
 insert into public.program_weeks (kind, date, data) values
-  ('midweek', '2026-10-13', '{"date":"2026-10-13","asamblea":null,"parts":[{"time":"19:00","title":"Canción y oración","section":"inicio","people":[{"name":"Hermano Ejemplo","role":"Presidente"}]}]}'),
-  ('weekend', '2026-10-17', '{"date":"2026-10-17","asamblea":null,"presidente":"Hermano Ejemplo","cancionInicio":"1","conductor":"Hermano Prueba","lector":"Hermano Ficticio","cancionFin":"2","oracionFinal":"Hermano Ejemplo","discurso":null}');
+  ('midweek', '2026-10-13', '{"date":"2026-10-13","asamblea":null,"parts":[{"time":"19:00","title":"Canción y oración","section":"inicio","people":[{"name":"Hermano Ejemplo","role":"Presidente"}]},{"time":"19:20","title":"Empiece conversaciones","section":"maestros","people":[{"name":"Ana Prueba"},{"name":"Carla Ficticia","role":"Ayudante"}]}]}'),
+  ('weekend', '2026-10-17', '{"date":"2026-10-17","asamblea":null,"presidente":"Hermano Ejemplo","cancionInicio":"1","conductor":"Hermano Prueba","lector":"Hermano Ficticio","cancionFin":"2","oracionFinal":"Hermano Ejemplo","discurso":{"tipo":"PÚBLICO","titulo":"Un discurso de ejemplo","orador":"A. Prueba","congregacion":null,"saliente":null}}');
 
 -- Extra fake salidas so the day line has past, next and later stations in dev.
 insert into public.service_meetings

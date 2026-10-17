@@ -17,6 +17,7 @@ export const router = createBrowserRouter([
       { path: 'mapa', lazy: () => import('./routes/mapa/route') },
       { path: 'carrito', lazy: () => import('./routes/carrito/route') },
       { path: 'programa', lazy: () => import('./routes/programa/route') },
+      { path: 'mis-asignaciones', lazy: () => import('./routes/mis-asignaciones/route') },
       { path: 'gestion/*', lazy: () => import('./routes/gestion/route') },
       { path: '*', element: <Navigate to="/salidas" replace /> },
     ],

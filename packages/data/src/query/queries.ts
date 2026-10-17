@@ -4,7 +4,9 @@
  */
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { withDb } from '../client';
+import { listAccounts, myAssignments, myLink } from '../repos/accounts';
 import { fetchRole, fetchSession, isEditorRole, type AppRole } from '../repos/auth';
+import { addDays } from '../repos/base';
 import { fetchCartBoard } from '../repos/carrito';
 import { fetchPeople } from '../repos/people';
 import { fetchProgramWeek } from '../repos/program';
@@ -58,6 +60,24 @@ export const roleQuery = (userId: string | null) =>
     staleTime: 5 * 60_000,
   });
 
+export const myLinkQuery = (userId: string | null) =>
+  queryOptions({
+    queryKey: qk.myLink(userId),
+    queryFn: () => withDb(myLink),
+    staleTime: 5 * 60_000,
+  });
+
+/** `from`/`to` are YYYY-MM-DD (inclusive). */
+export const myAssignmentsQuery = (userId: string | null, from: string, to: string) =>
+  queryOptions({
+    queryKey: qk.myAssignments(userId, from, to),
+    queryFn: () => withDb((sb) => myAssignments(sb, from, to)),
+    staleTime: 60_000,
+  });
+
+export const accountsQuery = () =>
+  queryOptions({ queryKey: qk.accounts, queryFn: () => withDb(listAccounts) });
+
 // ---------------------------------------------------------------------------
 // Hooks
 // ---------------------------------------------------------------------------
@@ -92,4 +112,32 @@ export function useRole(): RoleState {
     isEditor: isEditorRole(role.data),
     isLoading: session.isPending || role.isPending,
   };
+}
+
+/** The caller's linked person (null = not linked). Disabled without a session. */
+export function useMyLink() {
+  const session = useSession();
+  const userId = session.data?.user.id ?? null;
+  return useQuery({ ...myLinkQuery(userId), enabled: userId !== null });
+}
+
+/**
+ * Assignments of the caller's linked person, today (local) → +90 days by default.
+ * Empty array when not linked. Disabled without a session.
+ */
+export function useMyAssignments(opts: { from?: string; to?: string; enabled?: boolean } = {}) {
+  const session = useSession();
+  const userId = session.data?.user.id ?? null;
+  const from = opts.from ?? todayIso();
+  const to = opts.to ?? addDays(from, 90);
+  return useQuery({
+    ...myAssignmentsQuery(userId, from, to),
+    enabled: userId !== null && (opts.enabled ?? true),
+  });
+}
+
+/** Gestión ▸ Usuarios. Editor-only: disabled unless the caller is editor/admin. */
+export function useAccounts(opts: { enabled?: boolean } = {}) {
+  const { isEditor } = useRole();
+  return useQuery({ ...accountsQuery(), enabled: opts.enabled ?? isEditor });
 }

@@ -1,0 +1,90 @@
+/* Gestión ▸ Usuarios: one hairline row per account; controls wrap under the name on phones. */
+.usr-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--tk-border-subtle);
+}
+.usr-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 10rem);
+  gap: 12px;
+  align-items: end;
+}
+@media (min-width: 1024px) {
+  .usr-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+    align-items: center;
+    column-gap: 24px;
+  }
+  .usr-error {
+    grid-column: 1 / -1;
+  }
+}
+
+.usr-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 14px;
+  font-weight: 600;
+  text-align: left;
+}
+.usr-person-action {
+  flex-shrink: 0;
+  font-size: var(--tk-type-secondary-size);
+  color: var(--tk-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.usr-search {
+  position: relative;
+}
+.usr-search > svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tk-text-secondary);
+  pointer-events: none;
+}
+.usr-search > input {
+  padding-left: 44px;
+}
+
+/* Scrolls inside the sheet so the search field and the buttons stay in view. */
+.usr-options {
+  max-height: min(50dvh, 26rem);
+  overflow-y: auto;
+  border: 1px solid var(--tk-border-subtle);
+  border-radius: var(--tk-radius-sm);
+}
+.usr-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tk-touch-row);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--tk-border-subtle);
+  cursor: pointer;
+}
+.usr-option:last-child {
+  border-bottom: 0;
+}
+.usr-option input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--tk-text-primary);
+}
+.usr-option:has(input:checked) {
+  background: var(--tk-bg-canvas);
+  font-weight: 650;
+}
+.usr-option[data-disabled] {
+  cursor: not-allowed;
+  color: var(--tk-text-secondary);
+}

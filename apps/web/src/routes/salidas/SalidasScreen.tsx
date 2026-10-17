@@ -15,6 +15,7 @@ import {
 import { DayStrip } from './DayStrip';
 import { shortRange } from '../programa/model';
 import { StationLine } from './StationLine';
+import { NextAssignment } from './NextAssignment';
 
 // Desktop splits Salidas with the day's map. The pane is a separate chunk (it carries maplibre),
 // requested only once the wide layout is actually shown.
@@ -123,6 +124,7 @@ export function SalidasScreen() {
         </header>
 
         <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-5">
+          <NextAssignment />
           {week.isPending ? (
             <ScreenSkeleton />
           ) : week.isError && !week.data ? (

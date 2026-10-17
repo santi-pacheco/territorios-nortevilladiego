@@ -1,0 +1,11 @@
+/* "Soy encargado": the staff sign-in, folded away under the member options. */
+.encargado > summary::-webkit-details-marker {
+  display: none;
+}
+.encargado-chevron {
+  color: var(--tk-text-secondary);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.encargado[open] .encargado-chevron {
+  transform: rotate(180deg);
+}

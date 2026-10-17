@@ -1,11 +1,15 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { UserRound, X } from 'lucide-react';
+import { ChevronDown, ListChecks, UserRound, X } from 'lucide-react';
 import { useRole, useSession, withDb } from '@territorios/data';
 import { readTheme, saveTheme, type ThemeChoice } from '../lib/theme';
 import { readMe, saveMe } from '../lib/me';
+import { deleteWebPushSubscription, useMyLink } from '../lib/accounts';
+import { currentSubscription } from '../lib/push';
 import { useBoot } from './bootContext';
+import { GoogleButton } from './GoogleButton';
+import './account.css';
 
 const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: 'system', label: 'Sistema' },
@@ -40,6 +44,8 @@ function AccountSheetBody({ onClose }: { onClose: () => void }) {
   const session = useSession();
   const { isEditor } = useRole();
   const signedIn = Boolean(session.data);
+  const link = useMyLink();
+  const linkedName = link.data?.person_name ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -52,25 +58,44 @@ function AccountSheetBody({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <section className="flex flex-col gap-2">
-        <label htmlFor={meId} className="text-body-strong font-semibold">
-          Soy…
-        </label>
-        <input
-          id={meId}
-          className="field"
-          value={me}
-          autoComplete="name"
-          placeholder="Tu nombre como figura en los programas"
-          onChange={(e) => {
-            setMe(e.target.value);
-            saveMe(e.target.value);
-          }}
+      {signedIn ? (
+        <SignedIn
+          email={session.data?.user.email ?? ''}
+          linkedName={linkedName}
+          isEditor={isEditor}
+          onClose={onClose}
         />
-        <p className="text-secondary text-ink-soft">
-          Resaltamos tus turnos y partes. Tu nombre queda solo en este teléfono.
-        </p>
-      </section>
+      ) : (
+        <section className="flex flex-col gap-2">
+          <h3 className="text-body-strong font-semibold">Tus asignaciones</h3>
+          <p className="text-secondary text-ink-soft">
+            Entrá para ver tus turnos, partes y salidas, y recibir recordatorios.
+          </p>
+          <GoogleButton className="mt-1" />
+        </section>
+      )}
+
+      {linkedName ? null : (
+        <section className="flex flex-col gap-2">
+          <label htmlFor={meId} className="text-body-strong font-semibold">
+            Soy…
+          </label>
+          <input
+            id={meId}
+            className="field"
+            value={me}
+            autoComplete="name"
+            placeholder="Tu nombre como figura en los programas"
+            onChange={(e) => {
+              setMe(e.target.value);
+              saveMe(e.target.value);
+            }}
+          />
+          <p className="text-secondary text-ink-soft">
+            Resaltamos tus turnos y partes. Tu nombre queda solo en este teléfono.
+          </p>
+        </section>
+      )}
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-body-strong font-semibold">Apariencia</legend>
@@ -94,10 +119,14 @@ function AccountSheetBody({ onClose }: { onClose: () => void }) {
         <p className="text-secondary text-ink-soft">“Sol” sube el contraste para leer al aire libre.</p>
       </fieldset>
 
-      {signedIn ? (
-        <SignedIn email={session.data?.user.email ?? ''} isEditor={isEditor} onClose={onClose} />
-      ) : (
-        <SignInForm />
+      {!signedIn && (
+        <details className="encargado border-t border-line pt-3">
+          <summary className="flex min-h-touch cursor-pointer list-none items-center justify-between gap-2 text-body-strong font-semibold">
+            Soy encargado
+            <ChevronDown aria-hidden size={20} className="encargado-chevron" />
+          </summary>
+          <SignInForm />
+        </details>
       )}
     </div>
   );
@@ -105,18 +134,38 @@ function AccountSheetBody({ onClose }: { onClose: () => void }) {
 
 function SignedIn({
   email,
+  linkedName,
   isEditor,
   onClose,
 }: {
   email: string;
+  linkedName: string | null;
   isEditor: boolean;
   onClose: () => void;
 }) {
   const { clearPersisted } = useBoot();
   const qc = useQueryClient();
   return (
-    <section className="flex flex-col gap-3 border-t border-line pt-5">
-      <p className="text-secondary text-ink-soft">Sesión iniciada como {email}</p>
+    <section className="flex flex-col gap-3">
+      <div>
+        {linkedName && <p className="text-body-strong font-semibold">{linkedName}</p>}
+        <p className="text-secondary break-words text-ink-soft">
+          {linkedName ? email : `Sesión iniciada como ${email}`}
+        </p>
+        {linkedName && (
+          <p className="mt-1 text-secondary text-ink-soft">
+            Resaltamos tus turnos y partes con este nombre.
+          </p>
+        )}
+      </div>
+      <Link
+        to="/mis-asignaciones"
+        className={`${isEditor ? 'btn-secondary' : 'btn-primary'} inline-flex items-center justify-center gap-2`}
+        onClick={onClose}
+      >
+        <ListChecks aria-hidden size={20} />
+        Mis asignaciones
+      </Link>
       {isEditor && (
         <Link to="/gestion" className="btn-primary text-center" onClick={onClose}>
           Abrir gestión
@@ -126,6 +175,12 @@ function SignedIn({
         type="button"
         className="btn-secondary"
         onClick={async () => {
+          // Reminders belong to the account: stop them on this device before leaving it.
+          const sub = await currentSubscription().catch(() => null);
+          if (sub) {
+            await withDb((sb) => deleteWebPushSubscription(sb, JSON.stringify(sub))).catch(() => {});
+            await sub.unsubscribe().catch(() => false);
+          }
           await withDb((sb) => sb.auth.signOut());
           await clearPersisted();
           qc.clear();
@@ -163,8 +218,8 @@ function SignInForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 border-t border-line pt-5">
-      <h3 className="text-body-strong font-semibold">Encargados</h3>
+    <form onSubmit={submit} className="flex flex-col gap-3 pt-2 pb-1">
+      <p className="text-secondary text-ink-soft">Con el correo y la contraseña de encargado.</p>
       <label htmlFor={emailId} className="text-secondary">
         Correo
       </label>

@@ -3,7 +3,7 @@ import { CalendarDays } from 'lucide-react';
 import { useProgramWeek } from '@territorios/data';
 import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import { ScreenHeader } from '../../shell/ScreenHeader';
-import { readMe } from '../../lib/me';
+import { useMeName } from '../../lib/me';
 import { addDaysIso, fromIso, mondayOf } from '../../lib/week';
 import {
   SECTION_COLOR,
@@ -28,7 +28,7 @@ export function Component() {
   const thisMonday = mondayOf(new Date());
   const monday = parseSemanaParam(params.get('semana'), fromIso(thisMonday));
   const isThisWeek = monday === thisMonday;
-  const me = readMe();
+  const me = useMeName();
 
   const week = useProgramWeek(monday);
 

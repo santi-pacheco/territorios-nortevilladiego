@@ -11,7 +11,7 @@
 import { z } from 'zod/mini';
 
 /** Bump when a row shape changes: busts the persisted query cache. */
-export const SCHEMA_VERSION = '2026-10-16.1';
+export const SCHEMA_VERSION = '2026-10-17.1';
 
 // ---------------------------------------------------------------------------
 // Primitives
@@ -56,6 +56,8 @@ export const ProfileRow = z.object({
   id: Uuid,
   role: Role,
   display_name: DisplayName,
+  /** Linked people row. Written only through the link_account RPC (no column grant). */
+  person_id: z.optional(z.nullable(Uuid)),
   ...Meta,
 });
 export type ProfileRow = z.infer<typeof ProfileRow>;
@@ -336,6 +338,8 @@ const personFields = {
   gender: Gender,
   /** 0 = unlimited. */
   target_appearances: z.int().check(z.minimum(0), z.maximum(999)),
+  /** Other spellings of the name in program PDFs / as salida conductor (e.g. "D. Gomez"). */
+  aliases: z.array(z.string().check(z.minLength(1), z.maxLength(120))).check(z.maxLength(20)),
 };
 export const PersonRow = z.object({ ...personFields, ...Meta });
 export type PersonRow = z.infer<typeof PersonRow>;
@@ -343,6 +347,7 @@ export const PersonInsert = z.object({
   ...personFields,
   id: z.optional(Uuid),
   target_appearances: z.optional(personFields.target_appearances),
+  aliases: z.optional(personFields.aliases),
 });
 export type PersonInsert = z.infer<typeof PersonInsert>;
 export const PersonUpdate = z.partial(z.omit(PersonInsert, { id: true }));
@@ -420,6 +425,45 @@ export const DeviceTokenRow = z.object({
 export type DeviceTokenRow = z.infer<typeof DeviceTokenRow>;
 export const DeviceTokenInsert = z.pick(DeviceTokenRow, { token: true, platform: true });
 export type DeviceTokenInsert = z.infer<typeof DeviceTokenInsert>;
+
+// ---------------------------------------------------------------------------
+// Account RPCs (docs/ASSIGNMENTS.md): rows returned by my_assignments / my_link / list_accounts
+// ---------------------------------------------------------------------------
+export const AssignmentKind = z.enum(['carrito', 'programa', 'salida']);
+export type AssignmentKind = z.infer<typeof AssignmentKind>;
+
+export const MyAssignment = z.object({
+  /** Stable id: carrito:<assignment id>:<date> | programa:<kind>:<date>:<index or field> | salida:<meeting id>. */
+  key: z.string().check(z.minLength(1)),
+  kind: AssignmentKind,
+  date: IsoDate,
+  /** "HH:MM", or null (e.g. a weekend program role). */
+  start_time: z.nullable(z.string()),
+  title: z.string(),
+  place: z.nullable(z.string()),
+  /** e.g. "Lector", "Conductor"; null for carrito. */
+  role: z.nullable(z.string()),
+  /** Carrito: the other people + note. Salida: groups. */
+  detail: z.nullable(z.string()),
+});
+export type MyAssignment = z.infer<typeof MyAssignment>;
+
+export const MyLink = z.object({ person_id: Uuid, person_name: z.string() });
+export type MyLink = z.infer<typeof MyLink>;
+
+export type AccountRole = Role;
+export const AccountRow = z.object({
+  user_id: Uuid,
+  email: z.nullable(z.string()),
+  display_name: z.nullable(z.string()),
+  avatar_url: z.nullable(z.string()),
+  provider: z.nullable(z.string()),
+  role: Role,
+  person_id: z.nullable(Uuid),
+  person_name: z.nullable(z.string()),
+  created_at: Timestamp,
+});
+export type AccountRow = z.infer<typeof AccountRow>;
 
 // ---------------------------------------------------------------------------
 // Table registry

@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-query';
 import { withDb, type TerritoriosClient } from '../client';
 import { ConflictError } from '../errors';
+import * as accountsRepo from '../repos/accounts';
 import * as authRepo from '../repos/auth';
 import type { CartBoard } from '../repos/carrito';
 import * as cartRepo from '../repos/carrito';
@@ -27,6 +28,7 @@ import type { ServiceWeek } from '../repos/salidas';
 import * as salidasRepo from '../repos/salidas';
 import * as territoriesRepo from '../repos/territories';
 import type {
+  AccountRole,
   CartAssignmentInsert,
   CartAssignmentUpdate,
   CartBlackoutInsert,
@@ -418,6 +420,38 @@ export const profileMutations = {
   ),
 };
 
+/** Linking changes what the member sees; role changes what the caller may do. */
+export const accountMutations = {
+  linkAccount: define(
+    qk.accounts,
+    'linkAccount',
+    (sb, v: { userId: string; personId: string | null }) =>
+      accountsRepo.linkAccount(sb, v.userId, v.personId),
+    undefined,
+    [[...qk.auth, 'my-link'], qk.myAssignmentsAll],
+  ),
+  setAccountRole: define(
+    qk.accounts,
+    'setAccountRole',
+    (sb, v: { userId: string; role: AccountRole }) =>
+      accountsRepo.setAccountRole(sb, v.userId, v.role),
+    undefined,
+    [[...qk.auth, 'role']],
+  ),
+  saveWebPushSubscription: define(
+    qk.webPush,
+    'saveWebPushSubscription',
+    (sb, v: { subscription: accountsRepo.WebPushToken }) =>
+      accountsRepo.saveWebPushSubscription(sb, v.subscription),
+  ),
+  deleteWebPushSubscription: define(
+    qk.webPush,
+    'deleteWebPushSubscription',
+    (sb, v: { subscription: accountsRepo.WebPushToken }) =>
+      accountsRepo.deleteWebPushSubscription(sb, v.subscription),
+  ),
+};
+
 export const mutations = {
   ...salidasMutations,
   ...territoryMutations,
@@ -425,6 +459,7 @@ export const mutations = {
   ...peopleMutations,
   ...programMutations,
   ...profileMutations,
+  ...accountMutations,
 };
 
 /**
@@ -451,3 +486,10 @@ export const useUpdateCartAssignment = (h?: MutationHooks) =>
 export const useUpdatePerson = (h?: MutationHooks) => useDataMutation(mutations.updatePerson, h);
 export const useUpdateProgramWeek = (h?: MutationHooks) =>
   useDataMutation(mutations.updateProgramWeek, h);
+export const useLinkAccount = (h?: MutationHooks) => useDataMutation(mutations.linkAccount, h);
+export const useSetAccountRole = (h?: MutationHooks) =>
+  useDataMutation(mutations.setAccountRole, h);
+export const useSaveWebPushSubscription = (h?: MutationHooks) =>
+  useDataMutation(mutations.saveWebPushSubscription, h);
+export const useDeleteWebPushSubscription = (h?: MutationHooks) =>
+  useDataMutation(mutations.deleteWebPushSubscription, h);

@@ -49,10 +49,11 @@ insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000003', 'admin@test.local'),
   ('aaaaaaaa-0000-4000-8000-000000000004', 'noprofile@test.local');
 
-insert into public.profiles (id, role) values
-  ('aaaaaaaa-0000-4000-8000-000000000001', 'viewer'),
-  ('aaaaaaaa-0000-4000-8000-000000000002', 'editor'),
-  ('aaaaaaaa-0000-4000-8000-000000000003', 'admin');
+-- The on_auth_user_created trigger gave every user a viewer profile; set roles, and remove
+-- the no-profile persona's row (legacy users created before the trigger have none).
+update public.profiles set role = 'editor' where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+update public.profiles set role = 'admin'  where id = 'aaaaaaaa-0000-4000-8000-000000000003';
+delete from public.profiles where id = 'aaaaaaaa-0000-4000-8000-000000000004';
 
 insert into public.territories (id, name, geometry, centroid_lng, centroid_lat)
 values (900, 'Fixture', '{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}', 0.5, 0.5);

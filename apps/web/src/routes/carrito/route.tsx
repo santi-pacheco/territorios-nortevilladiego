@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { useCartSchedule, type CartBoard } from '@territorios/data';
 import { AccountButton } from '../../shell/AccountSheet';
 import { ScreenSkeleton } from '../../shell/AppShell';
-import { readMe, matchesMe } from '../../lib/me';
+import { matchesMe, useMeName } from '../../lib/me';
 import { DAY_NAME, addDaysIso, fromIso, longDate, mondayOf, toIso } from '../../lib/week';
 import { shortRange } from '../programa/model';
 
@@ -234,7 +234,7 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 export function Component() {
   const [params, setParams] = useSearchParams();
   const board = useCartSchedule(params.get('horario') ?? undefined);
-  const me = readMe();
+  const me = useMeName();
   const [showPast, setShowPast] = useState(false);
 
   // The week table header sticks right under the screen header, whose height changes

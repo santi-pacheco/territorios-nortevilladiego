@@ -3,8 +3,9 @@ import { vi } from 'vitest';
 import type { TerritoriosClient } from '../client';
 
 export interface Op {
+  /** Table name, or the function name for `rpc`. */
   table: string;
-  action: 'select' | 'insert' | 'update' | 'delete';
+  action: 'select' | 'insert' | 'update' | 'delete' | 'rpc';
   values?: unknown;
   columns?: string;
   filters: Array<[string, unknown]>;
@@ -85,6 +86,9 @@ export function fakeSupabase(responder: Responder) {
         update: (values: unknown) => builder({ table, action: 'update', values, filters: [] }),
         delete: () => builder({ table, action: 'delete', filters: [] }),
       };
+    },
+    rpc(fn: string, args?: unknown) {
+      return builder({ table: fn, action: 'rpc', values: args, filters: [] });
     },
     channel(name: string) {
       let onStatus: ((s: string) => void) | undefined;
