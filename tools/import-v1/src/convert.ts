@@ -378,11 +378,20 @@ function convertCarritoSchedule(
       report.warn('carrito: assignment for unknown slot (skipped)', where);
       continue;
     }
-    if (!isIsoDate(e.weekDate) || isoDow(e.weekDate) !== 1) {
-      report.warn('carrito: assignment weekDate not a Monday (skipped)', where);
+    if (!isIsoDate(e.weekDate)) {
+      report.warn('carrito: assignment weekDate is not a date (skipped)', where);
       continue;
     }
-    const key = `${e.weekDate}|${slot}`;
+    // v1 labels a schedule's first week by its start date (e.g. Thursday 1 Oct) rather than
+    // its Monday. 2.0 keys weeks by Monday; slot dates stay the same (Monday + slot weekday).
+    let weekDate = e.weekDate;
+    if (isoDow(weekDate) !== 1) {
+      const d = new Date(`${weekDate}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - (isoDow(weekDate) - 1));
+      weekDate = d.toISOString().slice(0, 10);
+      report.warn('carrito: assignment week moved to its Monday', `${where} → ${weekDate}`);
+    }
+    const key = `${weekDate}|${slot}`;
     if (cells.has(key)) {
       report.warn('carrito: duplicate assignment cell (kept first)', where);
       continue;
@@ -401,10 +410,10 @@ function convertCarritoSchedule(
     }
     const note = str(e.note);
     out.cart_assignments.push({
-      id: uuidV5(`assignment:${e.weekDate}:${str(e.slotId)}`),
+      id: uuidV5(`assignment:${weekDate}:${str(e.slotId)}`),
       schedule_id: schedule.id,
       slot_id: slot,
-      week_date: e.weekDate,
+      week_date: weekDate,
       person_ids: ids,
       note: note ? clamp(note, 500, report, 'carrito: note') : null,
     } satisfies CartAssignmentRow);

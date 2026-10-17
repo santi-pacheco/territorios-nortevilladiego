@@ -1,3 +1,4 @@
 # Real v1 snapshots contain real names. Never commit them.
 snapshots/
 *.real.json
+.env.target
