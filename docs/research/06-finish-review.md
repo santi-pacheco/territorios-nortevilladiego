@@ -117,3 +117,48 @@ Regressions introduced by the fix batch (at most three):
 disposition: fix
 
 This pass scored only fixes 1–8 and the Programa ceiling item. Ship stays blocked until fixes 2 and 8 are resolved, so DESIGN.md and design.json were not written.
+
+## Verdict pass 2
+
+Scoring only, fixes 2 and 8 from pass 1. A fresh-context worker ran this pass on 2026-10-16; it did not build the `ScreenHeader` fix (commit `ad24d74`), and that commit's message was not used as evidence. The degraded `finish-reviewer.md` role ran inline because this harness ships no finish-reviewer agent.
+
+Captures were taken fresh on dev server `:5331` with local Supabase and fixture data (all names synthetic), Chromium `--lang=es-AR --use-angle=swiftshader --enable-unsafe-swiftshader`, and a Playwright fixed clock at Thu 2026-10-15 08:20 (-03:00). They are viewport captures (not full-page), in `apps/web/.impeccable/review/verdict-2/`, following the `verdict-1/` precedent. 200% text is `html { font-size: 200% }` injected after load; measured root font size 32 px. No capture had horizontal page overflow (`scrollWidth` = viewport width on all ten).
+
+| Capture | Route | Viewport | Theme |
+|---|---|---|---|
+| `salidas-jue-0820-mobile-{light,sol}.png` | `/salidas/jue` | 390×844 @2x | light, sol |
+| `salidas-jue-0820-200-mobile-{light,sol}.png` | `/salidas/jue` | 390×844 @2x, 200% text | light, sol |
+| `programa-mobile-{light,sol}.png` | `/programa` | 390×844 @2x | light, sol |
+| `programa-200-mobile-{light,sol}.png` | `/programa` | 390×844 @2x, 200% text | light, sol |
+| `salidas-jue-0820-desktop-{light,sol}.png` | `/salidas/jue` | 1440×900 | light, sol |
+
+### verdict
+
+| # | Fix | Score | Evidence |
+|---|---|---|---|
+| 2 | Congregation and week in the Salidas caption, at 390 px and at 200% text | resolved | `salidas-jue-0820-mobile-{light,sol}.png`: the caption reads "Cong. Norte Villa Diego · Esta semana 12–18 oct" in full on two lines. Nothing is truncated, and the week range is legible beside the congregation. `salidas-jue-0820-200-mobile-{light,sol}.png`: the caption wraps by phrase, not word by word, into "Cong. Norte / Villa Diego · / Esta semana / 12–18 oct". Both the congregation and the week are present and readable, and nothing overlaps the chevrons, which now sit on the title row. The caption is on its own line, as pass 1 asked. It is only 214 px wide at 200% because the AccountButton column keeps its 96 px cell, so the name still breaks once inside itself. That is a legible phrase break, not the word-per-line stack pass 1 scored, and losing words to truncation would be worse. |
+| 8 | Programa caption at 200% text: chevron must not overlap the range | resolved | `programa-200-mobile-{light,sol}.png`: the caption "Esta semana / 12–18 oct" sits clear on two lines above "Programa", and the chevrons wrap onto their own row under the title. Nothing is drawn over "oct". At 390 px (`programa-mobile-{light,sol}.png`) the caption fits on one line, and the chevrons sit beside the title. |
+| — | Desktop header at 1440, no regression | holds | `salidas-jue-0820-desktop-{light,sol}.png`: the caption reads "Cong. Norte Villa Diego · Esta semana 12–18 oct" on one line, and the chevrons sit beside "Jueves 15" inside the 420 px station pane. The Salidas + Mapa split from pass 1 fix 1 is intact: the map pane shows roundels 1–3 on the territory polygons. The rail and the account button are in place. |
+
+Regressions introduced by this fix batch (at most three), each judged non-material:
+
+- Salidas, all widths: the week chevrons moved from the caption row to the "Jueves 15" title row, directly above the day tabs. That makes "›" readable as "next day", but a probe shows it moves the week (the caption becomes "Semana 19–25 oct"). This is a cited adaptation: pass 1 fix 8's 200% overlap forced the chevrons off the caption row. The aria labels are right ("Semana anterior" / "Semana siguiente"), and the caption changes visibly on tap, so a misread is recoverable at once. Recommended follow-up, not blocking: tie the chevrons to the week visually, for example by setting the week range as the chevron row's label.
+- 200% text, both screens: the chevrons wrap onto their own row, left-aligned under the title. Their 24 px glyphs sit in 96 px targets, and the row is visually detached from both caption and title. On Salidas the first station card starts at about 537 CSS px of 844. This is the intended wrap (see the comment in `ScreenHeader`). The targets are generous and nothing overlaps or is lost. The header was already tall at 200% in pass 1.
+- 200% text, Salidas: "Villa Diego ·" leaves the separator dangling at the end of the line. This is cosmetic.
+
+### remaining
+
+clear
+
+This ship covers the scored fixes 2 and 8, plus the 1440 header regression check. It is not a fresh review of the whole surface. The non-blocking follow-ups above (the week chevrons' visual tie on Salidas, and the detached chevron row at 200%) are recorded for a later polish pass.
+
+disposition: ship
+
+### documenter
+
+The degraded `documenter.md` role ran inline, in scan mode, after the ship verdict. The coordinator confirmed the qualitative naming: North Star "La Línea del Día", plus the day-accent and neutral display names. Written: `apps/web/DESIGN.md` (tokens from `packages/ui-tokens/src/tokens.ts`, component rules from `apps/web/src/styles.css`) and the `apps/web/.impeccable/design.json` sidecar (per-theme values, tonal ramps, shadows, motion, the `lg` breakpoint, and 7 component snippets). The three icon PNGs in `apps/web/public` now carry their origin ("rasterised from apps/web/public/icon.svg by scripts/gen-icons.mjs"), and `embed-prompt --scan apps/web/public` reports 0 missing.
+
+Drift was recorded but not canonized or repaired. App code is out of scope.
+- **Weights.** Type tokens allow only 400 and 650. Components render 600 and 700: the display h1, tab, rail and day-tab labels, station time, roundel, change mark and segmented control. DESIGN.md records the built 700 for display and station time.
+- **Station time size.** The time renders at 24 px (the title token), not the direction contract's 28 px.
+- **Radii.** `--tk-radius-xs` (2 px) and `--tk-radius-lg` (20 px) are unused in `apps/web/src`, so they are left out of DESIGN.md. Bottom sheets hard-code 16 px, which is recorded as `rounded.sheet`.

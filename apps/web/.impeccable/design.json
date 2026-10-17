@@ -1,0 +1,665 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T01:50:08.897Z",
+  "title": "Design System: Territorios",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Cool Platform Canvas",
+        "canonical": "#EEF1F4",
+        "oklch": "oklch(95.7% 0.005 247.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.005 247.9)",
+          "oklch(26.0% 0.005 247.9)",
+          "oklch(37.0% 0.005 247.9)",
+          "oklch(48.0% 0.005 247.9)",
+          "oklch(60.0% 0.005 247.9)",
+          "oklch(72.0% 0.005 247.9)",
+          "oklch(84.0% 0.005 247.9)",
+          "oklch(95.0% 0.002 247.9)"
+        ],
+        "themes": {
+          "dark": "#0F141B",
+          "sol": "#FFFFFF"
+        }
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 0)",
+          "oklch(26.0% 0.000 0)",
+          "oklch(37.0% 0.000 0)",
+          "oklch(48.0% 0.000 0)",
+          "oklch(60.0% 0.000 0)",
+          "oklch(72.0% 0.000 0)",
+          "oklch(84.0% 0.000 0)",
+          "oklch(95.0% 0.000 0)"
+        ],
+        "themes": {
+          "dark": "#171D26",
+          "sol": "#FFFFFF"
+        },
+        "raised": {
+          "light": "#FFFFFF",
+          "dark": "#1E2D47",
+          "sol": "#FFFFFF"
+        }
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Platform Ink",
+        "canonical": "#14181F",
+        "oklch": "oklch(20.8% 0.015 261.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.015 261.6)",
+          "oklch(26.0% 0.015 261.6)",
+          "oklch(37.0% 0.015 261.6)",
+          "oklch(48.0% 0.015 261.6)",
+          "oklch(60.0% 0.015 261.6)",
+          "oklch(72.0% 0.015 261.6)",
+          "oklch(84.0% 0.015 261.6)",
+          "oklch(95.0% 0.006 261.6)"
+        ],
+        "themes": {
+          "dark": "#E9EEF6",
+          "sol": "#000000"
+        },
+        "note": "Also the brand/action colour; on-brand flips to #FFFFFF (light, sol) or #14181F (dark)."
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Timetable Grey",
+        "canonical": "#4A5363",
+        "oklch": "oklch(44.1% 0.029 262.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.029 262.0)",
+          "oklch(26.0% 0.029 262.0)",
+          "oklch(37.0% 0.029 262.0)",
+          "oklch(48.0% 0.029 262.0)",
+          "oklch(60.0% 0.029 262.0)",
+          "oklch(72.0% 0.029 262.0)",
+          "oklch(84.0% 0.029 262.0)",
+          "oklch(95.0% 0.012 262.0)"
+        ],
+        "themes": {
+          "dark": "#AEB7C4",
+          "sol": "#1A1A1A"
+        }
+      },
+      "ink-disabled": {
+        "role": "neutral",
+        "displayName": "Disabled Grey",
+        "canonical": "#7A8496",
+        "oklch": "oklch(61.1% 0.030 262.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.030 262.3)",
+          "oklch(26.0% 0.030 262.3)",
+          "oklch(37.0% 0.030 262.3)",
+          "oklch(48.0% 0.030 262.3)",
+          "oklch(60.0% 0.030 262.3)",
+          "oklch(72.0% 0.030 262.3)",
+          "oklch(84.0% 0.030 262.3)",
+          "oklch(95.0% 0.012 262.3)"
+        ],
+        "themes": {
+          "dark": "#6C7890",
+          "sol": "#4A4A4A"
+        }
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#D5DBE4",
+        "oklch": "oklch(88.9% 0.014 258.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.014 258.3)",
+          "oklch(26.0% 0.014 258.3)",
+          "oklch(37.0% 0.014 258.3)",
+          "oklch(48.0% 0.014 258.3)",
+          "oklch(60.0% 0.014 258.3)",
+          "oklch(72.0% 0.014 258.3)",
+          "oklch(84.0% 0.014 258.3)",
+          "oklch(95.0% 0.006 258.3)"
+        ],
+        "themes": {
+          "dark": "#2A3A56",
+          "sol": "#000000"
+        }
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#8994A6",
+        "oklch": "oklch(66.4% 0.030 260.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.030 260.3)",
+          "oklch(26.0% 0.030 260.3)",
+          "oklch(37.0% 0.030 260.3)",
+          "oklch(48.0% 0.030 260.3)",
+          "oklch(60.0% 0.030 260.3)",
+          "oklch(72.0% 0.030 260.3)",
+          "oklch(84.0% 0.030 260.3)",
+          "oklch(95.0% 0.012 260.3)"
+        ],
+        "themes": {
+          "dark": "#667C9E",
+          "sol": "#000000"
+        }
+      },
+      "focus-ring": {
+        "role": "neutral",
+        "displayName": "Focus Blue",
+        "canonical": "#1F6FEB",
+        "oklch": "oklch(56.9% 0.202 259.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.160 259.7)",
+          "oklch(26.0% 0.160 259.7)",
+          "oklch(37.0% 0.160 259.7)",
+          "oklch(48.0% 0.160 259.7)",
+          "oklch(60.0% 0.160 259.7)",
+          "oklch(72.0% 0.160 259.7)",
+          "oklch(84.0% 0.160 259.7)",
+          "oklch(95.0% 0.064 259.7)"
+        ],
+        "themes": {
+          "dark": "#79A8FF",
+          "sol": "#000000"
+        }
+      },
+      "ok": {
+        "role": "status",
+        "displayName": "Status OK",
+        "canonical": "#1E7A3E",
+        "oklch": "oklch(51.2% 0.125 150.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.125 150.4)",
+          "oklch(26.0% 0.125 150.4)",
+          "oklch(37.0% 0.125 150.4)",
+          "oklch(48.0% 0.125 150.4)",
+          "oklch(60.0% 0.125 150.4)",
+          "oklch(72.0% 0.125 150.4)",
+          "oklch(84.0% 0.125 150.4)",
+          "oklch(95.0% 0.050 150.4)"
+        ],
+        "themes": {
+          "dark": "#6CCB8A",
+          "sol": "#0B5D27"
+        }
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "Status Warn",
+        "canonical": "#9A5B00",
+        "oklch": "oklch(53.1% 0.119 65.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.119 65.1)",
+          "oklch(26.0% 0.119 65.1)",
+          "oklch(37.0% 0.119 65.1)",
+          "oklch(48.0% 0.119 65.1)",
+          "oklch(60.0% 0.119 65.1)",
+          "oklch(72.0% 0.119 65.1)",
+          "oklch(84.0% 0.119 65.1)",
+          "oklch(95.0% 0.048 65.1)"
+        ],
+        "themes": {
+          "dark": "#F2B45A",
+          "sol": "#6B3F00"
+        }
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Status Danger",
+        "canonical": "#B3261E",
+        "oklch": "oklch(50.1% 0.178 28.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.160 28.7)",
+          "oklch(26.0% 0.160 28.7)",
+          "oklch(37.0% 0.160 28.7)",
+          "oklch(48.0% 0.160 28.7)",
+          "oklch(60.0% 0.160 28.7)",
+          "oklch(72.0% 0.160 28.7)",
+          "oklch(84.0% 0.160 28.7)",
+          "oklch(95.0% 0.064 28.7)"
+        ],
+        "themes": {
+          "dark": "#F2867E",
+          "sol": "#8C0F09"
+        }
+      },
+      "offline": {
+        "role": "status",
+        "displayName": "Offline Grey",
+        "canonical": "#5B6475",
+        "oklch": "oklch(50.2% 0.029 263.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.029 263.2)",
+          "oklch(26.0% 0.029 263.2)",
+          "oklch(37.0% 0.029 263.2)",
+          "oklch(48.0% 0.029 263.2)",
+          "oklch(60.0% 0.029 263.2)",
+          "oklch(72.0% 0.029 263.2)",
+          "oklch(84.0% 0.029 263.2)",
+          "oklch(95.0% 0.012 263.2)"
+        ],
+        "themes": {
+          "dark": "#9AA4B6",
+          "sol": "#000000"
+        }
+      },
+      "map-me": {
+        "role": "neutral",
+        "displayName": "You-Are-Here Blue",
+        "canonical": "#1A73E8",
+        "oklch": "oklch(57.4% 0.195 257.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.160 257.9)",
+          "oklch(26.0% 0.160 257.9)",
+          "oklch(37.0% 0.160 257.9)",
+          "oklch(48.0% 0.160 257.9)",
+          "oklch(60.0% 0.160 257.9)",
+          "oklch(72.0% 0.160 257.9)",
+          "oklch(84.0% 0.160 257.9)",
+          "oklch(95.0% 0.064 257.9)"
+        ],
+        "themes": {
+          "dark": "#6FA8FF",
+          "sol": "#0050D0"
+        }
+      },
+      "day-lunes": {
+        "role": "primary",
+        "displayName": "Lunes Brick",
+        "canonical": "#A34848",
+        "oklch": "oklch(52.0% 0.121 22.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.121 22.2)",
+          "oklch(26.0% 0.121 22.2)",
+          "oklch(37.0% 0.121 22.2)",
+          "oklch(48.0% 0.121 22.2)",
+          "oklch(60.0% 0.121 22.2)",
+          "oklch(72.0% 0.121 22.2)",
+          "oklch(84.0% 0.121 22.2)",
+          "oklch(95.0% 0.048 22.2)"
+        ],
+        "themes": {
+          "dark": "#BC7676",
+          "sol": "#8F3D3D"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      },
+      "day-martes": {
+        "role": "primary",
+        "displayName": "Martes Plum",
+        "canonical": "#7A4A9A",
+        "oklch": "oklch(49.9% 0.132 310.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.132 310.2)",
+          "oklch(26.0% 0.132 310.2)",
+          "oklch(37.0% 0.132 310.2)",
+          "oklch(48.0% 0.132 310.2)",
+          "oklch(60.0% 0.132 310.2)",
+          "oklch(72.0% 0.132 310.2)",
+          "oklch(84.0% 0.132 310.2)",
+          "oklch(95.0% 0.053 310.2)"
+        ],
+        "themes": {
+          "dark": "#A989BD",
+          "sol": "#6B3F8A"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      },
+      "day-miercoles": {
+        "role": "primary",
+        "displayName": "Miércoles Slate",
+        "canonical": "#6B6F76",
+        "oklch": "oklch(54.1% 0.012 261.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.012 261.8)",
+          "oklch(26.0% 0.012 261.8)",
+          "oklch(37.0% 0.012 261.8)",
+          "oklch(48.0% 0.012 261.8)",
+          "oklch(60.0% 0.012 261.8)",
+          "oklch(72.0% 0.012 261.8)",
+          "oklch(84.0% 0.012 261.8)",
+          "oklch(95.0% 0.005 261.8)"
+        ],
+        "themes": {
+          "dark": "#898C91",
+          "sol": "#54575E"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      },
+      "day-jueves": {
+        "role": "primary",
+        "displayName": "Jueves Line Blue",
+        "canonical": "#3D63A6",
+        "oklch": "oklch(50.5% 0.116 261.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.116 261.0)",
+          "oklch(26.0% 0.116 261.0)",
+          "oklch(37.0% 0.116 261.0)",
+          "oklch(48.0% 0.116 261.0)",
+          "oklch(60.0% 0.116 261.0)",
+          "oklch(72.0% 0.116 261.0)",
+          "oklch(84.0% 0.116 261.0)",
+          "oklch(95.0% 0.046 261.0)"
+        ],
+        "themes": {
+          "dark": "#7FA2DE",
+          "sol": "#34548C"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      },
+      "day-viernes": {
+        "role": "primary",
+        "displayName": "Viernes Ochre",
+        "canonical": "#9C6A0E",
+        "oklch": "oklch(56.3% 0.115 75.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.115 75.1)",
+          "oklch(26.0% 0.115 75.1)",
+          "oklch(37.0% 0.115 75.1)",
+          "oklch(48.0% 0.115 75.1)",
+          "oklch(60.0% 0.115 75.1)",
+          "oklch(72.0% 0.115 75.1)",
+          "oklch(84.0% 0.115 75.1)",
+          "oklch(95.0% 0.046 75.1)"
+        ],
+        "themes": {
+          "dark": "#AE882A",
+          "sol": "#74500A"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      },
+      "day-sabado": {
+        "role": "primary",
+        "displayName": "Sábado Moss",
+        "canonical": "#4A7A2C",
+        "oklch": "oklch(52.7% 0.121 135.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.121 135.3)",
+          "oklch(26.0% 0.121 135.3)",
+          "oklch(37.0% 0.121 135.3)",
+          "oklch(48.0% 0.121 135.3)",
+          "oklch(60.0% 0.121 135.3)",
+          "oklch(72.0% 0.121 135.3)",
+          "oklch(84.0% 0.121 135.3)",
+          "oklch(95.0% 0.048 135.3)"
+        ],
+        "themes": {
+          "dark": "#6E9556",
+          "sol": "#3A6123"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      },
+      "day-domingo": {
+        "role": "primary",
+        "displayName": "Domingo Teal",
+        "canonical": "#1F7A8C",
+        "oklch": "oklch(53.6% 0.085 214.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.085 214.3)",
+          "oklch(26.0% 0.085 214.3)",
+          "oklch(37.0% 0.085 214.3)",
+          "oklch(48.0% 0.085 214.3)",
+          "oklch(60.0% 0.085 214.3)",
+          "oklch(72.0% 0.085 214.3)",
+          "oklch(84.0% 0.085 214.3)",
+          "oklch(95.0% 0.034 214.3)"
+        ],
+        "themes": {
+          "dark": "#4C95A3",
+          "sol": "#125A6B"
+        },
+        "onAccent": {
+          "light": "#FFFFFF",
+          "dark": "#0F1A2B",
+          "sol": "#FFFFFF"
+        },
+        "mapFill": "assigned 35%, selected 80% of the theme accent"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Screen title: day name on Salidas, Programa, Carrito. One per screen. Token weight is 650; the rendered h1 uses 700."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section titles inside a screen."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Meeting-block headings, sheet and card titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "17 px base for places, names, parts; 650 for emphasis."
+      },
+      "secondary": {
+        "displayName": "Secondary",
+        "purpose": "Conductor, groups, header caption, metadata."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Tab and rail labels. The 13 px floor."
+      },
+      "station-time": {
+        "displayName": "Station Time",
+        "purpose": "Mono departure time on a station card (title size, 700)."
+      },
+      "numeric": {
+        "displayName": "Numeric",
+        "purpose": "Mono tabular numerals for times, territory numbers and counts; inherits size."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 2px rgb(14 27 51 / .12)",
+        "purpose": "Selected segment of a segmented control. Light only; none in dark and sol."
+      },
+      {
+        "name": "sheet",
+        "value": "0 6px 20px rgb(14 27 51 / .18)",
+        "purpose": "Bottom sheets and dialogs. Light only; none in dark and sol."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "90ms linear",
+        "purpose": "Pressed-state background."
+      },
+      {
+        "name": "quick",
+        "value": "160ms cubic-bezier(.2,0,0,1)",
+        "purpose": "Chip and toggle state, fades."
+      },
+      {
+        "name": "standard",
+        "value": "240ms cubic-bezier(.2,0,0,1)",
+        "purpose": "Sheet snap, expand or collapse, tab content."
+      },
+      {
+        "name": "emphasis",
+        "value": "320ms cubic-bezier(.3,0,0,1)",
+        "purpose": "Map fly-to cap, shared-element day change."
+      },
+      {
+        "name": "exit",
+        "value": "160ms cubic-bezier(.3,0,1,1)",
+        "purpose": "Dismiss."
+      },
+      {
+        "name": "reduced",
+        "value": "120ms linear",
+        "purpose": "prefers-reduced-motion crossfade cap. Motion only answers a user action; nothing loops."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Bottom tab bar becomes the 96 px rail; Salidas becomes the line + map split; sheets centre."
+      }
+    ],
+    "focus": {
+      "ring": "3px solid var(--tk-focus-ring)",
+      "offset": "2px",
+      "note": "Sol: black ring."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink-filled main action.",
+      "html": "<button class=\"ds-btn-primary\">Publicar</button>",
+      "css": ".ds-btn-primary{display:inline-grid;place-items:center;min-height:48px;padding:0 20px;border:0;border-radius:var(--tk-radius-md,10px);background:var(--tk-brand,#14181F);color:var(--tk-on-brand,#FFFFFF);font:650 1.0625rem/1.625rem var(--tk-font-ui,\"Atkinson Hyperlegible Next\",system-ui,sans-serif);cursor:pointer}.ds-btn-primary:focus-visible{outline:3px solid var(--tk-focus-ring,#1F6FEB);outline-offset:2px}.ds-btn-primary:disabled{opacity:.6}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined companion action.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary{min-height:48px;padding:0 20px;border:1px solid var(--tk-border-strong,#8994A6);border-radius:var(--tk-radius-md,10px);background:transparent;color:var(--tk-text-primary,#14181F);font:650 1.0625rem/1.625rem var(--tk-font-ui,\"Atkinson Hyperlegible Next\",system-ui,sans-serif);cursor:pointer}.ds-btn-secondary:focus-visible{outline:3px solid var(--tk-focus-ring,#1F6FEB);outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "White field with a strong hairline; global focus outline.",
+      "html": "<input class=\"ds-field\" placeholder=\"Buscar persona\" />",
+      "css": ".ds-field{min-height:48px;padding:0 14px;border:1px solid var(--tk-border-strong,#8994A6);border-radius:var(--tk-radius-sm,6px);background:var(--tk-bg-surface,#FFFFFF);color:var(--tk-text-primary,#14181F);font:400 1.0625rem/1.625rem var(--tk-font-ui,\"Atkinson Hyperlegible Next\",system-ui,sans-serif)}.ds-field::placeholder{color:var(--tk-text-secondary,#4A5363)}.ds-field:focus-visible{outline:3px solid var(--tk-focus-ring,#1F6FEB);outline-offset:2px}"
+    },
+    {
+      "name": "Day Strip",
+      "kind": "nav",
+      "refersTo": "day-tab",
+      "description": "Day tabs: accent swatch, short name, one tick per salida; selected gets the accent underline.",
+      "html": "<div class=\"ds-days\" role=\"tablist\"><button class=\"ds-day\" role=\"tab\" style=\"--day:#6B6F76\"><span class=\"ds-sw\"></span>Mié<span class=\"ds-ticks\"><i></i></span></button><button class=\"ds-day\" role=\"tab\" aria-selected=\"true\" style=\"--day:#3D63A6\"><span class=\"ds-sw\"></span>Jue<span class=\"ds-ticks\"><i></i><i></i><i></i></span></button><button class=\"ds-day\" role=\"tab\" style=\"--day:#9C6A0E\"><span class=\"ds-sw\"></span>Vie<span class=\"ds-ticks\"><i></i></span></button></div>",
+      "css": ".ds-days{display:flex;background:var(--tk-bg-surface,#fff);border-bottom:1px solid var(--tk-border-subtle,#D5DBE4);font-family:var(--tk-font-ui,\"Atkinson Hyperlegible Next\",system-ui,sans-serif)}.ds-day{flex:1 0 64px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:64px;padding:8px 4px 10px;border:0;border-bottom:4px solid transparent;background:none;color:var(--tk-text-secondary,#4A5363);font-size:1.0625rem;font-weight:600;font-family:inherit;cursor:pointer}.ds-day[aria-selected=true]{color:var(--tk-text-primary,#14181F);font-weight:700;border-bottom-color:var(--day)}.ds-day:focus-visible{outline:3px solid var(--tk-focus-ring,#1F6FEB);outline-offset:-3px}.ds-sw{width:36px;height:6px;border-radius:3px;background:var(--day)}.ds-ticks{display:flex;gap:3px;height:4px}.ds-ticks i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.55}"
+    },
+    {
+      "name": "Station Line",
+      "kind": "custom",
+      "refersTo": "station-card-next",
+      "description": "Signature: the day as a train line. Next station filled and outlined in ink; upcoming hollow ring on a white card.",
+      "html": "<div class=\"ds-line\" style=\"--day:#3D63A6\"><div class=\"ds-st\" data-state=\"next\"><span class=\"ds-dot\"></span><div class=\"ds-card\"><p class=\"ds-tag\">Próxima · en 40 min</p><p class=\"ds-time\">09:00</p><p class=\"ds-place\">Casa de Familia Ejemplo</p><p class=\"ds-meta\">Conduce Conductor Ejemplo · Grupos 1 y 2</p><a class=\"ds-roundels\" href=\"#\"><span class=\"ds-roundel\">1</span><span class=\"ds-hint\">Ver en el mapa</span></a></div></div><div class=\"ds-st\"><span class=\"ds-dot\"></span><div class=\"ds-card\"><p class=\"ds-time\">17:30</p><p class=\"ds-place\">Esquina Inventada 250</p><p class=\"ds-meta\">Grupo 3</p></div></div></div>",
+      "css": ".ds-line{position:relative;display:flex;flex-direction:column;gap:16px;padding:16px;background:var(--tk-bg-canvas,#EEF1F4);font-family:var(--tk-font-ui,\"Atkinson Hyperlegible Next\",system-ui,sans-serif);color:var(--tk-text-primary,#14181F)}.ds-line::before{content:\"\";position:absolute;left:24px;top:34px;bottom:34px;width:8px;border-radius:999px;background:var(--day)}.ds-st{position:relative;display:grid;grid-template-columns:24px 1fr;gap:16px;align-items:start}.ds-dot{position:relative;z-index:1;width:24px;height:24px;margin-top:16px;box-sizing:border-box;border-radius:50%;background:var(--tk-bg-surface,#fff);border:6px solid var(--day)}.ds-st[data-state=next] .ds-dot{background:var(--day);box-shadow:0 0 0 4px var(--tk-bg-canvas,#EEF1F4)}.ds-card{padding:14px 16px 16px;border-radius:10px;background:var(--tk-bg-surface,#fff);border:1px solid var(--tk-border-subtle,#D5DBE4)}.ds-st[data-state=next] .ds-card{border:2px solid var(--tk-text-primary,#14181F)}.ds-card p{margin:0}.ds-tag{color:color-mix(in srgb,var(--day) 80%,var(--tk-text-primary,#14181F));font-weight:700;font-size:.9375rem}.ds-time{font:700 1.5rem/1.875rem var(--tk-font-numeric,\"Atkinson Hyperlegible Mono\",ui-monospace,monospace);font-variant-numeric:tabular-nums}.ds-place{font-weight:650;font-size:1.0625rem}.ds-meta{color:var(--tk-text-secondary,#4A5363);font-size:.9375rem}.ds-roundels{display:inline-flex;align-items:center;gap:6px;margin-top:10px;min-height:48px;text-decoration:none;color:inherit}.ds-roundel{display:grid;place-items:center;min-width:30px;height:30px;padding:0 6px;box-sizing:border-box;border-radius:999px;background:var(--tk-text-primary,#14181F);color:var(--tk-bg-surface,#fff);font:700 15px var(--tk-font-numeric,\"Atkinson Hyperlegible Mono\",ui-monospace,monospace)}.ds-hint{margin-left:4px;font-size:.9375rem;font-weight:600;text-decoration:underline;color:var(--tk-text-secondary,#4A5363)}.ds-roundels:hover .ds-hint{color:var(--tk-text-primary,#14181F)}.ds-roundels:focus-visible{outline:3px solid var(--tk-focus-ring,#1F6FEB);outline-offset:2px}"
+    },
+    {
+      "name": "Territory Roundel",
+      "kind": "chip",
+      "refersTo": "roundel",
+      "description": "Ink pill with white mono digits; the same mark on cards and the map.",
+      "html": "<span class=\"ds-rd\">7</span> <span class=\"ds-rd\">12</span>",
+      "css": ".ds-rd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;box-sizing:border-box;border-radius:999px;background:var(--tk-text-primary,#14181F);color:var(--tk-bg-surface,#fff);font:700 15px var(--tk-font-numeric,\"Atkinson Hyperlegible Mono\",ui-monospace,monospace);font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-link",
+      "description": "Phone navigation: icon above an explicit label; active is ink at 700 with a heavier stroke.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab\" aria-current=\"page\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2v3\"/><path d=\"M16 2v3\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01\"/></svg>Salidas</a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z\"/><path d=\"M15 5.764v15M9 3.236v15\"/></svg>Mapa</a></nav>",
+      "css": ".ds-tabs{display:flex;border-top:1px solid var(--tk-border-subtle,#D5DBE4);background:var(--tk-bg-surface,#fff);font-family:var(--tk-font-ui,\"Atkinson Hyperlegible Next\",system-ui,sans-serif)}.ds-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:64px;font-size:.8125rem;font-weight:600;color:var(--tk-text-secondary,#4A5363);text-decoration:none}.ds-tab[aria-current=page]{color:var(--tk-text-primary,#14181F);font-weight:700}.ds-tab:focus-visible{outline:3px solid var(--tk-focus-ring,#1F6FEB);outline-offset:-3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Línea del Día",
+    "overview": "Every day of the week is a train line in its printed-card colour, and every salida is a station on that line, in time order. Members read the screen the way they read a transit diagram on a platform: which line is today's, which station is next, and how long until it. The world borrows its grammar from a commuter-rail line diagram. That means one coloured stripe, round station dots, mono timetable numerals and ink roundels for territory numbers. It refuses the category default of grey list cards with a blue accent.\n\nThe surface is quiet so the line can be loud. A cool grey canvas carries white station cards and ink text, and the day accent is the only strong colour on any screen. State is carried by form as well as hue. The next station gets a filled dot and a 2 px ink outline. Past stations go hollow and fade, so the information survives colour blindness, glare and the Sol theme.\n\nThe density is that of a pocket timetable read outdoors on a mid-range phone. Type is large (17 px body, nothing under 13 px), there are few sizes, and rank comes from weight. Targets are at least 48 px. It is legible before it is decorative.",
+    "keyCharacteristics": [
+      "One 8 px day-accent stripe per screen; everything else is ink, white and cool grey.",
+      "Station cards in time order along the stripe, with 24 px station dots.",
+      "Times and territory numbers in Atkinson Hyperlegible Mono with tabular figures.",
+      "Territory numbers sit in round ink roundels (30 px) with white mono digits.",
+      "Three themes from one token source: light, dark, and Sol (high contrast for direct sun).",
+      "Flat: no gradients, no glass, no faked material."
+    ],
+    "rules": [
+      {
+        "name": "The One Line Rule",
+        "body": "A screen shows one day accent at full strength: today's or the selected day's. Other colour on the screen identifies something, such as a carrito place swatch. Nothing is tinted for mood.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Is the Brand Rule",
+        "body": "Actions, selection and emphasis use the theme's ink. There is no navy, no gold, and no brand blue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sun First Rule",
+        "body": "Every text pair is locked by `packages/ui-tokens/src/tokens.test.ts`: light body text ≥ 12:1, Sol ≥ 7:1. Never introduce a colour pair the test does not cover.",
+        "section": "colors"
+      },
+      {
+        "name": "The Few Sizes Rule",
+        "body": "Rank by weight before adding a size. A new screen uses the existing steps, and a step not in this list is a defect.",
+        "section": "typography"
+      },
+      {
+        "name": "The Departure Board Rule",
+        "body": "Every time and every territory number is set in the mono face with tabular figures. Proportional digits never sit in a time column.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Platform Rule",
+        "body": "Surfaces rest flat. Station cards never carry a shadow. Emphasis comes from a stronger border (2 px ink for \"next\"), never from lift.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the day accent as the single strong colour on a screen, and draw it as the line (stripe, dots, tab swatch, underline, map fills).",
+      "Do carry state by form as well as hue: filled dot plus 2 px ink outline for next, hollow faded ring plus a borderless card for past.",
+      "Do set every time and territory number in Atkinson Hyperlegible Mono with tabular figures.",
+      "Do read every colour from `packages/ui-tokens` (`--tk-*` custom properties or the Tailwind `@theme` aliases). Screens never invent values.",
+      "Do keep touch targets ≥ 48 px, body text at 17 px, and nothing under 13 px. Verify each new screen at 390 px, at 200% text, and in the Sol theme.",
+      "Do put an explicit text label next to every navigation icon."
+    ],
+    "donts": [
+      "Don't bring back v1's navy and gold, and don't use official JW logos, marks or typefaces.",
+      "Don't use gradients, glassmorphism, cream or warm-paper grounds, or faked material (bevels, embossing).",
+      "Don't add shadows to station cards or lists. Depth is tone and hairline.",
+      "Don't put a decorative kicker or eyebrow above a screen title. The header caption must carry real data (congregation, week, period, count).",
+      "Don't truncate the congregation name or the week range in a header. Let the caption wrap.",
+      "Don't render lists as grids of cards. Programa and Carrito use hairline-divided rows. Station cards are reserved for the Salidas line."
+    ]
+  }
+}
