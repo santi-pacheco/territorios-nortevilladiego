@@ -6,13 +6,20 @@
  * upload or from v1, so every field is validated before it reaches an input, and cleaned
  * again before it is saved (empty rows and blank people do not go to the database).
  */
-import type {
-  MidweekPart,
-  MidweekSection,
-  MidweekWeek,
-  ProgramaPerson,
-  WeekendDiscourse,
-  WeekendMeeting,
+import {
+  personLink,
+  personName,
+  storePerson,
+  type MidweekPart,
+  type MidweekSection,
+  type MidweekWeek,
+  type ProgramaPerson,
+  type StoredPerson,
+  type WeekendDiscourse,
+  type WeekendDiscourseData,
+  type WeekendMeeting,
+  type WeekendMeetingData,
+  type WeekendPersonField,
 } from '@territorios/core';
 import { addDaysIso, fromIso, mondayOf } from '../../../../lib/week';
 
@@ -111,16 +118,37 @@ export function emptyMidweek(date: string): MidweekWeek {
   return { date, asamblea: null, parts: [] };
 }
 
-export function emptyWeekend(date: string): WeekendMeeting {
+/** A person field in the editor: the picker's value. `person_id` null = not linked. */
+export interface PersonDraft {
+  person_id: string | null;
+  name: string;
+}
+
+export const NO_PERSON: PersonDraft = { person_id: null, name: '' };
+
+export interface DiscourseDraft extends Omit<WeekendDiscourse, 'orador'> {
+  orador: PersonDraft;
+}
+
+/** The weekend meeting as the editor holds it: every person field is a `PersonDraft`. */
+export interface WeekendDraft extends Omit<WeekendMeeting, WeekendPersonField | 'discurso'> {
+  presidente: PersonDraft;
+  conductor: PersonDraft;
+  lector: PersonDraft;
+  oracionFinal: PersonDraft;
+  discurso: DiscourseDraft | null;
+}
+
+export function emptyWeekend(date: string): WeekendDraft {
   return {
     date,
     asamblea: null,
-    presidente: null,
+    presidente: NO_PERSON,
     cancionInicio: null,
-    conductor: null,
-    lector: null,
+    conductor: NO_PERSON,
+    lector: NO_PERSON,
     cancionFin: null,
-    oracionFinal: null,
+    oracionFinal: NO_PERSON,
     discurso: null,
   };
 }
@@ -136,6 +164,17 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
+/** One stored person value (legacy string or `{name, person_id}`) as a picker value. */
+export function toDraft(raw: unknown): PersonDraft {
+  return { person_id: personLink(raw), name: personName(raw) };
+}
+
+function person(name: string, role: string, personId: string | null): ProgramaPerson {
+  const p: ProgramaPerson = role ? { name, role } : { name };
+  if (personId) p.person_id = personId;
+  return p;
+}
+
 export function sanitizePeople(raw: unknown): ProgramaPerson[] {
   if (!Array.isArray(raw)) return [];
   const out: ProgramaPerson[] = [];
@@ -143,8 +182,7 @@ export function sanitizePeople(raw: unknown): ProgramaPerson[] {
     if (!isRecord(item)) continue;
     const name = str(item.name);
     if (!name) continue;
-    const role = str(item.role);
-    out.push(role ? { name, role } : { name });
+    out.push(person(name, str(item.role), personLink(item)));
   }
   return out;
 }
@@ -171,30 +209,30 @@ export function sanitizeMidweek(raw: unknown, fallbackDate: string): MidweekWeek
   return { date: str(src.date) || fallbackDate, asamblea: str(src.asamblea) || null, parts };
 }
 
-function sanitizeDiscourse(raw: unknown): WeekendDiscourse | null {
+function sanitizeDiscourse(raw: unknown): DiscourseDraft | null {
   if (!isRecord(raw)) return null;
-  const d: WeekendDiscourse = {
+  const d: DiscourseDraft = {
     tipo: str(raw.tipo),
     titulo: str(raw.titulo),
-    orador: str(raw.orador) || null,
+    orador: toDraft(raw.orador),
     congregacion: str(raw.congregacion) || null,
     saliente: str(raw.saliente) || null,
   };
   return discourseHasContent(d) ? d : null;
 }
 
-export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeeting {
+export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendDraft {
   const src = isRecord(raw) ? raw : {};
   const one = (k: string) => str(src[k]) || null;
   return {
     date: str(src.date) || fallbackDate,
     asamblea: one('asamblea'),
-    presidente: one('presidente'),
+    presidente: toDraft(src.presidente),
     cancionInicio: one('cancionInicio'),
-    conductor: one('conductor'),
-    lector: one('lector'),
+    conductor: toDraft(src.conductor),
+    lector: toDraft(src.lector),
     cancionFin: one('cancionFin'),
-    oracionFinal: one('oracionFinal'),
+    oracionFinal: toDraft(src.oracionFinal),
     discurso: sanitizeDiscourse(src.discurso),
   };
 }
@@ -206,24 +244,24 @@ export function hasMidweekContent(w: MidweekWeek): boolean {
   return Boolean(w.asamblea?.trim()) || w.parts.length > 0;
 }
 
-function discourseHasContent(d: WeekendDiscourse | null): boolean {
+function discourseHasContent(d: DiscourseDraft | null): boolean {
   return Boolean(
     d &&
       (d.tipo.trim() ||
         d.titulo.trim() ||
-        d.orador?.trim() ||
+        d.orador.name.trim() ||
         d.congregacion?.trim() ||
         d.saliente?.trim()),
   );
 }
 
-export function hasWeekendContent(m: WeekendMeeting): boolean {
+export function hasWeekendContent(m: WeekendDraft): boolean {
   return Boolean(
     m.asamblea?.trim() ||
-      m.presidente?.trim() ||
-      m.conductor?.trim() ||
-      m.lector?.trim() ||
-      m.oracionFinal?.trim() ||
+      m.presidente.name.trim() ||
+      m.conductor.name.trim() ||
+      m.lector.name.trim() ||
+      m.oracionFinal.name.trim() ||
       m.cancionInicio?.trim() ||
       m.cancionFin?.trim() ||
       discourseHasContent(m.discurso),
@@ -238,8 +276,7 @@ export function cleanPeople(people: readonly ProgramaPerson[]): ProgramaPerson[]
   for (const p of people) {
     const name = p.name.trim();
     if (!name) continue;
-    const role = p.role?.trim() ?? '';
-    out.push(role ? { name, role } : { name });
+    out.push(person(name, p.role?.trim() ?? '', p.person_id ?? null));
   }
   return out;
 }
@@ -258,29 +295,33 @@ export function cleanMidweek(w: MidweekWeek, date: string): MidweekWeek {
   return { date, asamblea: null, parts };
 }
 
-function cleanDiscourse(d: WeekendDiscourse | null): WeekendDiscourse | null {
-  if (!d) return null;
-  const disc: WeekendDiscourse = {
+/** Linked → `{name, person_id}`; unlinked → the bare name (the legacy shape); blank → null. */
+export function storeDraft(p: PersonDraft): StoredPerson | null {
+  return storePerson(p.name, p.person_id);
+}
+
+function cleanDiscourse(d: DiscourseDraft | null): WeekendDiscourseData | null {
+  if (!d || !discourseHasContent(d)) return null;
+  return {
     tipo: d.tipo.trim(),
     titulo: d.titulo.trim(),
-    orador: d.orador?.trim() || null,
+    orador: storeDraft(d.orador),
     congregacion: d.congregacion?.trim() || null,
     saliente: d.saliente?.trim() || null,
   };
-  return discourseHasContent(disc) ? disc : null;
 }
 
-export function cleanWeekend(m: WeekendMeeting, date: string): WeekendMeeting {
+export function cleanWeekend(m: WeekendDraft, date: string): WeekendMeetingData {
   const one = (v: string | null) => v?.trim() || null;
   return {
     date,
     asamblea: one(m.asamblea),
-    presidente: one(m.presidente),
+    presidente: storeDraft(m.presidente),
     cancionInicio: one(m.cancionInicio),
-    conductor: one(m.conductor),
-    lector: one(m.lector),
+    conductor: storeDraft(m.conductor),
+    lector: storeDraft(m.lector),
     cancionFin: one(m.cancionFin),
-    oracionFinal: one(m.oracionFinal),
+    oracionFinal: storeDraft(m.oracionFinal),
     discurso: cleanDiscourse(m.discurso),
   };
 }

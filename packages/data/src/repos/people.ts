@@ -4,6 +4,7 @@
  */
 import type { TerritoriosClient } from '../client';
 import {
+  DirectoryPerson,
   DutyPerson,
   NameSource,
   PersonAvailabilityInsert,
@@ -13,6 +14,7 @@ import {
   PersonPairRow,
   PersonRow,
   PersonUpdate,
+  type DutyRole,
   type Gender,
 } from '../schemas';
 import {
@@ -150,19 +152,23 @@ export async function fetchNameSources(sb: TerritoriosClient): Promise<NameSourc
 }
 
 /**
- * "Crear persona" from an unmatched name; returns the new id. `inCarrito` defaults to false.
- * 23505 when the name already matches someone (name or alias). Editor only.
+ * "Crear persona" from an unmatched name or from a person picker; returns the new id.
+ * `inCarrito` (default false) is honoured for editors only; `duties` for editors and
+ * can_edit_privilegios. 23505 when the name already matches someone (name or alias).
+ * Editors, can_edit_programa or can_edit_privilegios; 42501 otherwise.
  */
 export async function createPersonFromName(
   sb: TerritoriosClient,
   name: string,
   gender: Gender,
   inCarrito = false,
+  duties: readonly DutyRole[] = [],
 ): Promise<string> {
   const id = await callRpc(sb, 'create_person_from_name', {
     p_name: name,
     p_gender: gender,
     p_in_carrito: inCarrito,
+    p_duties: duties,
   });
   if (typeof id !== 'string') throw new TypeError('create_person_from_name: expected an id');
   return id;
@@ -186,4 +192,12 @@ export async function addPersonAlias(
  */
 export async function fetchDutyPeople(sb: TerritoriosClient): Promise<DutyPerson[]> {
   return parseRpcRows('duty_people', DutyPerson, await callRpc(sb, 'duty_people'));
+}
+
+/**
+ * Everyone (id, name, aliases, duties, in_carrito) for the schedule person pickers. Editors,
+ * can_edit_programa and can_edit_privilegios; 42501 otherwise.
+ */
+export async function fetchPeopleDirectory(sb: TerritoriosClient): Promise<DirectoryPerson[]> {
+  return parseRpcRows('people_directory', DirectoryPerson, await callRpc(sb, 'people_directory'));
 }

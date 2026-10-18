@@ -2,11 +2,12 @@ import { useId, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { parseTerritoryIds } from '@territorios/core';
 import type { GroupTerritories, ServiceMeetingRow, ServiceMeetingUpdate } from '@territorios/data';
+import { PersonPicker } from '../../../shell/PersonPicker';
 
 const GROUP_KEYS = ['G1', 'G2', 'G3', 'G4'] as const;
 type GroupKey = (typeof GROUP_KEYS)[number];
 
-type TextField = 'start_time' | 'place' | 'conductor' | 'groups';
+type TextField = 'start_time' | 'place' | 'groups';
 
 interface Props {
   meeting: ServiceMeetingRow;
@@ -128,7 +129,14 @@ export function MeetingRow({ meeting, onSave, onDelete }: Props) {
           <div className="grid gap-3 sm:grid-cols-2">
             {textField('start_time', 'Hora', { type: 'time' })}
             {textField('place', 'Lugar', { placeholder: 'Esquina o dirección' })}
-            {textField('conductor', 'Conductor', { placeholder: 'Quién conduce' })}
+            <PersonPicker
+              label="Conductor"
+              labelClassName="text-caption text-ink-soft"
+              placeholder="Quién conduce"
+              value={{ person_id: meeting.conductor_person_id ?? null, name: meeting.conductor }}
+              // Name and link go in one patch: one CAS write, one optimistic update.
+              onChange={(v) => onSave({ conductor: v.name, conductor_person_id: v.person_id })}
+            />
             {textField('groups', 'Grupos', { placeholder: '1 y 2' })}
 
             {!isDomingo && (

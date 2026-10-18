@@ -17,6 +17,7 @@ const FIELD_LABEL: Record<keyof ServiceMeetingUpdate, string> = {
   start_time: 'Hora',
   groups: 'Grupos',
   conductor: 'Conductor',
+  conductor_person_id: 'Conductor',
   place: 'Lugar',
   territory_ids: 'Territorios',
   group_territories: 'Territorios por grupo',
@@ -27,6 +28,7 @@ const FIELD_ORDER: (keyof ServiceMeetingUpdate)[] = [
   'start_time',
   'place',
   'conductor',
+  'conductor_person_id',
   'groups',
   'territory_ids',
   'group_territories',
@@ -63,13 +65,17 @@ export interface ConflictRow {
   theirs: string;
 }
 
-/** One row per field in the attempted patch: your value next to the current server value. */
+/**
+ * One row per field in the attempted patch: your value next to the current server value. The
+ * conductor link travels with the conductor name and is shown through it (an id means nothing
+ * to the editor), so it gets no row of its own; "Guardar lo mío" still re-sends it.
+ */
 export function conflictRows(
   patch: MeetingPatch,
   current: ServiceMeetingRow | null,
 ): ConflictRow[] {
   return (Object.keys(patch) as (keyof ServiceMeetingUpdate)[])
-    .filter((key) => patch[key] !== undefined)
+    .filter((key) => patch[key] !== undefined && key !== 'conductor_person_id')
     .sort((a, b) => FIELD_ORDER.indexOf(a) - FIELD_ORDER.indexOf(b))
     .map((key) => ({
       key,

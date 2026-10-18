@@ -23,6 +23,7 @@ import {
   defaultSelection,
   meetingDay,
   publishPlan,
+  carryLinks,
   publishedSummary,
   weekRange,
   type Preview,
@@ -166,7 +167,8 @@ function CargarPdf() {
             id: step.row.id,
             version: step.row.version,
             weekStart: entry.weekStart,
-            patch: { data },
+            // Keep the person links an editor already made for the same names.
+            patch: { data: carryLinks(data, step.row.data) },
           });
         } else {
           await create.mutateAsync({ kind: entry.kind, date: entry.date, data });

@@ -28,7 +28,6 @@ import {
 import {
   workbookWeekToMidweek,
   type MidweekWeek,
-  type WeekendMeeting,
   type WorkbookWeek,
 } from '@territorios/core';
 import { addDaysIso } from '../../../../lib/week';
@@ -48,6 +47,7 @@ import {
   sanitizeWeekend,
   weekLabel,
   weekendDate,
+  type WeekendDraft,
 } from './model';
 
 function useOnline(): boolean {
@@ -173,7 +173,7 @@ function WeekForm({
   const [mid, setMid] = useState<MidweekWeek>(() =>
     data.midweek ? sanitizeMidweek(data.midweek.data, tuesday) : emptyMidweek(tuesday),
   );
-  const [wend, setWend] = useState<WeekendMeeting>(() =>
+  const [wend, setWend] = useState<WeekendDraft>(() =>
     data.weekend ? sanitizeWeekend(data.weekend.data, saturday) : emptyWeekend(saturday),
   );
   const [midRow, setMidRow] = useState<ProgramWeekRow | null>(data.midweek);

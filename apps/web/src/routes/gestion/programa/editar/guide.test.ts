@@ -96,4 +96,23 @@ describe('Traer de la Guía de actividades', () => {
     const p = mergeGuide(guide, guide);
     expect(p.changes).toEqual([]);
   });
+
+  it('keeps the person links of the names it carries over', () => {
+    const id = '0f8b3c2a-1d4e-4f6a-8b9c-0123456789ab';
+    const current: MidweekWeek = {
+      date: '2026-10-20',
+      asamblea: null,
+      parts: [
+        {
+          time: '19:20',
+          title: 'Lectura de la Biblia',
+          section: 'tesoros',
+          people: [{ name: 'Persona Vinculada', role: 'Estudiante', person_id: id }],
+        },
+      ],
+    };
+    const p = mergeGuide(current, guide);
+    const lectura = p.week.parts.find((x) => x.title === 'Lectura de la Biblia');
+    expect(lectura?.people).toEqual([{ name: 'Persona Vinculada', role: 'Estudiante', person_id: id }]);
+  });
 });

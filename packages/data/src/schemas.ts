@@ -11,7 +11,7 @@
 import { z } from 'zod/mini';
 
 /** Bump when a row shape changes: busts the persisted query cache. */
-export const SCHEMA_VERSION = '2026-10-17.2';
+export const SCHEMA_VERSION = '2026-10-18.1';
 
 // ---------------------------------------------------------------------------
 // Primitives
@@ -134,7 +134,10 @@ const meetingFields = {
   kind: MeetingKind,
   start_time: z.string().check(z.maxLength(20)),
   groups: z.string().check(z.maxLength(120)),
+  /** Display snapshot: people.name when conductor_person_id is set (trigger), free text otherwise. */
   conductor: z.string().check(z.maxLength(120)),
+  /** The person conducting; null = free text / legacy. Optional so a pre-migration row still parses. */
+  conductor_person_id: z.optional(z.nullable(Uuid)),
   place: z.string().check(z.maxLength(200)),
   territory_ids: TerritoryIds,
   group_territories: GroupTerritories,
@@ -174,6 +177,7 @@ export const ServiceMeetingInsert = z
     start_time: z.optional(meetingFields.start_time),
     groups: z.optional(meetingFields.groups),
     conductor: z.optional(meetingFields.conductor),
+    conductor_person_id: meetingFields.conductor_person_id,
     place: z.optional(meetingFields.place),
     territory_ids: z.optional(TerritoryIds),
     group_territories: z.optional(GroupTerritories),
@@ -399,6 +403,53 @@ export type ProgramKind = z.infer<typeof ProgramKind>;
 export const ProgramData = z.record(z.string(), z.unknown());
 export type ProgramData = z.infer<typeof ProgramData>;
 
+/**
+ * A person inside program data. Midweek `parts[].people[]` items are objects
+ * `{name, role?, person_id?}`; weekend presidente / conductor / lector / oracionFinal and
+ * `discurso.orador` are a plain name (legacy, unlinked) or `{name, person_id?}` (linked).
+ */
+export const ProgramPersonRef = z.looseObject({
+  name: z.string().check(z.maxLength(120)),
+  person_id: z.optional(Uuid),
+});
+export const ProgramPersonValue = z.nullable(z.union([z.string(), ProgramPersonRef]));
+export const ProgramMidweekPerson = z.looseObject({
+  name: z.string().check(z.maxLength(120)),
+  role: z.optional(z.string()),
+  person_id: z.optional(Uuid),
+});
+const WEEKEND_PERSON_KEYS = ['presidente', 'conductor', 'lector', 'oracionFinal'] as const;
+
+function isObj(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Writes only: every person present in the data has one of the accepted shapes (stored rows
+ * are read leniently, they may come from v1 or a PDF upload). Legacy strings stay valid.
+ */
+function programPeopleShape(p: { data?: ProgramData | undefined }, ctx: z.core.$RefinementCtx) {
+  const data = p.data;
+  if (!data) return;
+  const bad = (path: (string | number)[]) =>
+    ctx.addIssue({ code: 'custom', path: ['data', ...path], message: 'invalid person' });
+  if (Array.isArray(data.parts)) {
+    data.parts.forEach((part, i) => {
+      if (!isObj(part) || !Array.isArray(part.people)) return;
+      part.people.forEach((person, j) => {
+        if (!ProgramMidweekPerson.safeParse(person).success) bad(['parts', i, 'people', j]);
+      });
+    });
+  }
+  for (const key of WEEKEND_PERSON_KEYS) {
+    if (key in data && !ProgramPersonValue.safeParse(data[key]).success) bad([key]);
+  }
+  const disc = data.discurso;
+  if (isObj(disc) && 'orador' in disc && !ProgramPersonValue.safeParse(disc.orador).success) {
+    bad(['discurso', 'orador']);
+  }
+}
+
 function programKeyDay(
   p: { kind?: ProgramKind | undefined; date?: string | undefined },
   ctx: z.core.$RefinementCtx,
@@ -421,10 +472,12 @@ export const ProgramWeekRow = z
 export type ProgramWeekRow = z.infer<typeof ProgramWeekRow>;
 export const ProgramWeekInsert = z
   .object({ ...programFields, id: z.optional(Uuid), data: z.optional(ProgramData) })
-  .check(z.superRefine(programKeyDay));
+  .check(z.superRefine(programKeyDay), z.superRefine(programPeopleShape));
 export type ProgramWeekInsert = z.infer<typeof ProgramWeekInsert>;
 /** kind/date form the natural key; only `data` is patched. */
-export const ProgramWeekUpdate = z.object({ data: ProgramData });
+export const ProgramWeekUpdate = z
+  .object({ data: ProgramData })
+  .check(z.superRefine(programPeopleShape));
 export type ProgramWeekUpdate = z.infer<typeof ProgramWeekUpdate>;
 
 // ---------------------------------------------------------------------------
@@ -588,6 +641,19 @@ export const DutyPerson = z.object({
   aliases: z.array(z.string()),
 });
 export type DutyPerson = z.infer<typeof DutyPerson>;
+
+/**
+ * public.people_directory(): everyone, for the schedule person pickers. Editors,
+ * can_edit_programa and can_edit_privilegios (who cannot read `people` directly).
+ */
+export const DirectoryPerson = z.object({
+  id: Uuid,
+  name: z.string(),
+  aliases: z.array(z.string()),
+  duties: z.array(DutyRole),
+  in_carrito: z.boolean(),
+});
+export type DirectoryPerson = z.infer<typeof DirectoryPerson>;
 
 // ---------------------------------------------------------------------------
 // Table registry

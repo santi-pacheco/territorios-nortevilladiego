@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { PdfItem } from '@territorios/core';
 import type { ProgramWeekRow } from '@territorios/data';
-import { buildPreview, defaultSelection, detectKind, publishPlan, type StagedFile } from './model';
+import {
+  buildPreview,
+  carryLinks,
+  defaultSelection,
+  detectKind,
+  publishPlan,
+  type StagedFile,
+} from './model';
 
 // The sanitized October 2026 fixtures committed with the core parsers.
 const FIXTURES = '../../../../../../packages/core/src/programa/__tests__/fixtures/';
@@ -103,5 +110,38 @@ describe('gestión programa preview', () => {
     const unknown = buildPreview([{ name: 'x.pdf', pages: [[]] }], 2026, []);
     expect(unknown.files[0]!.error).not.toBeNull();
     expect(unknown.entries).toEqual([]);
+  });
+});
+
+describe('carryLinks (re-publishing a PDF keeps person links)', () => {
+  const A = '0f8b3c2a-1d4e-4f6a-8b9c-0123456789ab';
+  const B = '1f8b3c2a-1d4e-4f6a-8b9c-0123456789ab';
+
+  it('relinks midweek people spelled like a linked entry of the published row', () => {
+    const existing = { parts: [{ title: 'X', people: [{ name: 'Ana Prueba', person_id: A }] }] };
+    const next = { parts: [{ title: 'Y', people: [{ name: 'ANA  prueba', role: 'Lector' }, { name: 'Otra' }] }] };
+    expect(carryLinks(next, existing)).toEqual({
+      parts: [{ title: 'Y', people: [{ name: 'ANA  prueba', role: 'Lector', person_id: A }, { name: 'Otra' }] }],
+    });
+  });
+
+  it('relinks weekend fields and the orador; ambiguous names stay unlinked', () => {
+    const existing = {
+      presidente: { name: 'Ana Prueba', person_id: A },
+      lector: { name: 'Bruno Prueba', person_id: B },
+      conductor: { name: 'Bruno Prueba', person_id: A },
+      discurso: { titulo: 'T', orador: { name: 'Ana Prueba', person_id: A } },
+    };
+    const next = { presidente: 'Bruno Prueba', lector: 'Ana Prueba', discurso: { titulo: 'U', orador: 'Ana Prueba' } };
+    expect(carryLinks(next, existing)).toEqual({
+      presidente: 'Bruno Prueba',
+      lector: { name: 'Ana Prueba', person_id: A },
+      discurso: { titulo: 'U', orador: { name: 'Ana Prueba', person_id: A } },
+    });
+  });
+
+  it('returns the payload unchanged when nothing was linked', () => {
+    const next = { presidente: 'Ana Prueba' };
+    expect(carryLinks(next, { presidente: 'Ana Prueba' })).toBe(next);
   });
 });

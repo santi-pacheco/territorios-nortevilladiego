@@ -33,6 +33,8 @@ export const qk = {
    */
   directory: ['tm', 'directory'] as const,
   nameSources: ['tm', 'directory', 'name-sources'] as const,
+  /** people_directory(): the schedule person pickers (editors, programa, privilegios). */
+  peopleDirectory: ['tm', 'directory', 'people'] as const,
 
   /** Privilegios roster + its pickers. Restricted (RLS), never persisted, dropped on sign-out. */
   privilegios: ['tm', 'privilegios'] as const,

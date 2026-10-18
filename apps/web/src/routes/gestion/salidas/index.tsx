@@ -49,6 +49,7 @@ function meetingToInsert(m: ServiceMeetingRow, position: number): ServiceMeeting
     start_time: m.start_time,
     groups: m.groups,
     conductor: m.conductor,
+    conductor_person_id: m.conductor_person_id ?? null,
     place: m.place,
     territory_ids: m.territory_ids,
     group_territories: m.group_territories,

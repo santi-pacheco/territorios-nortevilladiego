@@ -139,9 +139,12 @@ describe('people directory RPCs', () => {
     expect(calls.map((c) => [c.table, c.values])).toEqual([
       [
         'create_person_from_name',
-        { p_name: 'Hermano Ejemplo', p_gender: 'M', p_in_carrito: false },
+        { p_name: 'Hermano Ejemplo', p_gender: 'M', p_in_carrito: false, p_duties: [] },
       ],
-      ['create_person_from_name', { p_name: 'Hermana Ejemplo', p_gender: 'F', p_in_carrito: true }],
+      [
+        'create_person_from_name',
+        { p_name: 'Hermana Ejemplo', p_gender: 'F', p_in_carrito: true, p_duties: [] },
+      ],
       ['add_person_alias', { p_person: P2, p_alias: 'B. Prueba' }],
       ['duty_people', undefined],
     ]);

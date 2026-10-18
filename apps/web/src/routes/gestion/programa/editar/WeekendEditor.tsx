@@ -4,31 +4,38 @@
  * optional — the toggle adds a `WeekendDiscourse`, matching the core type `discurso: ... | null`.
  *
  * Fields the editor does not show (canciones, `discurso.saliente`) stay in the value and are
- * round-tripped untouched on save.
+ * round-tripped untouched on save. Every person is a PersonPicker (linked to the directory);
+ * only the orador accepts free text, for visiting speakers.
  */
 import { useId } from 'react';
-import type { WeekendDiscourse, WeekendMeeting } from '@territorios/core';
-import { DISCOURSE_TIPOS } from './model';
+import type { WeekendPersonField } from '@territorios/core';
+import { PersonPicker } from '../../../../shell/PersonPicker';
+import { DISCOURSE_TIPOS, NO_PERSON, type DiscourseDraft, type WeekendDraft } from './model';
 
-function newDiscourse(): WeekendDiscourse {
-  return { tipo: 'PÚBLICO', titulo: '', orador: null, congregacion: null, saliente: null };
+function newDiscourse(): DiscourseDraft {
+  return { tipo: 'PÚBLICO', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null };
 }
 
-type TextField = 'asamblea' | 'presidente' | 'conductor' | 'lector' | 'oracionFinal';
+const PERSON_FIELDS: { key: WeekendPersonField; label: string }[] = [
+  { key: 'presidente', label: 'Presidente' },
+  { key: 'conductor', label: 'Conductor de La Atalaya' },
+  { key: 'lector', label: 'Lector' },
+  { key: 'oracionFinal', label: 'Oración final' },
+];
 
 export function WeekendEditor({
   value,
   onChange,
 }: {
-  value: WeekendMeeting;
-  onChange: (meeting: WeekendMeeting) => void;
+  value: WeekendDraft;
+  onChange: (meeting: WeekendDraft) => void;
 }) {
   const id = useId();
   const disc = value.discurso;
 
-  const text = (key: TextField) => value[key] ?? '';
-  const setText = (key: TextField, v: string) => onChange({ ...value, [key]: v });
-  const setDisc = (patch: Partial<WeekendDiscourse>) =>
+  const text = (key: 'asamblea') => value[key] ?? '';
+  const setText = (key: 'asamblea', v: string) => onChange({ ...value, [key]: v });
+  const setDisc = (patch: Partial<DiscourseDraft>) =>
     onChange({ ...value, discurso: { ...(disc ?? newDiscourse()), ...patch } });
 
   return (
@@ -38,38 +45,14 @@ export function WeekendEditor({
       </h4>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-secondary text-ink-soft">Presidente</span>
-          <input
-            className="field"
-            value={text('presidente')}
-            onChange={(e) => setText('presidente', e.currentTarget.value)}
+        {PERSON_FIELDS.map(({ key, label }) => (
+          <PersonPicker
+            key={key}
+            label={label}
+            value={value[key]}
+            onChange={(v) => onChange({ ...value, [key]: v })}
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-secondary text-ink-soft">Conductor de La Atalaya</span>
-          <input
-            className="field"
-            value={text('conductor')}
-            onChange={(e) => setText('conductor', e.currentTarget.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-secondary text-ink-soft">Lector</span>
-          <input
-            className="field"
-            value={text('lector')}
-            onChange={(e) => setText('lector', e.currentTarget.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-secondary text-ink-soft">Oración final</span>
-          <input
-            className="field"
-            value={text('oracionFinal')}
-            onChange={(e) => setText('oracionFinal', e.currentTarget.value)}
-          />
-        </label>
+        ))}
       </div>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-line bg-canvas px-3 py-3">
@@ -100,14 +83,13 @@ export function WeekendEditor({
               />
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-secondary text-ink-soft">Orador</span>
-                <input
-                  className="field"
-                  value={disc.orador ?? ''}
-                  onChange={(e) => setDisc({ orador: e.currentTarget.value })}
-                />
-              </label>
+              <PersonPicker
+                label="Orador"
+                value={disc.orador}
+                // A visiting speaker is not in the directory: free text is allowed here only.
+                allowFreeText
+                onChange={(v) => setDisc({ orador: v })}
+              />
               <label className="flex flex-col gap-1">
                 <span className="text-secondary text-ink-soft">Congregación</span>
                 <input

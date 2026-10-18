@@ -1,8 +1,8 @@
 /**
  * Gestión ▸ Privilegios: the month's meeting days (Tuesday and Saturday), each with its kind
- * (reunión / asamblea / sin reunión) and six role slots. A slot saves when the field loses focus:
- * a name from the list links the person (filtered by duty), anything else is kept as free text,
- * an empty field clears the slot. Every write is CAS on the row version; a conflict rolls back,
+ * (reunión / asamblea / sin reunión) and six role slots. Each slot is a PersonPicker over the
+ * people with that duty: a choice links the person, "Usar «texto» sin vincular" keeps free text,
+ * clearing empties the slot; it saves on choice. Every write is CAS on the row version; a conflict rolls back,
  * refetches and shows a notice. "Pegar desde Excel" fills many dates at once (PastePanel).
  */
 import { useMemo, useState, useSyncExternalStore } from 'react';
@@ -17,8 +17,8 @@ import {
   useSetDutyDay,
   useUpsertDutyCell,
   type ConflictError,
+  type DirectoryPerson,
   type DutyDayKind,
-  type DutyPerson,
   type DutyRole,
   type DutyRosterRow,
 } from '@territorios/data';
@@ -35,7 +35,7 @@ import {
   type RosterDay,
   type Slot,
 } from '../../privilegios/model';
-import { exactPerson, peopleFor } from './paste';
+import { PersonPicker, type PersonValue } from '../../../shell/PersonPicker';
 import { PastePanel } from './PastePanel';
 
 export function useOnline(): boolean {
@@ -46,7 +46,6 @@ export function useOnline(): boolean {
 }
 
 const ROLES: DutyRole[] = ['computadora', 'sonido', 'microfonista', 'acomodador'];
-const listId = (role: DutyRole) => `priv-people-${role}`;
 
 export function conflictMessage(err: ConflictError, what: string): string {
   if (err.likelyPermissionDenied) return 'No tenés permiso para editar privilegios.';
@@ -79,8 +78,8 @@ export function GestionPrivilegios() {
       <div className="flex flex-col gap-1">
         <h2 className="text-title font-bold">Privilegios</h2>
         <p className="max-w-prose text-body text-ink-soft">
-          Computadora, sonido, micrófonos y acomodadores de cada reunión. Cada nombre se guarda
-          al salir del campo.
+          Computadora, sonido, micrófonos y acomodadores de cada reunión. Cada persona se guarda
+          al elegirla de la lista.
         </p>
       </div>
 
@@ -144,14 +143,6 @@ export function GestionPrivilegios() {
         </p>
       )}
 
-      {ROLES.map((role) => (
-        <datalist key={role} id={listId(role)}>
-          {peopleFor(role, people).map((p) => (
-            <option key={p.id} value={p.name} />
-          ))}
-        </datalist>
-      ))}
-
       {roster.isPending ? (
         <EditorSkeleton />
       ) : roster.isError && !roster.data ? (
@@ -176,7 +167,6 @@ export function GestionPrivilegios() {
               <li key={day.date}>
                 <DayEditor
                   day={day}
-                  people={people}
                   online={online}
                   onConflict={(err) => onConflict(err, day.date)}
                 />
@@ -191,12 +181,10 @@ export function GestionPrivilegios() {
 
 function DayEditor({
   day,
-  people,
   online,
   onConflict,
 }: {
   day: RosterDay;
-  people: DutyPerson[];
   online: boolean;
   onConflict: (err: ConflictError) => void;
 }) {
@@ -219,7 +207,6 @@ function DayEditor({
                 date={day.date}
                 slot={slot}
                 row={row}
-                pool={people}
                 online={online}
                 onConflict={onConflict}
               />
@@ -319,90 +306,75 @@ function DayKindControl({
   );
 }
 
+/** One stable filter per role, so the picker's memo holds across renders. */
+const DUTY_FILTER = Object.fromEntries(
+  ROLES.map((role) => [role, (p: DirectoryPerson) => p.duties.includes(role)]),
+) as Record<DutyRole, (p: DirectoryPerson) => boolean>;
+
 function SlotField({
   date,
   slot,
   row,
-  pool,
   online,
   onConflict,
 }: {
   date: string;
   slot: Slot;
   row: DutyRosterRow | null;
-  pool: DutyPerson[];
   online: boolean;
   onConflict: (err: ConflictError) => void;
 }) {
   const upsert = useUpsertDutyCell({ onConflict });
   const clear = useClearDutyCell({ onConflict });
-  const [text, setText] = useState(row?.person_name ?? '');
   /** The row this field last wrote, so a quick second edit uses the new version. */
   const [written, setWritten] = useState<DutyRosterRow | null>(null);
   const current = written && (!row || written.version > row.version) ? written : row;
   const pending = upsert.isPending || clear.isPending;
   const failed =
     (upsert.isError && !isConflictError(upsert.error)) || (clear.isError && !isConflictError(clear.error));
-  const id = `priv-${date}-${slot.role}-${slot.slot}`;
+  const value: PersonValue = {
+    person_id: current?.person_id ?? null,
+    name: current?.person_name ?? '',
+  };
 
-  async function commit() {
-    const t = text.replace(/\s+/g, ' ').trim();
-    const before = current?.person_name ?? '';
-    if (t === before) return;
+  async function commit(next: PersonValue) {
     const key = { date, role: slot.role, slot: slot.slot };
     try {
-      if (!t) {
+      if (!next.name.trim()) {
         if (current) await clear.mutateAsync({ ...key, version: current.version });
         return;
       }
-      const match = exactPerson(t, peopleFor(slot.role, pool));
-      const person = match.length === 1 ? match[0]! : null;
-      if (person && current?.person_id === person.id) return;
       const saved = await upsert.mutateAsync({
         ...key,
-        person_id: person?.id ?? null,
-        person_name: person?.name ?? t,
+        person_id: next.person_id,
+        person_name: next.name,
         version: current?.version,
       });
       setWritten(saved);
-      setText(saved.person_name ?? t);
     } catch {
       // Conflicts are reported by onConflict (rolled back and refetched); other errors show below.
     }
   }
 
-  const freeText = current && !current.person_id && current.person_name;
-
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <label htmlFor={id} className="text-secondary text-ink-soft">
-        {slot.label}
-      </label>
-      <input
-        id={id}
-        className="field w-full min-w-0"
-        list={listId(slot.role)}
-        value={text}
-        maxLength={80}
-        autoComplete="off"
-        disabled={!online}
-        readOnly={pending}
-        aria-describedby={freeText || pending || failed ? `${id}-hint` : undefined}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => void commit()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-        }}
-      />
-      {(pending || failed || freeText) && (
-        <p
-          id={`${id}-hint`}
-          className={`text-caption ${failed ? 'text-danger' : 'text-ink-soft'}`}
-        >
-          {pending ? 'Guardando…' : failed ? 'No se guardó. Probá de nuevo.' : 'Texto libre'}
-        </p>
-      )}
-    </div>
+    <PersonPicker
+      label={slot.label}
+      placeholder="Nombre"
+      value={value}
+      filter={DUTY_FILTER[slot.role]}
+      createDuties={[slot.role]}
+      // Free text stays possible (the roster supports it), and is marked "Sin vincular".
+      allowFreeText
+      disabled={!online || pending}
+      status={
+        pending
+          ? { text: 'Guardando…' }
+          : failed
+            ? { text: 'No se guardó. Probá de nuevo.', tone: 'danger' }
+            : null
+      }
+      onChange={(next) => void commit(next)}
+    />
   );
 }
 

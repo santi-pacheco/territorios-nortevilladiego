@@ -8,7 +8,12 @@ import { listAccounts, myAssignments, myLink, myPermissions } from '../repos/acc
 import { fetchRole, fetchSession, isEditorRole, type AppRole } from '../repos/auth';
 import { addDays } from '../repos/base';
 import { fetchCartBoard } from '../repos/carrito';
-import { fetchDutyPeople, fetchNameSources, fetchPeople } from '../repos/people';
+import {
+  fetchDutyPeople,
+  fetchNameSources,
+  fetchPeople,
+  fetchPeopleDirectory,
+} from '../repos/people';
 import { fetchDutyRoster } from '../repos/privilegios';
 import { fetchProgramWeek, fetchProgramWeeks } from '../repos/program';
 import { fetchServiceWeek } from '../repos/salidas';
@@ -105,6 +110,9 @@ export const dutyRosterQuery = (from: string, to: string) =>
 
 export const dutyPeopleQuery = () =>
   queryOptions({ queryKey: qk.dutyPeople, queryFn: () => withDb(fetchDutyPeople) });
+
+export const peopleDirectoryQuery = () =>
+  queryOptions({ queryKey: qk.peopleDirectory, queryFn: () => withDb(fetchPeopleDirectory) });
 
 // ---------------------------------------------------------------------------
 // Hooks
@@ -208,4 +216,15 @@ export function useDutyPeople(opts: { enabled?: boolean } = {}) {
     ...dutyPeopleQuery(),
     enabled: opts.enabled ?? perms.data?.can_edit_privilegios === true,
   });
+}
+
+/**
+ * Everyone, for the schedule person pickers (Salidas, Programa, Privilegios). Enabled for
+ * editors and for can_edit_programa / can_edit_privilegios accounts (override with `enabled`).
+ */
+export function usePeopleDirectory(opts: { enabled?: boolean } = {}) {
+  const perms = useMyPermissions();
+  const allowed =
+    perms.data?.can_edit_programa === true || perms.data?.can_edit_privilegios === true;
+  return useQuery({ ...peopleDirectoryQuery(), enabled: opts.enabled ?? allowed });
 }

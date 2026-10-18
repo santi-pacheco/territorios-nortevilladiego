@@ -385,8 +385,8 @@ export const peopleMutations = {
   createPersonFromName: define(
     qk.people,
     'createPersonFromName',
-    (sb, v: { name: string; gender: Gender; inCarrito?: boolean }) =>
-      peopleRepo.createPersonFromName(sb, v.name, v.gender, v.inCarrito ?? false),
+    (sb, v: { name: string; gender: Gender; inCarrito?: boolean; duties?: DutyRole[] }) =>
+      peopleRepo.createPersonFromName(sb, v.name, v.gender, v.inCarrito ?? false, v.duties ?? []),
     undefined,
     [qk.directory, qk.privilegios],
   ),

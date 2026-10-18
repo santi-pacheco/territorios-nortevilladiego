@@ -35,3 +35,4 @@ export { bindAuth } from './query/auth';
 export * from './realtime';
 export * from './persist';
 export * from './repos/workbook';
+export * from './peopleSearch';

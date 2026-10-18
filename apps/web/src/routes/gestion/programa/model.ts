@@ -5,13 +5,16 @@
  * published row, grouped by Mon–Sun week.
  */
 import {
+  WEEKEND_PERSON_FIELDS,
   parseMidweekPages,
   parseWeekendPages,
+  personLink,
+  personName,
   type MidweekWeek,
   type PdfItem,
   type WeekendMeeting,
 } from '@territorios/core';
-import type { ProgramKind, ProgramWeekRow } from '@territorios/data';
+import { normName, type ProgramKind, type ProgramWeekRow } from '@territorios/data';
 import { addDaysIso, fromIso, mondayOf } from '../../../lib/week';
 
 export interface StagedFile {
@@ -227,4 +230,65 @@ export function publishedSummary(row: ProgramWeekRow): string {
   }
   const disc = d.discurso as { titulo?: unknown } | null | undefined;
   return typeof disc?.titulo === 'string' && disc.titulo ? disc.titulo : 'Sin discurso';
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** Every person value in a program payload (midweek people, weekend fields, orador). */
+function personValues(data: Record<string, unknown>): unknown[] {
+  const out: unknown[] = [];
+  if (Array.isArray(data.parts)) {
+    for (const part of data.parts) {
+      if (isRecord(part) && Array.isArray(part.people)) out.push(...part.people);
+    }
+  }
+  for (const key of WEEKEND_PERSON_FIELDS) out.push(data[key]);
+  if (isRecord(data.discurso)) out.push(data.discurso.orador);
+  return out;
+}
+
+/**
+ * Re-publishing a PDF over a published row must not drop the person links an editor made:
+ * every name in `next` that a linked entry of `existing` spells the same way (normalised, and
+ * linked to one person only) gets that link back. Names the PDF changed stay unlinked. Pure.
+ */
+export function carryLinks(
+  next: Record<string, unknown>,
+  existing: Record<string, unknown>,
+): Record<string, unknown> {
+  const links = new Map<string, Set<string>>();
+  for (const v of personValues(existing)) {
+    const id = personLink(v);
+    const name = normName(personName(v));
+    if (!id || !name) continue;
+    links.set(name, (links.get(name) ?? new Set()).add(id));
+  }
+  if (links.size === 0) return next;
+  const linkFor = (name: string): string | null => {
+    const ids = links.get(normName(name));
+    return ids && ids.size === 1 ? [...ids][0]! : null;
+  };
+  const relink = (v: unknown): unknown => {
+    const name = personName(v);
+    if (!name || personLink(v)) return v;
+    const id = linkFor(name);
+    if (!id) return v;
+    return isRecord(v) ? { ...v, person_id: id } : { name, person_id: id };
+  };
+
+  const out: Record<string, unknown> = { ...next };
+  if (Array.isArray(next.parts)) {
+    out.parts = next.parts.map((part) =>
+      isRecord(part) && Array.isArray(part.people)
+        ? { ...part, people: part.people.map(relink) }
+        : part,
+    );
+  }
+  for (const key of WEEKEND_PERSON_FIELDS) {
+    if (key in next) out[key] = relink(next[key]);
+  }
+  if (isRecord(next.discurso)) out.discurso = { ...next.discurso, orador: relink(next.discurso.orador) };
+  return out;
 }

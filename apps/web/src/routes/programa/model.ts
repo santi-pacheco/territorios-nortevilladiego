@@ -4,13 +4,14 @@
  * have been written by v1, so everything here validates field by field and renders
  * whatever is present instead of failing the whole week.
  */
-import type {
-  MidweekPart,
-  MidweekSection,
-  MidweekWeek,
-  ProgramaPerson,
-  WeekendDiscourse,
-  WeekendMeeting,
+import {
+  personName,
+  type MidweekPart,
+  type MidweekSection,
+  type MidweekWeek,
+  type ProgramaPerson,
+  type WeekendDiscourse,
+  type WeekendMeeting,
 } from '@territorios/core';
 import { matchesMe } from '../../lib/me';
 import { DAY_NAME, fromIso, longDate, mondayOf, toIso } from '../../lib/week';
@@ -83,7 +84,8 @@ function sanitizeDiscurso(raw: unknown): WeekendDiscourse | null {
   return {
     tipo,
     titulo,
-    orador: str(raw.orador) || null,
+    // A string (legacy, unlinked) or {name, person_id} (linked): the screen shows the name.
+    orador: personName(raw.orador) || null,
     congregacion: str(raw.congregacion) || null,
     saliente: str(raw.saliente) || null,
   };
@@ -92,15 +94,17 @@ function sanitizeDiscurso(raw: unknown): WeekendDiscourse | null {
 export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeeting | null {
   if (!isRecord(raw)) return null;
   const one = (k: string) => str(raw[k]) || null;
+  // Person fields are a name (legacy, unlinked) or {name, person_id} (linked).
+  const who = (k: string) => personName(raw[k]) || null;
   return {
     date: str(raw.date) || fallbackDate,
     asamblea: one('asamblea'),
-    presidente: one('presidente'),
+    presidente: who('presidente'),
     cancionInicio: one('cancionInicio'),
-    conductor: one('conductor'),
-    lector: one('lector'),
+    conductor: who('conductor'),
+    lector: who('lector'),
     cancionFin: one('cancionFin'),
-    oracionFinal: one('oracionFinal'),
+    oracionFinal: who('oracionFinal'),
     discurso: sanitizeDiscurso(raw.discurso),
   };
 }

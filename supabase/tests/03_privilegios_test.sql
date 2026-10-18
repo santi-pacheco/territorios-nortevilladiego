@@ -114,7 +114,7 @@ update public.people set name = 'Tomás Fixture' where id = 'ffffffff-0000-4000-
 -- ---------------------------------------------------------------------------
 select ok(
   not has_function_privilege('anon', 'public.name_sources()', 'execute')
-  and not has_function_privilege('anon', 'public.create_person_from_name(text, text, boolean)', 'execute')
+  and not has_function_privilege('anon', 'public.create_person_from_name(text, text, boolean, text[])', 'execute')
   and not has_function_privilege('anon', 'public.add_person_alias(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.set_account_permissions(uuid, boolean, boolean)', 'execute')
   and not has_function_privilege('anon', 'public.my_permissions()', 'execute')

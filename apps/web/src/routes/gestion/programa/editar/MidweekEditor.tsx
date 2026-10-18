@@ -12,6 +12,7 @@
 import { useId } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import type { MidweekPart, MidweekSection, MidweekWeek, ProgramaPerson } from '@territorios/core';
+import { PersonPicker } from '../../../../shell/PersonPicker';
 import type { GuideProposal } from './guide';
 import {
   SECTION_LABEL,
@@ -289,15 +290,15 @@ function PartRow({
             key={personIndex}
             className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
           >
-            <label className="flex flex-col gap-1">
-              <span className="sr-only">Nombre</span>
-              <input
-                className="field"
-                placeholder="Nombre"
-                value={person.name}
-                onChange={(e) => onPersonChange(personIndex, { name: e.currentTarget.value })}
-              />
-            </label>
+            <PersonPicker
+              label={`Asignado ${personIndex + 1}, ${part.title || `parte ${index + 1}`}`}
+              hideLabel
+              placeholder="Nombre"
+              value={{ person_id: person.person_id ?? null, name: person.name }}
+              onChange={(v) =>
+                onPersonChange(personIndex, { name: v.name, person_id: v.person_id ?? undefined })
+              }
+            />
             <label className="flex flex-col gap-1">
               <span className="sr-only">Rol</span>
               <input

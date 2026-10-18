@@ -73,6 +73,30 @@ describe('programa sanitizers', () => {
     expect(meeting?.discurso?.orador).toBe('Bruno Prueba');
   });
 
+  it('reads linked people ({name, person_id}) as their names, next to legacy strings', () => {
+    const id = '0f8b3c2a-1d4e-4f6a-8b9c-0123456789ab';
+    const meeting = sanitizeWeekend(
+      {
+        presidente: 'Ana Prueba',
+        lector: { name: 'Bruno Prueba', person_id: id },
+        conductor: { name: '  ' },
+        oracionFinal: { name: 'Carla Prueba' },
+        discurso: { tipo: 'PÚBLICO', titulo: 'T', orador: { name: 'Dario Prueba', person_id: id } },
+      },
+      '2026-10-17',
+    );
+    expect(meeting?.presidente).toBe('Ana Prueba');
+    expect(meeting?.lector).toBe('Bruno Prueba');
+    expect(meeting?.conductor).toBeNull();
+    expect(meeting?.oracionFinal).toBe('Carla Prueba');
+    expect(meeting?.discurso?.orador).toBe('Dario Prueba');
+    const week = sanitizeMidweek(
+      { parts: [{ title: 'Lectura', people: [{ name: 'Ana Prueba', person_id: id }] }] },
+      '2026-10-13',
+    );
+    expect(week?.parts[0]?.people[0]?.name).toBe('Ana Prueba');
+  });
+
   it('treats a discurso with no type and no title as absent', () => {
     expect(sanitizeWeekend({ discurso: { tipo: '  ', titulo: null } }, '2026-10-17')?.discurso).toBeNull();
   });
