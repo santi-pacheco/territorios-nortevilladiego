@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ar.org.nortevilladiego.territorios",
+      "sha256_cert_fingerprints": [
+        "29:82:2B:DB:C0:4F:9E:4A:69:AF:D6:A0:F6:BF:A9:EE:F3:0B:21:32:EE:1D:12:F2:19:D7:99:F6:31:8C:55:79"
+      ]
+    }
+  }
+]

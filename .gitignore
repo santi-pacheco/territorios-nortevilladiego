@@ -11,3 +11,13 @@ coverage
 # raw PDFs with real names never committed; sanitized JSON fixtures are
 fixtures/raw/
 supabase/.temp
+# Android TWA (apps/twa): build outputs, local SDK path and signing secrets
+apps/twa/.gradle/
+apps/twa/build/
+apps/twa/app/build/
+apps/twa/local.properties
+apps/twa/keystore.properties
+apps/twa/**/*.jks
+apps/twa/**/*.keystore
+apps/twa/**/*.apk
+apps/twa/**/*.aab

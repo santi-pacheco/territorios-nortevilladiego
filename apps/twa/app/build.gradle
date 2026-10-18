@@ -1,0 +1,89 @@
+// Trusted Web Activity shell for https://nortevilladiego.vercel.app (see ../README.md).
+// The app is only a launcher: all UI and updates come from the live site.
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing: apps/twa/keystore.properties (gitignored) or TWA_KEYSTORE_* env vars.
+// The keystore itself lives outside the repo (%USERPROFILE%\.territorios-keys).
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String key, String env -> keystoreProps.getProperty(key) ?: System.getenv(env) }
+
+def twa = [
+    host           : 'nortevilladiego.vercel.app',
+    launchUrl      : 'https://nortevilladiego.vercel.app/salidas',
+    name           : 'Territorios',
+    // From the web manifest: theme_color / background_color.
+    themeColor     : '#FFFFFF',
+    backgroundColor: '#EEF1F4',
+]
+
+android {
+    namespace 'ar.org.nortevilladiego.territorios'
+    compileSdk 36
+
+    defaultConfig {
+        // Same id as the Capacitor shell placeholder (apps/mobile): only one of the two can be
+        // published under it.
+        applicationId 'ar.org.nortevilladiego.territorios'
+        // androidbrowserhelper 2.7.x declares minSdk 24 (Android 7.0).
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+
+        resValue 'string', 'appName', twa.name
+        resValue 'string', 'launcherName', twa.name
+        resValue 'string', 'launchUrl', twa.launchUrl
+        resValue 'string', 'hostName', twa.host
+        resValue 'string', 'providerAuthority', 'ar.org.nortevilladiego.territorios.fileprovider'
+        resValue 'color', 'colorPrimary', twa.themeColor
+        resValue 'color', 'navigationColor', twa.themeColor
+        resValue 'color', 'backgroundColor', twa.backgroundColor
+        // Quotes escaped as \" or aapt strips them and the JSON breaks.
+        resValue 'string', 'assetStatements', groovy.json.JsonOutput.toJson([[
+            relation: ['delegate_permission/common.handle_all_urls'],
+            target  : [namespace: 'web', site: "https://${twa.host}".toString()],
+        ]]).replace('"', '\\"')
+    }
+
+    signingConfigs {
+        release {
+            def store = signingValue('storeFile', 'TWA_KEYSTORE_FILE')
+            if (store) {
+                storeFile file(store)
+                storePassword signingValue('storePassword', 'TWA_KEYSTORE_PASSWORD')
+                keyAlias signingValue('keyAlias', 'TWA_KEY_ALIAS') ?: 'territorios'
+                keyPassword signingValue('keyPassword', 'TWA_KEY_PASSWORD') ?: signingValue('storePassword', 'TWA_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            if (signingConfigs.release.storeFile) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        resValues true
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}
