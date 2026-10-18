@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { qk } from '../query/keys';
 import { createQueryClient } from '../query/policy';
 import {
-  EDITOR_REALTIME_TABLES,
+  FOCUS_REFETCH_THROTTLE_MS,
   PUBLIC_REALTIME_TABLES,
+  REALTIME_TABLES,
+  REFETCH_ON_FOCUS_TABLES,
   startRealtime,
   startRealtimeWhenReady,
   type AppLifecycle,
@@ -15,10 +17,12 @@ function fakeLifecycle(hidden = false) {
   let isHidden = hidden;
   const vis = new Set<() => void>();
   const res = new Set<() => void>();
+  const foc = new Set<() => void>();
   const lifecycle: AppLifecycle = {
     isHidden: () => isHidden,
     onVisibilityChange: (cb) => (vis.add(cb), () => vis.delete(cb)),
     onResume: (cb) => (res.add(cb), () => res.delete(cb)),
+    onFocus: (cb) => (foc.add(cb), () => foc.delete(cb)),
   };
   return {
     lifecycle,
@@ -30,7 +34,10 @@ function fakeLifecycle(hidden = false) {
       isHidden = false;
       res.forEach((cb) => cb());
     },
-    listeners: () => vis.size + res.size,
+    focus() {
+      foc.forEach((cb) => cb());
+    },
+    listeners: () => vis.size + res.size + foc.size,
   };
 }
 
@@ -43,6 +50,8 @@ beforeEach(() => {
     qk.territories,
     qk.cartBoard(null),
     qk.people,
+    qk.peopleDirectory,
+    qk.dutyRoster('2026-10-01', '2026-10-31'),
     qk.programWeek('2026-10-12'),
   ]) {
     qc.setQueryData(key, { seeded: true });
@@ -55,43 +64,68 @@ const tablesOf = (ch: { handlers: Array<{ filter: { table: string } }> } | undef
   (ch?.handlers ?? []).map((h) => h.filter.table).sort();
 
 describe('startRealtime', () => {
-  it('subscribes to public tables only, unless editor tables are enabled (separate channel)', () => {
-    const viewer = fakeSupabase(() => ({}));
-    const rt1 = startRealtime({
-      supabase: viewer.client,
-      queryClient: qc,
-      lifecycle: fakeLifecycle().lifecycle,
-    });
-    expect(viewer.channels).toHaveLength(1);
-    expect(viewer.channels[0]?.subscribed).toBe(true);
-    expect(tablesOf(viewer.channels[0])).toEqual([...PUBLIC_REALTIME_TABLES].sort());
-    rt1.stop();
-
-    const editor = fakeSupabase(() => ({}));
-    const rt2 = startRealtime({
-      supabase: editor.client,
-      queryClient: qc,
-      lifecycle: fakeLifecycle().lifecycle,
-      includeEditorTables: true,
-    });
-    expect(editor.channels).toHaveLength(2);
-    expect(tablesOf(editor.channels[1])).toEqual([...EDITOR_REALTIME_TABLES].sort());
-    rt2.stop();
-  });
-
-  it('setEditorTables toggles the editor channel on role change', () => {
-    const { client, channels, raw } = fakeSupabase(() => ({}));
+  it('subscribes to the public tables only, on one channel, for every role', () => {
+    const { client, channels } = fakeSupabase(() => ({}));
     const rt = startRealtime({
       supabase: client,
       queryClient: qc,
       lifecycle: fakeLifecycle().lifecycle,
     });
-    rt.setEditorTables(true);
-    const live = channels.filter((c) => c.subscribed);
-    expect(live).toHaveLength(2);
-    expect(raw.removeChannel).toHaveBeenCalledTimes(1);
-    rt.setEditorTables(false);
-    expect(channels.filter((c) => c.subscribed)).toHaveLength(1);
+    expect(channels).toHaveLength(1);
+    expect(channels[0]?.subscribed).toBe(true);
+    expect(tablesOf(channels[0])).toEqual([...PUBLIC_REALTIME_TABLES].sort());
+    expect([...REALTIME_TABLES].sort()).toEqual([...PUBLIC_REALTIME_TABLES].sort());
+    // The restricted tables are not published (DELETE events skip RLS): never subscribed.
+    for (const t of REFETCH_ON_FOCUS_TABLES) expect(tablesOf(channels[0])).not.toContain(t);
+    rt.stop();
+  });
+
+  it('window focus refetches the restricted scopes only, throttled', () => {
+    const { client } = fakeSupabase(() => ({}));
+    const life = fakeLifecycle();
+    let t = 1_000_000;
+    const rt = startRealtime({
+      supabase: client,
+      queryClient: qc,
+      lifecycle: life.lifecycle,
+      now: () => t,
+    });
+    life.focus();
+    expect(invalidated(qk.people)).toBe(true);
+    expect(invalidated(qk.peopleDirectory)).toBe(true);
+    expect(invalidated(qk.dutyRoster('2026-10-01', '2026-10-31'))).toBe(true);
+    expect(invalidated(qk.territories)).toBe(false);
+    expect(invalidated(qk.cartBoard(null))).toBe(false);
+
+    // A second focus inside the throttle window does nothing.
+    qc.setQueryData(qk.people, { seeded: 2 });
+    t += FOCUS_REFETCH_THROTTLE_MS - 1;
+    life.focus();
+    expect(invalidated(qk.people)).toBe(false);
+    t += 1;
+    life.focus();
+    expect(invalidated(qk.people)).toBe(true);
+    rt.stop();
+  });
+
+  it('focus while paused does nothing; resume counts as the refetch', () => {
+    const { client } = fakeSupabase(() => ({}));
+    const life = fakeLifecycle(true);
+    let t = 5_000_000;
+    const rt = startRealtime({
+      supabase: client,
+      queryClient: qc,
+      lifecycle: life.lifecycle,
+      now: () => t,
+    });
+    life.focus();
+    expect(invalidated(qk.people)).toBe(false);
+    life.setHidden(false); // resume → everything invalidated
+    expect(invalidated(qk.people)).toBe(true);
+    qc.setQueryData(qk.people, { seeded: 3 });
+    t += 1;
+    life.focus(); // the focus event that follows the visibility change is throttled away
+    expect(invalidated(qk.people)).toBe(false);
     rt.stop();
   });
 
@@ -101,7 +135,6 @@ describe('startRealtime', () => {
       supabase: client,
       queryClient: qc,
       lifecycle: fakeLifecycle().lifecycle,
-      includeEditorTables: true,
     });
 
     channels[0]?.emit('cart_assignments', { new: { id: 'x', person_names: ['Intruso'] } });
@@ -111,9 +144,6 @@ describe('startRealtime', () => {
     expect(invalidated(qk.serviceWeek('2026-10-12'))).toBe(false);
     expect(invalidated(qk.territories)).toBe(false);
     expect(invalidated(qk.people)).toBe(false);
-
-    channels[1]?.emit('person_pairs');
-    expect(invalidated(qk.people)).toBe(true);
     rt.stop();
   });
 
@@ -189,7 +219,7 @@ describe('startRealtime', () => {
 });
 
 describe('startRealtimeWhenReady', () => {
-  it('starts once the client loads, applying setEditorTables called before that', async () => {
+  it('starts once the client loads', async () => {
     const sb = fakeSupabase(() => ({}));
     let resolve!: (c: typeof sb.client) => void;
     const loading = new Promise<typeof sb.client>((r) => (resolve = r));
@@ -197,17 +227,13 @@ describe('startRealtimeWhenReady', () => {
       queryClient: qc,
       lifecycle: fakeLifecycle().lifecycle,
     });
-    rt.setEditorTables(true);
     expect(rt.paused).toBe(true);
     expect(sb.channels).toHaveLength(0);
     resolve(sb.client);
     await loading;
     await Promise.resolve();
     expect(rt.paused).toBe(false);
-    expect(sb.channels.map((c) => tablesOf(c))).toEqual([
-      [...PUBLIC_REALTIME_TABLES].sort(),
-      [...EDITOR_REALTIME_TABLES].sort(),
-    ]);
+    expect(sb.channels.map((c) => tablesOf(c))).toEqual([[...PUBLIC_REALTIME_TABLES].sort()]);
     rt.stop();
   });
 

@@ -5,8 +5,10 @@ import {
   type Candidate,
   composeMessage,
   formatDay,
+  isAllowedPushEndpoint,
   isGoneStatus,
   isIsoDate,
+  parsePushToken,
   selectDue,
   todayIn,
 } from './lib.ts';
@@ -187,4 +189,50 @@ Deno.test('isGoneStatus: 404 and 410 only', () => {
     false,
     false,
   ]);
+});
+
+Deno.test('isAllowedPushEndpoint: the known push services', () => {
+  for (const ok of [
+    'https://fcm.googleapis.com/fcm/send/abc',
+    'https://updates.push.services.mozilla.com/wpush/v2/abc',
+    'https://web.push.apple.com/QK7abc',
+    'https://api.push.apple.com/3/device/abc',
+    'https://wns2-par02p.notify.windows.com/w/?token=abc',
+    'https://FCM.googleapis.com/fcm/send/abc',
+    'https://fcm.googleapis.com:443/fcm/send/abc', // default port is normalised away
+  ]) {
+    assertEquals(isAllowedPushEndpoint(ok), true, ok);
+  }
+});
+
+Deno.test('isAllowedPushEndpoint: refuses everything else', () => {
+  for (const bad of [
+    'http://fcm.googleapis.com/fcm/send/abc',
+    'https://fcm.googleapis.com.evil.test/x',
+    'https://evilfcm.googleapis.com/x',
+    'https://fcm.googleapis.com@evil.test/x',
+    'https://user:pw@fcm.googleapis.com/x',
+    'https://fcm.googleapis.com:8443/x',
+    'https://push.services.mozilla.com/x',
+    'https://169.254.169.254/latest/meta-data',
+    'https://[::1]/x',
+    'https://localhost/x',
+    'https://fcm.googleapis.com./x',
+    'not a url',
+    '',
+    42,
+    null,
+  ]) {
+    assertEquals(isAllowedPushEndpoint(bad), false, String(bad));
+  }
+});
+
+Deno.test('parsePushToken: only subscription JSON on an allowed host', () => {
+  const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'p', auth: 'a' } };
+  assertEquals(parsePushToken(JSON.stringify(sub)), sub);
+  assertEquals(parsePushToken(JSON.stringify({ ...sub, endpoint: 'https://example.test/hook' })), null);
+  assertEquals(parsePushToken('{"keys":{}}'), null);
+  assertEquals(parsePushToken('"https://fcm.googleapis.com/x"'), null);
+  assertEquals(parsePushToken('null'), null);
+  assertEquals(parsePushToken('{not json'), null);
 });

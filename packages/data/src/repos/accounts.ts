@@ -105,6 +105,37 @@ export function webPushToken(sub: WebPushToken): string {
   return JSON.stringify('toJSON' in sub && typeof sub.toJSON === 'function' ? sub.toJSON() : sub);
 }
 
+/**
+ * Web Push services a subscription may point at (the reminder sender POSTs to the endpoint).
+ * Same list as supabase/functions/send-reminders/lib.ts (PUSH_HOSTS) and the
+ * device_tokens_web_push_endpoint check (migration security_hardening): keep them in sync.
+ */
+const PUSH_HOSTS: readonly RegExp[] = [
+  /^fcm\.googleapis\.com$/,
+  /^web\.push\.apple\.com$/,
+  /^([a-z0-9-]+\.)+push\.services\.mozilla\.com$/,
+  /^([a-z0-9-]+\.)+notify\.windows\.com$/,
+  /^([a-z0-9-]+\.)+push\.apple\.com$/,
+];
+
+/** https, no credentials or explicit port, host on the push-service allow-list. */
+export function isAllowedPushEndpoint(endpoint: unknown): boolean {
+  if (typeof endpoint !== 'string') return false;
+  let u: URL;
+  try {
+    u = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  return (
+    u.protocol === 'https:' &&
+    u.username === '' &&
+    u.password === '' &&
+    u.port === '' &&
+    PUSH_HOSTS.some((r) => r.test(u.hostname))
+  );
+}
+
 function endpointOf(token: string): string | null {
   try {
     const e = (JSON.parse(token) as { endpoint?: unknown }).endpoint;
@@ -123,12 +154,21 @@ async function ownWebTokens(sb: TerritoriosClient): Promise<DeviceTokenRow[]> {
  * Store a Web Push subscription for the signed-in user (device_tokens, platform 'web').
  * Saving the same subscription twice returns the existing row. If the token belongs to
  * another account (same browser, other user) the 23505 is rethrown: RLS hides that row.
+ * An endpoint outside the push-service allow-list is refused before the request with the
+ * same DataError (23514) the database check raises.
  */
 export async function saveWebPushSubscription(
   sb: TerritoriosClient,
   sub: WebPushToken,
 ): Promise<DeviceTokenRow> {
   const token = webPushToken(sub);
+  if (!isAllowedPushEndpoint(endpointOf(token))) {
+    throw new DataError({
+      message: 'Web Push endpoint is not a known push service',
+      code: '23514',
+      status: 400,
+    });
+  }
   try {
     return await insertRow(sb, 'device_tokens', DeviceTokenRow, { token, platform: 'web' });
   } catch (e) {

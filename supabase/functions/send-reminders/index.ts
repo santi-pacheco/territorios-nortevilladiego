@@ -19,6 +19,7 @@ import {
   isGoneStatus,
   isIsoDate,
   OFFSETS,
+  parsePushToken,
   type SentKey,
   selectDue,
   todayIn,
@@ -106,11 +107,11 @@ async function send(sb: SupabaseClient, due: DueReminder[], subs: Subscription[]
     let ok = false;
     for (const s of subs) {
       if (s.user_id !== d.user_id || gone.has(s.id)) continue;
-      let subscription: unknown;
-      try {
-        subscription = JSON.parse(s.token);
-      } catch {
-        gone.add(s.id); // not a PushSubscription JSON: can never be delivered
+      // Not a PushSubscription JSON, or not on a known push service (SSRF guard): never send,
+      // and drop the row.
+      const subscription = parsePushToken(s.token);
+      if (!subscription) {
+        gone.add(s.id);
         continue;
       }
       try {
@@ -196,6 +197,6 @@ Deno.serve(async (req) => {
     return json(200, { dryRun: false, today, due: due.length, ...result });
   } catch (err) {
     console.error(err);
-    return json(500, { error: String((err as Error).message ?? err) });
+    return json(500, { error: 'internal_error' });
   }
 });

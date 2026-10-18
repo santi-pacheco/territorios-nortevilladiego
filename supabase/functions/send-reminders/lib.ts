@@ -139,3 +139,48 @@ export function selectDue(
 /** Web push endpoints answering 404/410 are gone for good: delete the subscription. */
 export const isGoneStatus = (status: number | undefined): boolean =>
   status === 404 || status === 410;
+
+/**
+ * Web Push services a subscription may point at. Anything else is refused: the sender would
+ * otherwise POST to whatever URL a user stored (blind SSRF). Keep in sync with the
+ * device_tokens_web_push_endpoint check (migration security_hardening) and
+ * packages/data/src/repos/accounts.ts.
+ */
+export const PUSH_HOSTS: readonly RegExp[] = [
+  /^fcm\.googleapis\.com$/,
+  /^web\.push\.apple\.com$/,
+  /^([a-z0-9-]+\.)+push\.services\.mozilla\.com$/,
+  /^([a-z0-9-]+\.)+notify\.windows\.com$/,
+  /^([a-z0-9-]+\.)+push\.apple\.com$/,
+];
+
+/** https, no credentials or explicit port, host on PUSH_HOSTS. */
+export function isAllowedPushEndpoint(endpoint: unknown): boolean {
+  if (typeof endpoint !== 'string') return false;
+  let u: URL;
+  try {
+    u = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  return (
+    u.protocol === 'https:' &&
+    u.username === '' &&
+    u.password === '' &&
+    u.port === '' &&
+    PUSH_HOSTS.some((r) => r.test(u.hostname))
+  );
+}
+
+/** The parsed subscription when `token` is a PushSubscription JSON on an allowed host, else null. */
+export function parsePushToken(token: string): { endpoint: string } | null {
+  let sub: unknown;
+  try {
+    sub = JSON.parse(token);
+  } catch {
+    return null;
+  }
+  if (!sub || typeof sub !== 'object') return null;
+  const endpoint = (sub as { endpoint?: unknown }).endpoint;
+  return isAllowedPushEndpoint(endpoint) ? (sub as { endpoint: string }) : null;
+}

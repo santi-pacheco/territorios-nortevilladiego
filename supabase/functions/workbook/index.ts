@@ -9,12 +9,15 @@
  * Response: { weeks: WorkbookWeek[], missing: string[] } (see lib.ts). Titles, minutes and song
  * numbers only; no paragraph text.
  *
- * Auth: verify_jwt (default) plus the caller's own permissions: `public.my_permissions()`
- * (`can_edit_programa`), falling back to `public.is_editor()` while that RPC does not exist.
+ * Auth: verify_jwt (default) lets any JWT-shaped bearer through (even the publishable key), so
+ * the function checks it itself: no valid session → 401; signed in without
+ * `public.my_permissions().can_edit_programa` (falling back to `public.is_editor()` while that
+ * RPC does not exist) → 403. Auth failures are never a 500.
  *
  * The EPUB host sends no CORS headers, so the browser cannot read it: this function fetches the
  * issue list from b.jw-cdn.org, downloads the EPUB from *.jw-cdn.org, unzips the week files and
- * caches the parsed issue for the lifetime of the instance.
+ * caches the parsed issue for the lifetime of the instance. Upstream fetches have a timeout,
+ * follow redirects only to *.jw-cdn.org and stop reading past a size cap (guard.ts).
  */
 import { createClient } from '@supabase/supabase-js';
 import { unzipSync } from 'fflate';
@@ -30,6 +33,17 @@ import {
   type WorkbookWeek,
   weekStartsOfMonth,
 } from './lib.ts';
+import {
+  allowedHost,
+  bearerToken,
+  guardedFetch,
+  inWorkbookRange,
+  MAX_ENTRY_BYTES,
+  MAX_EPUB_BYTES,
+  MAX_META_BYTES,
+  rpcErrorStatus,
+  userErrorStatus,
+} from './guard.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -45,32 +59,31 @@ const json = (status: number, body: unknown) =>
 
 const API = 'https://b.jw-cdn.org/apis/pub-media/GETPUBMEDIALINKS';
 
-function allowedHost(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return u.protocol === 'https:' && (u.hostname === 'jw-cdn.org' || u.hostname.endsWith('.jw-cdn.org'));
-  } catch {
-    return false;
-  }
-}
-
 class NotPublished extends Error {}
 
 async function loadIssue(issue: Issue): Promise<Map<string, WorkbookWeek>> {
   const code = issueCode(issue);
-  const meta = await fetch(
-    `${API}?pub=mwb&langwritten=S&issue=${code}&output=json&fileformat=EPUB`,
-  );
-  if (meta.status === 404) throw new NotPublished(code);
-  if (!meta.ok) throw new Error(`issue list ${code}: HTTP ${meta.status}`);
-  const body = await meta.json();
+  let meta: Uint8Array;
+  try {
+    ({ body: meta } = await guardedFetch(
+      `${API}?pub=mwb&langwritten=S&issue=${code}&output=json&fileformat=EPUB`,
+      { maxBytes: MAX_META_BYTES },
+    ));
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) throw new NotPublished(code);
+    throw new Error(`issue list ${code}: ${(err as Error).message}`);
+  }
+  const body = JSON.parse(new TextDecoder().decode(meta));
   const url: unknown = body?.files?.S?.EPUB?.[0]?.file?.url;
   if (typeof url !== 'string' || !allowedHost(url)) throw new Error(`issue ${code}: no EPUB url`);
 
-  const epub = await fetch(url);
-  if (!epub.ok) throw new Error(`EPUB ${code}: HTTP ${epub.status}`);
-  const files = unzipSync(new Uint8Array(await epub.arrayBuffer()), {
-    filter: (f) => isWeekFile(f.name),
+  const { body: epub } = await guardedFetch(url, { maxBytes: MAX_EPUB_BYTES });
+  const files = unzipSync(epub, {
+    filter: (f) => {
+      if (!isWeekFile(f.name)) return false;
+      if (f.originalSize > MAX_ENTRY_BYTES) throw new Error(`EPUB ${code}: ${f.name} too large`);
+      return true;
+    },
   });
   const decoder = new TextDecoder();
   const weeks = new Map<string, WorkbookWeek>();
@@ -112,25 +125,39 @@ async function findWeek(monday: string): Promise<WorkbookWeek | null> {
   return null;
 }
 
-async function canEditPrograma(authorization: string): Promise<boolean> {
+/** 200 when the caller may use the function, 401 without a valid session, 403 otherwise. */
+async function permission(token: string): Promise<200 | 401 | 403> {
   const url = Deno.env.get('SUPABASE_URL');
   const key = Deno.env.get('SUPABASE_ANON_KEY') ?? publishableKey();
   if (!url || !key) throw new Error('SUPABASE_URL / SUPABASE_ANON_KEY missing');
   const sb = createClient(url, key, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  const user = await sb.auth.getUser(token);
+  if (user.error || !user.data.user) {
+    const status = user.error ? userErrorStatus(user.error) : 401;
+    if (status) return status;
+    throw new Error(`getUser: ${user.error?.message}`);
+  }
 
   const perms = await sb.rpc('my_permissions');
   if (!perms.error) {
     const row = Array.isArray(perms.data) ? perms.data[0] : perms.data;
-    return Boolean(row?.can_edit_programa);
+    return row?.can_edit_programa ? 200 : 403;
   }
+  const denied = rpcErrorStatus(perms.error);
+  if (denied) return denied;
   // PGRST202: the RPC is not deployed yet → the older editor/admin check.
   if (perms.error.code !== 'PGRST202') throw new Error(`my_permissions: ${perms.error.message}`);
   const editor = await sb.rpc('is_editor');
-  if (editor.error) throw new Error(`is_editor: ${editor.error.message}`);
-  return editor.data === true;
+  if (editor.error) {
+    const status = rpcErrorStatus(editor.error);
+    if (status) return status;
+    throw new Error(`is_editor: ${editor.error.message}`);
+  }
+  return editor.data === true ? 200 : 403;
 }
 
 function publishableKey(): string | undefined {
@@ -148,8 +175,17 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
-  const authorization = req.headers.get('Authorization');
-  if (!authorization) return json(401, { error: 'unauthorized' });
+  const token = bearerToken(req.headers.get('Authorization'));
+  if (!token) return json(401, { error: 'unauthorized' });
+
+  try {
+    const status = await permission(token);
+    if (status === 401) return json(401, { error: 'unauthorized' });
+    if (status === 403) return json(403, { error: 'forbidden' });
+  } catch (err) {
+    console.error('workbook auth', err);
+    return json(500, { error: 'auth_check_failed' });
+  }
 
   let body: { weekStart?: unknown; month?: unknown };
   try {
@@ -159,22 +195,19 @@ Deno.serve(async (req) => {
   }
 
   let mondays: string[];
-  if (isIsoDate(body.weekStart) && isMonday(body.weekStart)) {
+  if (isIsoDate(body.weekStart) && isMonday(body.weekStart) && inWorkbookRange(body.weekStart)) {
     mondays = [body.weekStart];
-  } else if (typeof body.month === 'string' && isIsoDate(`${body.month}-01`)) {
+  } else if (
+    typeof body.month === 'string' &&
+    isIsoDate(`${body.month}-01`) &&
+    inWorkbookRange(body.month)
+  ) {
     mondays = weekStartsOfMonth(body.month);
   } else {
     return json(400, {
       error: 'bad_request',
-      message: 'Send { weekStart: "YYYY-MM-DD" (a Monday) } or { month: "YYYY-MM" }',
+      message: 'Send { weekStart: "YYYY-MM-DD" (a Monday) } or { month: "YYYY-MM" }, years 2020-2100',
     });
-  }
-
-  try {
-    if (!(await canEditPrograma(authorization))) return json(403, { error: 'forbidden' });
-  } catch (err) {
-    console.error('workbook auth', err);
-    return json(500, { error: 'auth_check_failed' });
   }
 
   try {

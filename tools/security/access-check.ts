@@ -169,6 +169,8 @@ function migrationSurface() {
       .flatMap((m) => (m[1] ?? '').split(','))
       .map((t) => t.trim().replace(/^public\./, '')),
   );
+  for (const m of sql.matchAll(/alter publication supabase_realtime drop table([^;]+);/gi))
+    for (const t of (m[1] ?? '').split(',')) realtime.delete(t.trim().replace(/^public\./, ''));
   return { tables, rpcs, realtime };
 }
 
@@ -248,7 +250,7 @@ async function seedAll(otherUser: string) {
   await seed('person_pairs', { person_a: p1.id, person_b: p2.data.id }, ['person_a', 'person_b']);
   await seed('duty_days', { date: day(1), note: MARK }, ['date']);
   await seed('duty_roster', { date: day(1), role: 'sonido', slot: 1, person_id: p1.id, note: MARK }, ['id']);
-  await seed('device_tokens', { user_id: otherUser, token: `${RUN}-other-token`, platform: 'web' }, ['id']);
+  await seed('device_tokens', { user_id: otherUser, token: `${RUN}-other-token`, platform: 'android' }, ['id']);
   const log = await admin!.from('reminder_log').insert({ user_id: otherUser, assignment_key: RUN, offset_days: 1 });
   if (log.error) throw new Error(`seed reminder_log: ${log.error.message}`);
   fx.reminder_log = { user_id: otherUser, assignment_key: RUN, offset_days: 1 };
@@ -273,7 +275,7 @@ function probeRow(table: string, uid?: string): Row {
     case 'duty_roster': return { date: day(5), role: 'sonido', slot: 1, person_name: RUN, note: MARK };
     case 'duty_days': return { date: day(5), note: MARK };
     case 'profiles': return { id: uid, role: 'admin' };
-    case 'device_tokens': return { user_id: uid, token: `${RUN}-probe-token`, platform: 'web' };
+    case 'device_tokens': return { user_id: uid, token: `${RUN}-probe-token`, platform: 'android' };
     case 'reminder_log': return { user_id: uid, assignment_key: RUN, offset_days: 7 };
     default: throw new Error(`no probe row for ${table}`);
   }
@@ -295,7 +297,7 @@ const PATCH: Record<string, Row> = {
   person_pairs: { updated_by: null },
   duty_roster: { note: 'changed' },
   duty_days: { note: 'changed' },
-  device_tokens: { platform: 'android' },
+  device_tokens: { platform: 'ios' },
 };
 
 function fixtureKey(table: string): Row {
@@ -493,7 +495,7 @@ async function checkPlatform() {
     const email = `${RUN}@example.test`;
     const up = await anon.auth.signUp({ email, password: `${RUN}-Pw1!` });
     if (up.data.user) await admin.auth.admin.deleteUser(up.data.user.id);
-    expect('auth', 'email sign-up refused', !!up.error && !up.data.user, up.error?.message ?? 'user created');
+    expect('auth', 'email sign-up needs confirmation (no session)', !up.data.session, up.error?.message ?? 'user created, unconfirmed');
   }
 
   await pause();
@@ -614,7 +616,7 @@ async function checkRealtime(subscribers: Record<string, SupabaseClient>) {
       const keys = [...new Set(dels.flatMap((e) => e.oldKeys))];
       const extra = keys.filter((k) => !(TABLE_PK[t] ?? []).includes(k));
       if (dels.length === 0) record('realtime', `${label}: ${t} DELETE events`, 'pass', 'none delivered');
-      else record('realtime', `${label}: ${t} DELETE events (known caveat)`, extra.length ? 'fail' : keys.length ? 'warn' : 'pass',
+      else record('realtime', `${label}: ${t} DELETE events (table must not be published)`, 'fail',
         `${dels.length} delivered, old_record keys: ${keys.join(',') || '(none)'}`);
     }
   });

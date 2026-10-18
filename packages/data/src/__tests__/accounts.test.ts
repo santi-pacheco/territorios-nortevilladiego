@@ -12,6 +12,7 @@ import {
   listAccounts,
   myAssignments,
   myLink,
+  isAllowedPushEndpoint,
   saveWebPushSubscription,
   setAccountRole,
   webPushToken,
@@ -36,7 +37,7 @@ const assignment = (over: Record<string, unknown> = {}) => ({
 });
 
 const sub = {
-  endpoint: 'https://push.example.test/abc',
+  endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
   expirationTime: null,
   keys: { p256dh: 'BFake', auth: 'fake' },
 };
@@ -158,6 +159,39 @@ describe('web push subscriptions', () => {
       values: { token, platform: 'web' },
     });
     expect(row.token).toBe(token);
+  });
+
+  it('save refuses an endpoint outside the push-service allow-list without a request', async () => {
+    for (const endpoint of [
+      'https://push.example.test/abc',
+      'http://fcm.googleapis.com/fcm/send/abc',
+      'https://fcm.googleapis.com.evil.test/x',
+      'https://fcm.googleapis.com@evil.test/x',
+      'https://fcm.googleapis.com:8443/x',
+      'https://169.254.169.254/latest',
+    ]) {
+      const { client, calls } = fakeSupabase(() => ({ data: null }));
+      const err = await saveWebPushSubscription(client, { ...sub, endpoint }).catch((e: unknown) => e);
+      expect(err, endpoint).toBeInstanceOf(DataError);
+      expect((err as DataError).code).toBe('23514');
+      expect(calls).toHaveLength(0);
+    }
+    const { client } = fakeSupabase(() => ({ data: null }));
+    await expect(saveWebPushSubscription(client, 'not json')).rejects.toBeInstanceOf(DataError);
+  });
+
+  it('isAllowedPushEndpoint accepts the known push services', () => {
+    expect(
+      [
+        'https://fcm.googleapis.com/fcm/send/abc',
+        'https://updates.push.services.mozilla.com/wpush/v2/abc',
+        'https://web.push.apple.com/QK7abc',
+        'https://wns2-par02p.notify.windows.com/w/?token=abc',
+        'https://api.push.apple.com/3/device/abc',
+      ].map(isAllowedPushEndpoint),
+    ).toEqual([true, true, true, true, true]);
+    expect(isAllowedPushEndpoint('https://push.services.mozilla.com/x')).toBe(false);
+    expect(isAllowedPushEndpoint(undefined)).toBe(false);
   });
 
   it('saving twice returns the existing own row on 23505', async () => {
