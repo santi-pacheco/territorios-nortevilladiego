@@ -1,34 +1,58 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-const CARTO = ['https://*.basemaps.cartocdn.com', 'https://basemaps.cartocdn.com'];
+const LOCAL_API = ['http://127.0.0.1:54321', 'ws://127.0.0.1:54321', 'http://localhost:54321', 'ws://localhost:54321'];
+
+interface VercelConfig {
+  headers: { source: string; headers: { key: string; value: string }[] }[];
+}
+
+/** The production policy: the `Content-Security-Policy` header of vercel.json. */
+function headerPolicy(): string {
+  const config = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8')) as VercelConfig;
+  const value = config.headers.flatMap((h) => h.headers).find((h) => h.key === 'Content-Security-Policy')?.value;
+  if (!value) throw new Error('vercel.json has no Content-Security-Policy header.');
+  return value;
+}
 
 /**
- * Content-Security-Policy as a <meta> tag. Production allows only the app itself, hosted
- * Supabase and the CARTO basemap. Local Supabase (and, in dev, Vite's inline React-refresh
- * preamble and HMR socket) are added only when serving or building against a local stack.
+ * Content-Security-Policy. In production it is an HTTP header in vercel.json, the single
+ * source of truth: a header also covers the service worker and every non-HTML response, and
+ * it can carry frame-ancestors. Its Supabase origins are pinned by hand to the hosted project
+ * (ref rvugytajoghzqsnclbyf, https + wss) and its CARTO hosts to the ones the basemap style
+ * actually uses, so the build fails if VITE_SUPABASE_URL points at another hosted project.
+ *
+ * Where no Vercel header applies the same policy is injected as a <meta> tag, minus
+ * frame-ancestors (ignored in a meta): the native shell (mode 'capacitor'), `vite` dev and
+ * builds against local Supabase. The local variant also allows the local API (and, in dev,
+ * Vite's inline React-refresh preamble and HMR socket) and drops upgrade-insecure-requests.
  */
-function csp(command: 'serve' | 'build', supabaseUrl: string | undefined): Plugin {
+function csp(command: 'serve' | 'build', mode: string, supabaseUrl: string | undefined): Plugin {
+  const policy = headerPolicy();
   const dev = command === 'serve';
   const local = dev || /^http:\/\/(127\.0\.0\.1|localhost)/.test(supabaseUrl ?? '');
-  const localApi = local ? ['http://127.0.0.1:54321', 'ws://127.0.0.1:54321', 'http://localhost:54321', 'ws://localhost:54321'] : [];
-  const policy = [
-    "default-src 'self'",
-    `script-src 'self'${dev ? " 'unsafe-inline'" : ''}`,
-    "worker-src 'self' blob:",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://*.basemaps.cartocdn.com",
-    "font-src 'self'",
-    ['connect-src', "'self'", 'https://*.supabase.co', 'wss://*.supabase.co', ...localApi, ...CARTO, ...(dev ? ['ws:'] : [])].join(' '),
-    "object-src 'none'",
-    "base-uri 'self'",
-  ].join('; ');
+  if (!local && supabaseUrl && !policy.split(/[\s;]+/).includes(new URL(supabaseUrl).origin)) {
+    throw new Error(`The vercel.json CSP does not allow ${new URL(supabaseUrl).origin}: update its pinned Supabase origins.`);
+  }
+  if (!local && mode !== 'capacitor') return { name: 'territorios-csp' };
+  const meta = policy
+    .split(';')
+    .map((d) => d.trim())
+    .filter((d) => !d.startsWith('frame-ancestors') && !(local && d === 'upgrade-insecure-requests'))
+    .map((d) => {
+      if (!local) return d;
+      if (d.startsWith('connect-src ')) return [d, ...LOCAL_API, ...(dev ? ['ws:'] : [])].join(' ');
+      if (d.startsWith('script-src ') && dev) return `${d} 'unsafe-inline'`;
+      return d;
+    })
+    .join('; ');
   return {
     name: 'territorios-csp',
     transformIndexHtml: () => [
-      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: policy }, injectTo: 'head-prepend' },
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: meta }, injectTo: 'head-prepend' },
     ],
   };
 }
@@ -37,7 +61,7 @@ export default defineConfig(({ mode, command }) => ({
   plugins: [
     react(),
     tailwindcss(),
-    csp(command, loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL),
+    csp(command, mode, loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL),
     // The native shell (mode 'capacitor') ships its assets in the APK/IPA: no service worker.
     VitePWA({
       disable: mode === 'capacitor',
