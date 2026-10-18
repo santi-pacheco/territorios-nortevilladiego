@@ -67,7 +67,8 @@ export default defineConfig(({ mode, command }) => ({
         globIgnores: ['**/pdf-*.js'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        // Files that must reach the network as files, never the app shell.
+        navigateFallbackDenylist: [/^\/api\//, /\.apk$/, /^\/\.well-known\//],
         // Supabase is deliberately not cached here: the persisted query cache holds the data.
         runtimeCaching: [
           {

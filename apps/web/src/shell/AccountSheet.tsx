@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ListChecks, Mic, UserRound, X } from 'lucide-react';
+import { ChevronDown, ListChecks, Mic, Smartphone, UserRound, X } from 'lucide-react';
 import { useMyPermissions, useRole, useSession, withDb } from '@territorios/data';
 import { readTheme, saveTheme, type ThemeChoice } from '../lib/theme';
 import { readMe, saveMe } from '../lib/me';
@@ -118,6 +118,15 @@ function AccountSheetBody({ onClose }: { onClose: () => void }) {
         </div>
         <p className="text-secondary text-ink-soft">“Sol” sube el contraste para leer al aire libre.</p>
       </fieldset>
+
+      <Link
+        to="/app"
+        className="btn-secondary inline-flex items-center justify-center gap-2"
+        onClick={onClose}
+      >
+        <Smartphone aria-hidden size={20} />
+        Instalá la app en tu teléfono
+      </Link>
 
       {!signedIn && (
         <details className="encargado border-t border-line pt-3">
