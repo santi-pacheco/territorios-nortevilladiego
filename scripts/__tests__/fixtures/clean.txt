@@ -1,0 +1,4 @@
+# Clean fixture: only reserved/example placeholders and safe text.
+mailto:you@example.com
+noreply@anthropic.com
+Fake schedule for Territorio 5-12 at 09:30.

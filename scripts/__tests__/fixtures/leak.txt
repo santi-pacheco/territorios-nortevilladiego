@@ -1,0 +1,4 @@
+# Leaking fixture: fabricated personal data used only to exercise the scanner.
+jane.doe@gmail.com
+Av. Siempreviva 742, llamar al +54 9 11 2345-6789
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.c2lnbmF0dXJl

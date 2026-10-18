@@ -16,8 +16,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "check:secrets": "node scripts/check-secrets.mjs",
+    "check:secrets:test": "node --test \"scripts/__tests__/**/*.test.mjs\"",
     "check:size": "node scripts/check-size.mjs",
-    "verify": "pnpm --filter @territorios/ui-tokens build && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:size && pnpm check:secrets"
+    "verify": "pnpm --filter @territorios/ui-tokens build && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm check:size && pnpm check:secrets && pnpm check:secrets:test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -32,6 +33,11 @@
     "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.2",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.12"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "^11.1.1"
+    }
   }
 }
