@@ -84,6 +84,9 @@ export function scanText(text, filePath = '') {
   for (const literal of ENV_LITERALS) if (text.includes(literal)) add('secret', 'forbidden literal');
 
   for (const match of text.matchAll(EMAIL_RE)) {
+    // "scheme://user:pw@host" is URL credentials (e.g. a test of rejected push endpoints), not an e-mail.
+    const before = text.slice(Math.max(0, (match.index ?? 0) - 80), match.index ?? 0);
+    if (/:\/\/[^\s/'"`]*$/.test(before)) continue;
     if (!isAllowedEmail(match[0]) && looksLikeRealEmail(match[0])) add('pii', `e-mail ${redactEmail(match[0])}`);
   }
 
