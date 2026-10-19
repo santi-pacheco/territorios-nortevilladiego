@@ -98,7 +98,9 @@ comment on function private.is_web_push_token(text) is
 
 -- The CHECK runs as the inserting role, so it needs EXECUTE (harmless: pure function).
 revoke all on function private.is_web_push_token(text) from public, anon, authenticated;
-grant execute on function private.is_web_push_token(text) to authenticated;
+grant execute on function private.is_web_push_token(text) to authenticated, service_role;
+-- The server (service_role) writes device_tokens too (e.g. tests, cleanup), and the CHECK needs this.
+grant usage on schema private to service_role;
 
 -- NOT VALID: existing rows are not re-checked (send-reminders deletes unusable ones); every
 -- new or changed row is.
