@@ -80,7 +80,12 @@ export function scanText(text, filePath = '') {
     findings.push({ kind, message });
   };
 
-  for (const pattern of SECRET_PATTERNS) if (pattern.test(text)) add('secret', pattern.name);
+  // SQL under supabase/ grants to the service_role *role* by name; that is not a key.
+  const sqlRoleName = /(^|[\\/])supabase[\\/].*\.sql$/i.test(filePath);
+  for (const pattern of SECRET_PATTERNS) {
+    if (sqlRoleName && pattern.name === 'service_role literal') continue;
+    if (pattern.test(text)) add('secret', pattern.name);
+  }
   for (const literal of ENV_LITERALS) if (text.includes(literal)) add('secret', 'forbidden literal');
 
   for (const match of text.matchAll(EMAIL_RE)) {

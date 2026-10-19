@@ -71,7 +71,7 @@ async function loadIssue(issue: Issue): Promise<Map<string, WorkbookWeek>> {
     ));
   } catch (err) {
     if ((err as { status?: number }).status === 404) throw new NotPublished(code);
-    throw new Error(`issue list ${code}: ${(err as Error).message}`);
+    throw new Error(`issue list ${code}: ${(err as Error).message}`, { cause: err });
   }
   const body = JSON.parse(new TextDecoder().decode(meta));
   const url: unknown = body?.files?.S?.EPUB?.[0]?.file?.url;

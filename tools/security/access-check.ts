@@ -614,7 +614,6 @@ async function checkRealtime(subscribers: Record<string, SupabaseClient>) {
         record('realtime', `${label}: ${t} empty INSERT/UPDATE events`, 'warn', `${writes.length - withData.length} delivered with empty record + "Unauthorized" error: reveals that and when a write happened`);
       const dels = s.events.filter((e) => e.type === 'DELETE');
       const keys = [...new Set(dels.flatMap((e) => e.oldKeys))];
-      const extra = keys.filter((k) => !(TABLE_PK[t] ?? []).includes(k));
       if (dels.length === 0) record('realtime', `${label}: ${t} DELETE events`, 'pass', 'none delivered');
       else record('realtime', `${label}: ${t} DELETE events (table must not be published)`, 'fail',
         `${dels.length} delivered, old_record keys: ${keys.join(',') || '(none)'}`);
@@ -622,13 +621,6 @@ async function checkRealtime(subscribers: Record<string, SupabaseClient>) {
   });
 }
 
-const TABLE_PK: Record<string, string[]> = {
-  people: ['id'],
-  person_availability: ['person_id', 'slot_id'],
-  person_pairs: ['person_a', 'person_b'],
-  duty_roster: ['id'],
-  duty_days: ['date'],
-};
 
 // ---------------------------------------------------------------------------
 // 7. Edge Functions
