@@ -8,6 +8,7 @@ import {
   defaultSelection,
   detectKind,
   publishPlan,
+  restrictPreview,
   type StagedFile,
 } from './model';
 
@@ -101,6 +102,16 @@ describe('gestión programa preview', () => {
     expect(p.entries.every((e) => e.blocking !== null)).toBe(true);
     expect(defaultSelection(p).size).toBe(0);
     expect(publishPlan(p, new Set(p.entries.map((e) => e.key)))).toEqual([]);
+  });
+
+  it('restricts the import to one meeting and explains the skipped PDF', () => {
+    const p = restrictPreview(buildPreview([midweek, weekend], 2026, []), 'midweek');
+    expect(p.entries.every((e) => e.kind === 'midweek')).toBe(true);
+    expect(p.entries).toHaveLength(4);
+    expect(p.groups.flatMap((g) => g.entries).every((e) => e.kind === 'midweek')).toBe(true);
+    const skipped = p.files.find((f) => f.name === 'weekend-2026-10.json');
+    expect(skipped).toMatchObject({ kind: 'weekend', count: 0 });
+    expect(skipped?.error).toContain('solo se carga la reunión de entre semana');
   });
 
   it('flags missing assignments and the same date from two files', () => {

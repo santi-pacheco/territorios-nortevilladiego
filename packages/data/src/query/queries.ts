@@ -179,8 +179,9 @@ export function useAccounts(opts: { enabled?: boolean } = {}) {
 }
 
 /**
- * The caller's role and effective permissions (`can_edit_programa`, `can_edit_privilegios`,
- * `sees_privilegios`). Disabled without a session (data undefined ⇒ treat as all false).
+ * The caller's role and effective permissions (`can_edit_programa_midweek`,
+ * `can_edit_programa_weekend`, `can_edit_privilegios`, `sees_privilegios`). Disabled without a
+ * session (data undefined ⇒ treat as all false).
  */
 export function useMyPermissions() {
   const session = useSession();
@@ -220,11 +221,13 @@ export function useDutyPeople(opts: { enabled?: boolean } = {}) {
 
 /**
  * Everyone, for the schedule person pickers (Salidas, Programa, Privilegios). Enabled for
- * editors and for can_edit_programa / can_edit_privilegios accounts (override with `enabled`).
+ * editors and for either program grant / can_edit_privilegios (override with `enabled`).
  */
 export function usePeopleDirectory(opts: { enabled?: boolean } = {}) {
   const perms = useMyPermissions();
   const allowed =
-    perms.data?.can_edit_programa === true || perms.data?.can_edit_privilegios === true;
+    perms.data?.can_edit_programa_midweek === true ||
+    perms.data?.can_edit_programa_weekend === true ||
+    perms.data?.can_edit_privilegios === true;
   return useQuery({ ...peopleDirectoryQuery(), enabled: opts.enabled ?? allowed });
 }

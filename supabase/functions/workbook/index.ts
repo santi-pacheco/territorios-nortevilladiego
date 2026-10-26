@@ -11,8 +11,9 @@
  *
  * Auth: verify_jwt (default) lets any JWT-shaped bearer through (even the publishable key), so
  * the function checks it itself: no valid session → 401; signed in without
- * `public.my_permissions().can_edit_programa` (falling back to `public.is_editor()` while that
- * RPC does not exist) → 403. Auth failures are never a 500.
+ * `public.my_permissions().can_edit_programa_midweek` (falling back to `public.is_editor()`
+ * while that RPC does not exist) → 403. The Guía belongs to the midweek meeting, so a
+ * weekend-only grant is not enough. Auth failures are never a 500.
  *
  * The EPUB host sends no CORS headers, so the browser cannot read it: this function fetches the
  * issue list from b.jw-cdn.org, downloads the EPUB from *.jw-cdn.org, unzips the week files and
@@ -145,7 +146,7 @@ async function permission(token: string): Promise<200 | 401 | 403> {
   const perms = await sb.rpc('my_permissions');
   if (!perms.error) {
     const row = Array.isArray(perms.data) ? perms.data[0] : perms.data;
-    return row?.can_edit_programa ? 200 : 403;
+    return row?.can_edit_programa_midweek ? 200 : 403;
   }
   const denied = rpcErrorStatus(perms.error);
   if (denied) return denied;

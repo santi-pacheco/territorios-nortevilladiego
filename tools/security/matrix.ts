@@ -17,7 +17,8 @@ export const ROLES = [
   'anon',
   'viewer',
   'viewer_linked_duties',
-  'can_edit_programa',
+  'can_edit_programa_midweek',
+  'can_edit_programa_weekend',
   'can_edit_privilegios',
   'editor',
   'admin',
@@ -74,7 +75,9 @@ export const TABLES: Record<string, TableRow> = {
   cart_schedules: publicTable(...EDITORS),
   cart_assignments: publicTable(...EDITORS),
   cart_blackouts: publicTable(...EDITORS),
-  program_weeks: publicTable('can_edit_programa', ...EDITORS),
+  // Each program grant writes only its meeting's rows. The matrix is table-level, so both are
+  // "allow"; the kind-level RLS is covered by supabase/tests/06_programa_split_test.sql.
+  program_weeks: publicTable('can_edit_programa_midweek', 'can_edit_programa_weekend', ...EDITORS),
   people: editorTable,
   person_availability: editorTable,
   person_pairs: editorTable,
@@ -102,7 +105,12 @@ export interface RpcSpec {
 }
 
 const SIGNED_IN = ROLES.filter((r) => r !== 'anon');
-const PEOPLE_PICKERS: Role[] = ['can_edit_programa', 'can_edit_privilegios', ...EDITORS];
+const PEOPLE_PICKERS: Role[] = [
+  'can_edit_programa_midweek',
+  'can_edit_programa_weekend',
+  'can_edit_privilegios',
+  ...EDITORS,
+];
 
 export const RPCS: Record<string, RpcSpec> = {
   is_editor: { allowed: SIGNED_IN, mutating: false },

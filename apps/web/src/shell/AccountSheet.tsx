@@ -154,9 +154,13 @@ function SignedIn({
 }) {
   const { clearPersisted } = useBoot();
   const qc = useQueryClient();
-  // Members granted "Puede editar programa/privilegios" also get Gestión (only those sections).
+  // Members granted a program meeting or Privilegios also get Gestión (only those sections).
   const perms = useMyPermissions().data;
-  const opensGestion = isEditor || perms?.can_edit_programa === true || perms?.can_edit_privilegios === true;
+  const opensGestion =
+    isEditor ||
+    perms?.can_edit_programa_midweek === true ||
+    perms?.can_edit_programa_weekend === true ||
+    perms?.can_edit_privilegios === true;
   return (
     <section className="flex flex-col gap-3">
       <div>

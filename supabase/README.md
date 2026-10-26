@@ -63,19 +63,24 @@ supabase/
 
 ### People directory, permissions and Privilegios (docs/PRIVILEGIOS.md)
 
-| Who                                                     | duty_roster / duty_days | program_weeks write |
-| ------------------------------------------------------- | ----------------------- | ------------------- |
-| anon                                                    | nothing (no grant)      | no                  |
-| viewer                                                  | nothing (0 rows)        | no                  |
-| viewer whose linked person has any `people.duties` tag  | read                    | no                  |
-| `profiles.can_edit_programa`                            | nothing                 | yes                 |
-| `profiles.can_edit_privilegios`                         | read + write            | no                  |
-| editor / admin                                          | read + write            | yes                 |
+| Who                                                     | duty_roster / duty_days | program_weeks write (by row kind) |
+| ------------------------------------------------------- | ----------------------- | --------------------------------- |
+| anon                                                    | nothing (no grant)      | no                                |
+| viewer                                                  | nothing (0 rows)        | no                                |
+| viewer whose linked person has any `people.duties` tag  | read                    | no                                |
+| `profiles.can_edit_programa_midweek`                     | nothing                 | midweek rows                      |
+| `profiles.can_edit_programa_weekend`                     | nothing                 | weekend rows                      |
+| `profiles.can_edit_privilegios`                         | read + write            | no                                |
+| editor / admin                                          | read + write            | both                              |
 
-- Policies use `private.can_edit_programa()`, `private.can_edit_privilegios()` (invoker, own
-  profile row) and `private.sees_privilegios()` (DEFINER: it reads the linked person's duties).
-  `authenticated` has USAGE on `private` and EXECUTE on these three only; `private` is not an
-  exposed API schema.
+- Policies use `private.can_edit_programa_midweek()` / `private.can_edit_programa_weekend()`
+  (invoker, own profile row; the row's `kind` picks one), `private.can_edit_privilegios()` and
+  `private.sees_privilegios()` (DEFINER: it reads the linked person's duties).
+  `private.can_edit_programa()` remains as the either-grant helper for the person pickers and
+  `people_directory()`. `authenticated` has USAGE on `private` and EXECUTE on those helpers only;
+  `private` is not an exposed API schema.
+- On UPDATE, `USING` checks the old row's kind and `WITH CHECK` the new one, so moving a row from
+  one meeting to the other needs both grants.
 - `people.in_carrito` (default true): the scheduler and carrito pickers use only these
   (`carritoPeople()` in packages/data). `people.duties` ⊆ computadora, sonido, microfonista, acomodador.
 - `duty_roster.person_name` is a trigger snapshot of `people.name` when `person_id` is set
@@ -90,10 +95,10 @@ supabase/
 | `name_sources()`                                            | editor/admin                     | distinct names in program, salida conductors and free-text roster cells, matched person or null (unmatched first) |
 | `create_person_from_name(p_name, p_gender, p_in_carrito)`   | editor/admin                     | new person (in_carrito default false); 23505 if the name/alias already matches someone     |
 | `add_person_alias(p_person, p_alias)`                       | editor/admin                     | append alias; no-op if it already matches the person, 23505 if it matches someone else     |
-| `set_account_permissions(p_user, p_programa, p_privilegios)` | admin                            | set the two grants (null = unchanged)                                                      |
-| `my_permissions()`                                          | authenticated                    | `(role, can_edit_programa, can_edit_privilegios, sees_privilegios)`, effective (editors: true) |
+| `set_account_permissions(p_user, p_midweek, p_weekend, p_privilegios)` | admin                | set the three grants (null = unchanged)                                                    |
+| `my_permissions()`                                          | authenticated                    | `(role, can_edit_programa_midweek, can_edit_programa_weekend, can_edit_privilegios, sees_privilegios)`, effective (editors: true) |
 | `duty_people()`                                             | editor/admin, can_edit_privilegios | `(id, name, duties, aliases)` of people with any duty (roster pickers)                    |
-| `list_accounts()`                                           | editor/admin                     | now also returns the stored `can_edit_programa`, `can_edit_privilegios`                    |
+| `list_accounts()`                                           | editor/admin                     | now also returns the stored `can_edit_programa_midweek`, `can_edit_programa_weekend`, `can_edit_privilegios` |
 
 ### Decisions to review (flagged for the coordinator/owner)
 

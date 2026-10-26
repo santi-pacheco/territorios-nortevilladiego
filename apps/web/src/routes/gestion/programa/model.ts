@@ -183,6 +183,27 @@ export function buildPreview(
   return { files: previewFiles, groups, entries };
 }
 
+/**
+ * The PDF import lives in one meeting's tab, but a PDF may carry both. Keep only the entries of
+ * `kind` and say why the other files are ignored, instead of dropping them silently.
+ */
+export function restrictPreview(preview: Preview, kind: ProgramKind): Preview {
+  const entries = preview.entries.filter((e) => e.kind === kind);
+  const groups = preview.groups
+    .map((g) => ({ ...g, entries: g.entries.filter((e) => e.kind === kind) }))
+    .filter((g) => g.entries.length > 0);
+  const files = preview.files.map((f) =>
+    f.kind && f.kind !== kind
+      ? {
+          ...f,
+          count: 0,
+          error: `Este PDF es de ${KIND_LABEL[f.kind].toLowerCase()}: acá solo se carga la reunión de ${KIND_LABEL[kind].toLowerCase()}.`,
+        }
+      : f,
+  );
+  return { files, groups, entries };
+}
+
 /** Entries that start ticked: everything publishable. */
 export function defaultSelection(preview: Preview): Set<string> {
   return new Set(preview.entries.filter((e) => !e.blocking).map((e) => e.key));

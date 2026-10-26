@@ -569,12 +569,19 @@ export const accountMutations = {
       [...qk.auth, 'permissions'],
     ],
   ),
-  /** Admin: "Puede editar programa" / "Puede editar privilegios" (null = unchanged). */
+  /** Admin: midweek / weekend program and privilegios (null = unchanged). */
   setAccountPermissions: define(
     qk.accounts,
     'setAccountPermissions',
-    (sb, v: { userId: string; programa: boolean | null; privilegios: boolean | null }) =>
-      accountsRepo.setAccountPermissions(sb, v.userId, v.programa, v.privilegios),
+    (
+      sb,
+      v: {
+        userId: string;
+        midweek: boolean | null;
+        weekend: boolean | null;
+        privilegios: boolean | null;
+      },
+    ) => accountsRepo.setAccountPermissions(sb, v.userId, v.midweek, v.weekend, v.privilegios),
     undefined,
     [[...qk.auth, 'permissions']],
   ),

@@ -1,21 +1,23 @@
 /**
- * Gestión ▸ Programa ▸ Editar: the manual program editor.
+ * Gestión ▸ Programa ▸ Editar: the manual program editor for one meeting.
  *
- * A month picker over the weeks of that month; each week expands into the midweek and weekend
- * editors (see `WeekSection`). The week containing today opens by default.
+ * A month picker over the weeks of that month; each week expands into the editor of `part`
+ * only (see `WeekSection`). The week containing today opens by default.
  *
  * "Traer el mes" fetches the Guía de actividades for every week of the month once and hands each
- * week its part; each week then shows its own proposal to apply and save.
+ * week its part; each week then shows its own proposal to apply and save. The Guía belongs to the
+ * midweek meeting, so the button only appears in that tab.
  */
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { loadWorkbook, WorkbookError } from '@territorios/data';
 import { mondayOf } from '../../../../lib/week';
+import { PART_LABEL, type ProgramaPart } from '../access';
 import { monthLabel, shiftMonth, weekLabel, weekStartsOfMonth } from './model';
 import type { GuideDelivery } from './guide';
 import { WeekSection } from './WeekSection';
 
-export function EditarPrograma() {
+export function EditarPrograma({ part }: { part: ProgramaPart }) {
   const thisMonday = useMemo(() => mondayOf(new Date()), []);
   const [cursor, setCursor] = useState(() => {
     const today = new Date();
@@ -89,33 +91,39 @@ export function EditarPrograma() {
       </div>
 
       <p className="max-w-prose text-body text-ink-soft">
-        Elegí una semana para cargar o corregir sus reuniones a mano, o traé la estructura de la
-        Guía de actividades y completá solo los nombres.
+        Elegí una semana para cargar o corregir la reunión de {PART_LABEL[part].toLowerCase()} a
+        mano
+        {part === 'midweek'
+          ? ', o traé la estructura de la Guía de actividades y completá solo los nombres.'
+          : '.'}
       </p>
 
-      <div className="flex flex-col items-start gap-2">
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={fetchingMonth}
-          onClick={fetchMonth}
-        >
-          {fetchingMonth ? 'Trayendo el mes…' : 'Traer el mes de la Guía de actividades'}
-        </button>
-        {monthNote && (
-          <p role="status" className="max-w-prose text-secondary text-ink-soft">
-            {monthNote}
-          </p>
-        )}
-      </div>
+      {part === 'midweek' && (
+        <div className="flex flex-col items-start gap-2">
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={fetchingMonth}
+            onClick={fetchMonth}
+          >
+            {fetchingMonth ? 'Trayendo el mes…' : 'Traer el mes de la Guía de actividades'}
+          </button>
+          {monthNote && (
+            <p role="status" className="max-w-prose text-secondary text-ink-soft">
+              {monthNote}
+            </p>
+          )}
+        </div>
+      )}
 
       <ul className="flex flex-col gap-3">
         {weeks.map((weekStart) => (
           <li key={weekStart}>
             <WeekSection
+              part={part}
               weekStart={weekStart}
               defaultOpen={weekStart === thisMonday}
-              guide={guides[weekStart] ?? null}
+              guide={part === 'midweek' ? (guides[weekStart] ?? null) : null}
             />
           </li>
         ))}

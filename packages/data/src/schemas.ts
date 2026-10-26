@@ -11,7 +11,7 @@
 import { z } from 'zod/mini';
 
 /** Bump when a row shape changes: busts the persisted query cache. */
-export const SCHEMA_VERSION = '2026-10-18.1';
+export const SCHEMA_VERSION = '2026-10-26.1';
 
 // ---------------------------------------------------------------------------
 // Primitives
@@ -59,7 +59,8 @@ export const ProfileRow = z.object({
   /** Linked people row. Written only through the link_account RPC (no column grant). */
   person_id: z.optional(z.nullable(Uuid)),
   /** Stored grants (docs/PRIVILEGIOS.md). Written only through set_account_permissions. */
-  can_edit_programa: z.optional(z.boolean()),
+  can_edit_programa_midweek: z.optional(z.boolean()),
+  can_edit_programa_weekend: z.optional(z.boolean()),
   can_edit_privilegios: z.optional(z.boolean()),
   ...Meta,
 });
@@ -596,8 +597,9 @@ export const AccountRow = z.object({
   person_id: z.nullable(Uuid),
   person_name: z.nullable(z.string()),
   created_at: Timestamp,
-  /** Stored grants (the admin toggles); editors/admins can edit both regardless. */
-  can_edit_programa: z.boolean(),
+  /** Stored grants (the admin toggles); editors/admins can edit both meetings regardless. */
+  can_edit_programa_midweek: z.boolean(),
+  can_edit_programa_weekend: z.boolean(),
   can_edit_privilegios: z.boolean(),
 });
 export type AccountRow = z.infer<typeof AccountRow>;
@@ -605,7 +607,9 @@ export type AccountRow = z.infer<typeof AccountRow>;
 /** public.my_permissions(): the caller's role and EFFECTIVE permissions (true for editors/admins). */
 export const MyPermissions = z.object({
   role: Role,
-  can_edit_programa: z.boolean(),
+  /** Effective grants: editors/admins get both program meetings. */
+  can_edit_programa_midweek: z.boolean(),
+  can_edit_programa_weekend: z.boolean(),
   can_edit_privilegios: z.boolean(),
   /** Show the Privilegios route: editor/admin, can_edit_privilegios or linked person has a duty. */
   sees_privilegios: z.boolean(),
@@ -643,8 +647,8 @@ export const DutyPerson = z.object({
 export type DutyPerson = z.infer<typeof DutyPerson>;
 
 /**
- * public.people_directory(): everyone, for the schedule person pickers. Editors,
- * can_edit_programa and can_edit_privilegios (who cannot read `people` directly).
+ * public.people_directory(): everyone, for the schedule person pickers. Editors, either program
+ * grant (midweek or weekend) and can_edit_privilegios (who cannot read `people` directly).
  */
 export const DirectoryPerson = z.object({
   id: Uuid,

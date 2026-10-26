@@ -1,11 +1,12 @@
 /**
- * One collapsible week of Gestión ▸ Programa ▸ Editar.
+ * One collapsible week of Gestión ▸ Programa ▸ Editar, for a single meeting.
  *
- * Lazily loads both rows of the week (midweek keyed by Tuesday, weekend by Saturday) when the
- * section opens, then hands them to `WeekForm`. Saving uses the existing @territorios/data
- * mutations: insert when the row does not exist, CAS update with the row version when it does.
- * A CAS conflict (or a concurrent insert) shows "Alguien cambió esta semana" and offers a reload
- * that re-reads the row and resets the form.
+ * Lazily loads the week (midweek keyed by Tuesday, weekend by Saturday) when the section opens,
+ * then hands it to `WeekForm`. Saving uses the existing @territorios/data mutations: insert when
+ * the row does not exist, CAS update with the row version when it does. Only the meeting of
+ * `part` is rendered and saved, so a midweek grant cannot touch the weekend row (the RLS policy
+ * enforces the same rule). A CAS conflict (or a concurrent insert) shows "Alguien cambió esta
+ * semana" and offers a reload that re-reads the row and resets the form.
  *
  * "Traer de la Guía de actividades" (per week, or a `guide` delivered by "Traer el mes") opens a
  * proposal over the midweek form; nothing changes until "Aplicar", nothing is saved until
@@ -31,6 +32,7 @@ import {
   type WorkbookWeek,
 } from '@territorios/core';
 import { addDaysIso } from '../../../../lib/week';
+import { PART_LABEL, type ProgramaPart } from '../access';
 import { MidweekEditor } from './MidweekEditor';
 import { WeekendEditor } from './WeekendEditor';
 import { MEETING_START, mergeGuide, type GuideDelivery, type GuideProposal } from './guide';
@@ -57,18 +59,18 @@ function useOnline(): boolean {
   );
 }
 
-function weekBadge(data: ProgramWeek): string {
-  const parts: string[] = [];
-  if (data.midweek) parts.push('Entre semana');
-  if (data.weekend) parts.push('Fin de semana');
-  return parts.length ? parts.join(' · ') : 'Sin cargar';
+function weekBadge(data: ProgramWeek, part: ProgramaPart): string {
+  const loaded = part === 'midweek' ? data.midweek : data.weekend;
+  return loaded ? PART_LABEL[part] : 'Sin cargar';
 }
 
 export function WeekSection({
+  part,
   weekStart,
   defaultOpen,
   guide,
 }: {
+  part: ProgramaPart;
   weekStart: string;
   defaultOpen: boolean;
   guide: GuideDelivery | null;
@@ -102,7 +104,7 @@ export function WeekSection({
           <span className="min-w-0 flex-1">
             <span className="text-body-strong font-bold">{weekLabel(weekStart)}</span>
             {week.data && (
-              <span className="ml-2 text-secondary text-ink-soft">{weekBadge(week.data)}</span>
+              <span className="ml-2 text-secondary text-ink-soft">{weekBadge(week.data, part)}</span>
             )}
           </span>
           {open ? <ChevronUp aria-hidden size={24} /> : <ChevronDown aria-hidden size={24} />}
@@ -123,7 +125,8 @@ export function WeekSection({
           </div>
         ) : week.data ? (
           <WeekForm
-            key={reset}
+            key={`${part}:${reset}`}
+            part={part}
             weekStart={weekStart}
             data={week.data}
             guide={guide}
@@ -152,11 +155,13 @@ function guideError(err: unknown): string {
 }
 
 function WeekForm({
+  part,
   weekStart,
   data,
   guide,
   onReload,
 }: {
+  part: ProgramaPart;
   weekStart: string;
   data: ProgramWeek;
   guide: GuideDelivery | null;
@@ -201,9 +206,10 @@ function WeekForm({
     }
   }
 
-  // "Traer el mes" hands each week its Guía; turn a new delivery into a proposal.
+  // "Traer el mes" hands each week its Guía; turn a new delivery into a proposal. The Guía only
+  // describes the midweek meeting.
   const [seenGuide, setSeenGuide] = useState<number | null>(null);
-  if (guide && guide.nonce !== seenGuide) {
+  if (part === 'midweek' && guide && guide.nonce !== seenGuide) {
     setSeenGuide(guide.nonce);
     propose(guide.week);
   }
@@ -259,7 +265,7 @@ function WeekForm({
     let saved = 0;
     let conflict = false;
 
-    if (midRow || hasMidweekContent(mid)) {
+    if (part === 'midweek' && (midRow || hasMidweekContent(mid))) {
       const payload = cleanMidweek(mid, tuesday) as unknown as Record<string, unknown>;
       try {
         const row = midRow
@@ -279,7 +285,7 @@ function WeekForm({
       }
     }
 
-    if (wendRow || hasWeekendContent(wend)) {
+    if (part === 'weekend' && (wendRow || hasWeekendContent(wend))) {
       const payload = cleanWeekend(wend, saturday) as unknown as Record<string, unknown>;
       try {
         const row = wendRow
@@ -305,19 +311,22 @@ function WeekForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <MidweekEditor
-        value={mid}
-        onChange={setMid}
-        onCopyPrevious={copyPrevious}
-        copying={copying}
-        note={copyNote}
-        onFetchGuide={fetchGuide}
-        fetchingGuide={fetchingGuide}
-        proposal={proposal?.preview ?? null}
-        onApplyGuide={applyGuide}
-        onDiscardGuide={() => setProposal(null)}
-      />
-      <WeekendEditor value={wend} onChange={setWend} />
+      {part === 'midweek' ? (
+        <MidweekEditor
+          value={mid}
+          onChange={setMid}
+          onCopyPrevious={copyPrevious}
+          copying={copying}
+          note={copyNote}
+          onFetchGuide={fetchGuide}
+          fetchingGuide={fetchingGuide}
+          proposal={proposal?.preview ?? null}
+          onApplyGuide={applyGuide}
+          onDiscardGuide={() => setProposal(null)}
+        />
+      ) : (
+        <WeekendEditor value={wend} onChange={setWend} />
+      )}
 
       {outcome?.conflict && (
         <div

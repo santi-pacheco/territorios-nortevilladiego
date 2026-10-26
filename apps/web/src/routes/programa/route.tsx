@@ -3,6 +3,7 @@ import { CalendarDays, Mic } from 'lucide-react';
 import { useMyPermissions, useProgramWeek } from '@territorios/data';
 import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import { ScreenHeader } from '../../shell/ScreenHeader';
+import { ShareProgramButton } from './ShareProgramButton';
 import { useMeName } from '../../lib/me';
 import { addDaysIso, fromIso, mondayOf } from '../../lib/week';
 import {
@@ -68,8 +69,8 @@ export function Component() {
           />
         </div>
       </header>
-      {seesPrivilegios && (
-        <div className="mx-auto flex w-full max-w-3xl justify-end px-4">
+      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-end gap-x-4 px-4">
+        {seesPrivilegios && (
           <Link
             to="/privilegios"
             className="inline-flex min-h-touch items-center gap-2 text-secondary font-semibold underline"
@@ -77,8 +78,9 @@ export function Component() {
             <Mic aria-hidden size={20} />
             Privilegios
           </Link>
-        </div>
-      )}
+        )}
+        <ShareProgramButton monday={monday} />
+      </div>
 
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-5">
         {week.isPending ? (

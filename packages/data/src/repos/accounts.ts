@@ -41,7 +41,7 @@ export async function myLink(sb: TerritoriosClient): Promise<MyLink | null> {
   return parseRpcRows('my_link', MyLink, first)[0] ?? null;
 }
 
-/** Every auth user with role and linked person. Editor/admin only (42501 otherwise). */
+/** Every auth user with role, linked person and stored grants. Editor/admin only (42501 otherwise). */
 export async function listAccounts(sb: TerritoriosClient): Promise<AccountRow[]> {
   return parseRpcRows('list_accounts', AccountRow, await rpc(sb, 'list_accounts'));
 }
@@ -73,7 +73,8 @@ export async function myPermissions(sb: TerritoriosClient): Promise<MyPermission
   return (
     row ?? {
       role: 'viewer',
-      can_edit_programa: false,
+      can_edit_programa_midweek: false,
+      can_edit_programa_weekend: false,
       can_edit_privilegios: false,
       sees_privilegios: false,
     }
@@ -81,18 +82,20 @@ export async function myPermissions(sb: TerritoriosClient): Promise<MyPermission
 }
 
 /**
- * Admin only (42501 otherwise). Grants/revokes "Puede editar programa" and "Puede editar
- * privilegios"; `null` leaves that flag unchanged.
+ * Admin only (42501 otherwise). Grants/revokes the midweek meeting, the weekend meeting and
+ * Privilegios; `null` leaves that flag unchanged.
  */
 export async function setAccountPermissions(
   sb: TerritoriosClient,
   userId: string,
-  programa: boolean | null,
+  midweek: boolean | null,
+  weekend: boolean | null,
   privilegios: boolean | null,
 ): Promise<void> {
   await rpc(sb, 'set_account_permissions', {
     p_user: userId,
-    p_programa: programa,
+    p_midweek: midweek,
+    p_weekend: weekend,
     p_privilegios: privilegios,
   });
 }

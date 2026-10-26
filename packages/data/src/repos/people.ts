@@ -155,7 +155,7 @@ export async function fetchNameSources(sb: TerritoriosClient): Promise<NameSourc
  * "Crear persona" from an unmatched name or from a person picker; returns the new id.
  * `inCarrito` (default false) is honoured for editors only; `duties` for editors and
  * can_edit_privilegios. 23505 when the name already matches someone (name or alias).
- * Editors, can_edit_programa or can_edit_privilegios; 42501 otherwise.
+ * Editors, either program grant (midweek or weekend) or can_edit_privilegios; 42501 otherwise.
  */
 export async function createPersonFromName(
   sb: TerritoriosClient,
@@ -196,7 +196,7 @@ export async function fetchDutyPeople(sb: TerritoriosClient): Promise<DutyPerson
 
 /**
  * Everyone (id, name, aliases, duties, in_carrito) for the schedule person pickers. Editors,
- * can_edit_programa and can_edit_privilegios; 42501 otherwise.
+ * either program grant (midweek or weekend) and can_edit_privilegios; 42501 otherwise.
  */
 export async function fetchPeopleDirectory(sb: TerritoriosClient): Promise<DirectoryPerson[]> {
   return parseRpcRows('people_directory', DirectoryPerson, await callRpc(sb, 'people_directory'));

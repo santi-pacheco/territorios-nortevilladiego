@@ -93,7 +93,7 @@ select throws_ok(
   $$select public.set_account_role('eeeeeeee-0000-4000-8000-000000000003', 'viewer')$$,
   '42501', null, 'editor cannot demote an admin');
 select throws_ok(
-  $$select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000003', false, false)$$,
+  $$select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000003', false, false, false)$$,
   '42501', null, 'editor cannot change an admin''s permissions');
 select lives_ok(
   $$select public.link_account('eeeeeeee-0000-4000-8000-000000000001', 'ffffffff-0000-4000-8000-000000000001')$$,

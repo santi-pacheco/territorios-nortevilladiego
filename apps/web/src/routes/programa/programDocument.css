@@ -1,0 +1,180 @@
+/*
+ * Programa document: one layout for the PNG and the A4 printout. Fixed black-on-white palette
+ * (it is paper and a WhatsApp image, not app chrome), sizes in em so print only changes the root.
+ */
+
+.pd-host {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  pointer-events: none;
+}
+
+.pd-doc {
+  box-sizing: border-box;
+  width: 900px;
+  padding: 36px;
+  background: #fff;
+  color: #000;
+  font-family: var(--tk-font-ui);
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.pd-doc h1,
+.pd-doc h2,
+.pd-doc h3,
+.pd-doc p,
+.pd-doc ul,
+.pd-doc dl,
+.pd-doc dd {
+  margin: 0;
+  padding: 0;
+}
+
+.pd-doc ul {
+  list-style: none;
+}
+
+.pd-head {
+  padding-bottom: 0.5em;
+  border-bottom: 3px solid #000;
+}
+
+.pd-head h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pd-head p {
+  margin-top: 0.15em;
+  font-size: 1em;
+}
+
+.pd-block {
+  margin-top: 1.1em;
+  break-inside: avoid;
+}
+
+.pd-blockhead {
+  padding-bottom: 0.25em;
+  border-bottom: 2px solid #000;
+}
+
+.pd-blockhead h2,
+.pd-assembly h2 {
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.pd-sub {
+  font-size: 0.85em;
+  color: #333;
+}
+
+.pd-strong {
+  font-weight: 700;
+}
+
+.pd-mono {
+  font-family: var(--tk-font-numeric);
+}
+
+.pd-group {
+  margin-top: 0.6em;
+}
+
+.pd-group h3 {
+  font-size: 0.9em;
+  font-weight: 700;
+  padding: 0.1em 0;
+  border-bottom: 1px solid #000;
+}
+
+.pd-group li {
+  display: flex;
+  gap: 0.8em;
+  padding: 0.3em 0;
+  border-bottom: 1px solid #bbb;
+  break-inside: avoid;
+}
+
+.pd-group li > time {
+  flex: none;
+  width: 3.2em;
+  font-family: var(--tk-font-numeric);
+  font-weight: 700;
+}
+
+.pd-group li > div {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.pd-person {
+  font-size: 0.9em;
+}
+
+.pd-person span {
+  color: #333;
+}
+
+.pd-talk {
+  margin-top: 0.5em;
+  padding: 0.4em 0.6em;
+  border: 1px solid #000;
+}
+
+.pd-doc dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.3em 0;
+  border-bottom: 1px solid #bbb;
+}
+
+.pd-doc dt {
+  color: #333;
+}
+
+.pd-doc dd {
+  text-align: right;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pd-assembly {
+  padding: 1.2em 0.8em;
+  text-align: center;
+  border: 2px solid #000;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  /* Only the document prints: no app chrome, no open sheet. */
+  body > *:not(.pd-host) {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .pd-host {
+    position: static;
+  }
+
+  .pd-doc {
+    width: auto;
+    padding: 0;
+    font-size: 10.5pt;
+    line-height: 1.3;
+  }
+}

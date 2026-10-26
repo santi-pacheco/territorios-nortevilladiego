@@ -163,28 +163,39 @@ describe('permissions RPCs', () => {
     let data: unknown = [
       {
         role: 'viewer',
-        can_edit_programa: false,
+        can_edit_programa_midweek: true,
+        can_edit_programa_weekend: false,
         can_edit_privilegios: true,
         sees_privilegios: true,
       },
     ];
     const { client } = fakeSupabase(() => ({ data }));
-    expect(await myPermissions(client)).toMatchObject({ can_edit_privilegios: true });
+    expect(await myPermissions(client)).toMatchObject({
+      can_edit_programa_midweek: true,
+      can_edit_programa_weekend: false,
+      can_edit_privilegios: true,
+    });
     data = [];
     expect(await myPermissions(client)).toEqual({
       role: 'viewer',
-      can_edit_programa: false,
+      can_edit_programa_midweek: false,
+      can_edit_programa_weekend: false,
       can_edit_privilegios: false,
       sees_privilegios: false,
     });
   });
 
-  it('setAccountPermissions sends p_user/p_programa/p_privilegios (null = unchanged)', async () => {
+  it('setAccountPermissions sends p_user/p_midweek/p_weekend/p_privilegios (null = unchanged)', async () => {
     const { client, calls } = fakeSupabase(() => ({ data: null }));
-    await setAccountPermissions(client, USER, true, null);
+    await setAccountPermissions(client, USER, true, null, false);
     expect(calls[0]).toMatchObject({
       table: 'set_account_permissions',
-      values: { p_user: USER, p_programa: true, p_privilegios: null },
+      values: {
+        p_user: USER,
+        p_midweek: true,
+        p_weekend: null,
+        p_privilegios: false,
+      },
     });
   });
 

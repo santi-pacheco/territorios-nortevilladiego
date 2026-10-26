@@ -4,6 +4,9 @@ import { platform } from '@territorios/platform';
  * Self-hosted font CSS (the WOFF2 files inlined as data URLs) computed at most once per
  * session. Held as a promise so two simultaneous exports do not both walk the stylesheets.
  */
+/** Browsers refuse canvases past roughly 16k px on a side (Safari the strictest). */
+const MAX_CANVAS_SIDE = 16_000;
+
 let fontEmbed: Promise<string> | null = null;
 
 /** Controls and edit affordances marked `data-export-hide` stay out of the image. */
@@ -24,7 +27,8 @@ export async function renderPng(node: HTMLElement): Promise<Blob> {
   await document.fonts?.ready;
   if (fontEmbed === null) fontEmbed = getFontEmbedCSS(node).catch(() => '');
   const blob = await toBlob(node, {
-    pixelRatio: 2,
+    // Tall documents (a month of Programa) drop the ratio instead of exceeding canvas limits.
+    pixelRatio: Math.min(2, MAX_CANVAS_SIDE / Math.max(node.offsetHeight, 1)),
     backgroundColor: '#ffffff',
     fontEmbedCSS: await fontEmbed,
     filter: keepNode,

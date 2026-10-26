@@ -27,15 +27,29 @@ Owner requests (2026-10-17):
 - `public.add_person_alias(p_person uuid, p_alias text)` (editor): appends to `aliases` if not present.
 
 ### Permissions
-- `profiles.can_edit_programa boolean not null default false`,
-  `profiles.can_edit_privilegios boolean not null default false`. Editors/admins can always edit both.
-- `public.set_account_permissions(p_user uuid, p_programa boolean, p_privilegios boolean)` (admin only).
-- `list_accounts()` gains `can_edit_programa`, `can_edit_privilegios`.
-- `public.my_permissions()` → `(role text, can_edit_programa boolean, can_edit_privilegios boolean,
-  sees_privilegios boolean)` for the caller. `sees_privilegios` = editor/admin OR can_edit_privilegios OR
-  linked person has any duty.
-- `program_weeks` INSERT/UPDATE/DELETE allowed to editors OR `can_edit_programa` (helper
-  `private.can_edit_programa()`).
+- `profiles.can_edit_programa_midweek boolean not null default false` and
+  `profiles.can_edit_programa_weekend boolean not null default false`: one grant per program
+  meeting (Tuesday and Saturday rows). `profiles.can_edit_privilegios boolean not null default
+  false`. Editors/admins can always edit everything.
+- `public.set_account_permissions(p_user uuid, p_midweek boolean, p_weekend boolean,
+  p_privilegios boolean)` (admin only; null = unchanged).
+- `list_accounts()` gains `can_edit_programa_midweek`, `can_edit_programa_weekend`,
+  `can_edit_privilegios`.
+- `public.my_permissions()` → `(role text, can_edit_programa_midweek boolean,
+  can_edit_programa_weekend boolean, can_edit_privilegios boolean, sees_privilegios boolean)` for
+  the caller, with effective values (editor/admin = true). `sees_privilegios` = editor/admin OR
+  can_edit_privilegios OR linked person has any duty.
+- `program_weeks` INSERT/UPDATE/DELETE is decided by the row's `kind`: midweek rows need editors OR
+  `can_edit_programa_midweek` (helper `private.can_edit_programa_midweek()`); weekend rows need
+  editors OR `can_edit_programa_weekend` (helper `private.can_edit_programa_weekend()`). On UPDATE
+  `USING` checks the old row and `WITH CHECK` the new one, so a row cannot switch meetings without
+  both grants. `private.can_edit_programa()` remains as the either-grant helper used by the person
+  pickers and `people_directory()`.
+
+### Migration from the single program grant
+The split migration (`20261026120000_programa_edit_split.sql`) copies the old
+`profiles.can_edit_programa` value into both new columns and then drops the old column, so nobody
+loses access.
 
 ### Privilegios roster
 - `public.duty_roster(id uuid pk, date date not null, role text not null check in
@@ -61,11 +75,16 @@ Owner requests (2026-10-17):
 - Gestión ▸ Personas: tags (duties) + "En carrito" toggle per person; panel "Nombres sin vincular" from
   `name_sources()` (unmatched first): "Crear persona" (asks gender, prefilled from inferGender) or
   "Es otro nombre de…" (person picker → alias).
-- Gestión ▸ Usuarios: admin toggles "Puede editar programa" / "Puede editar privilegios".
-- Gestión ▸ Programa: tabs "Cargar PDF" (existing) and "Editar": month picker → list of the month's
-  weeks; each week expands into a midweek editor (parts: section, time, title, people+role rows; add,
-  remove, reorder) and a weekend editor (presidente, discurso tipo/título/orador/congregación, conductor,
-  lector, oración final, asamblea). Save per week (CAS). "Copiar estructura de la semana anterior".
+- Gestión ▸ Usuarios: admin toggles "Editar entre semana" / "Editar fin de semana" / "Editar
+  privilegios".
+- Gestión ▸ Programa: top tabs "Entre semana" and "Fin de semana", showing only the meetings the
+  caller may edit. "Entre semana" has "Cargar PDF" (the PDF and Guía import belongs to the Tuesday
+  meeting) and "Editar a mano"; "Fin de semana" edits by hand. A month picker lists the month's
+  weeks; each week expands into the editor of the selected meeting only (midweek parts: section,
+  time, title, people+role rows; add, remove, reorder; weekend: presidente, discurso
+  tipo/título/orador/congregación, conductor, lector, oración final, asamblea). Save per week (CAS)
+  touches only that meeting. "Copiar estructura de la semana anterior" and "Traer de la Guía de
+  actividades" are midweek-only.
 - Privilegios: member route `/privilegios` (lazy) listed in the account sheet and as a link on Programa,
   shown only when `my_permissions().sees_privilegios`; table by date (Tue/Sat) with columns
   Computadora, Sonido, Micrófonos, Acomodadores, own name bold, assembly rows as a banner row.
@@ -73,5 +92,5 @@ Owner requests (2026-10-17):
   by duty, plus "Pegar desde Excel": paste rows `FECHA | COMPUTADORA | SONIDO | MIC 1 | MIC 2 [| ACOM...]`
   (dates like "MARTES 1-sep" or "13/10"), names resolved by first name / full name / alias against people
   with that duty; unresolved shown for confirmation; "ASAMBLEA ..." rows mark the day.
-- Gestión access: users with only `can_edit_programa`/`can_edit_privilegios` see Gestión with only those
-  sections.
+- Gestión access: users with only a program grant (midweek or weekend) or `can_edit_privilegios` see
+  Gestión with only those sections.

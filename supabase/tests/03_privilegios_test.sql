@@ -116,7 +116,7 @@ select ok(
   not has_function_privilege('anon', 'public.name_sources()', 'execute')
   and not has_function_privilege('anon', 'public.create_person_from_name(text, text, boolean, text[])', 'execute')
   and not has_function_privilege('anon', 'public.add_person_alias(uuid, text)', 'execute')
-  and not has_function_privilege('anon', 'public.set_account_permissions(uuid, boolean, boolean)', 'execute')
+  and not has_function_privilege('anon', 'public.set_account_permissions(uuid, boolean, boolean, boolean)', 'execute')
   and not has_function_privilege('anon', 'public.my_permissions()', 'execute')
   and not has_function_privilege('anon', 'public.duty_people()', 'execute')
   and not has_function_privilege('anon', 'public.list_accounts()', 'execute'),
@@ -129,7 +129,8 @@ select ok(
   'authenticated executes only the RLS helpers in private'
 );
 select ok(
-  not has_column_privilege('authenticated', 'public.profiles', 'can_edit_programa', 'update')
+  not has_column_privilege('authenticated', 'public.profiles', 'can_edit_programa_midweek', 'update')
+  and not has_column_privilege('authenticated', 'public.profiles', 'can_edit_programa_weekend', 'update')
   and not has_column_privilege('authenticated', 'public.profiles', 'can_edit_privilegios', 'update'),
   'clients cannot write the permission columns'
 );
@@ -148,8 +149,9 @@ select tests.login_as('eeeeeeee-0000-4000-8000-000000000001');
 select is((select count(*)::int from public.duty_roster), 0, 'plain viewer sees no roster rows');
 select is((select count(*)::int from public.duty_days), 0, 'plain viewer sees no duty days');
 select results_eq(
-  $$select role, can_edit_programa, can_edit_privilegios, sees_privilegios from public.my_permissions()$$,
-  $$values ('viewer'::text, false, false, false)$$,
+  $$select role, can_edit_programa_midweek, can_edit_programa_weekend, can_edit_privilegios, sees_privilegios
+      from public.my_permissions()$$,
+  $$values ('viewer'::text, false, false, false, false)$$,
   'plain viewer: my_permissions all false'
 );
 select throws_ok($$select * from public.name_sources()$$, '42501', null, 'viewer cannot call name_sources');
@@ -243,7 +245,7 @@ select is(
   tests.affected($$update public.duty_roster set note = 'Editor' where id = 'ffffffff-0000-4000-8000-000000000202'$$),
   1, 'editor writes the roster');
 select throws_ok(
-  $$select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000003', true, false)$$,
+  $$select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000003', true, true, false)$$,
   '42501', null, 'editor (non-admin) cannot set permissions');
 
 -- ---------------------------------------------------------------------------
@@ -251,28 +253,29 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 select tests.login_as('eeeeeeee-0000-4000-8000-000000000006');
 select lives_ok(
-  $$select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000003', true, false);
-    select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000004', null, true)$$,
-  'admin grants programa and privilegios');
+  $$select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000003', true, true, false);
+    select public.set_account_permissions('eeeeeeee-0000-4000-8000-000000000004', null, null, true)$$,
+  'admin grants both program meetings and privilegios');
 select results_eq(
-  $$select user_id, can_edit_programa, can_edit_privilegios from public.list_accounts()
+  $$select user_id, can_edit_programa_midweek, can_edit_programa_weekend, can_edit_privilegios
+      from public.list_accounts()
      where user_id in ('eeeeeeee-0000-4000-8000-000000000003', 'eeeeeeee-0000-4000-8000-000000000004')
      order by user_id$$,
-  $$values ('eeeeeeee-0000-4000-8000-000000000003'::uuid, true, false),
-           ('eeeeeeee-0000-4000-8000-000000000004'::uuid, false, true)$$,
+  $$values ('eeeeeeee-0000-4000-8000-000000000003'::uuid, true, true, false),
+           ('eeeeeeee-0000-4000-8000-000000000004'::uuid, false, false, true)$$,
   'list_accounts shows the stored grants'
 );
 
 -- ---------------------------------------------------------------------------
--- can_edit_programa user writes program_weeks, not the roster
+-- Program-grant user writes program_weeks, not the roster
 -- ---------------------------------------------------------------------------
 select tests.login_as('eeeeeeee-0000-4000-8000-000000000003');
 select lives_ok(
   $$insert into public.program_weeks (kind, date, data) values ('midweek', '2027-06-01', '{}');
     update public.program_weeks set data = '{"parts":[]}' where kind = 'midweek' and date = '2027-06-01';
     delete from public.program_weeks where kind = 'midweek' and date = '2027-06-01'$$,
-  'can_edit_programa: insert, update and delete program weeks');
-select is((select count(*)::int from public.duty_roster), 0, 'can_edit_programa alone does not see the roster');
+  'program grants: insert, update and delete program weeks');
+select is((select count(*)::int from public.duty_roster), 0, 'program grants alone do not see the roster');
 
 -- ---------------------------------------------------------------------------
 -- can_edit_privilegios user writes the roster

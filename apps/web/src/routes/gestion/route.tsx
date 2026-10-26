@@ -21,13 +21,13 @@ type SubsectionKey = Exclude<SectionKey, 'salidas'>;
 
 /**
  * Sections each caller may open (docs/PRIVILEGIOS.md): editors and admins see all of them;
- * otherwise "Puede editar programa" opens Programa and "Puede editar privilegios" opens
- * Privilegios. `my_permissions()` already reports true for editors.
+ * otherwise either program-editing grant (midweek or weekend) opens Programa and "Puede editar
+ * privilegios" opens Privilegios. `my_permissions()` already reports true for editors.
  */
 function allowedSections(isEditor: boolean, perms: MyPermissions | undefined): SectionKey[] {
   if (isEditor) return SECTIONS.map((s) => s.key);
   const keys: SectionKey[] = [];
-  if (perms?.can_edit_programa) keys.push('programa');
+  if (perms?.can_edit_programa_midweek || perms?.can_edit_programa_weekend) keys.push('programa');
   if (perms?.can_edit_privilegios) keys.push('privilegios');
   return keys;
 }

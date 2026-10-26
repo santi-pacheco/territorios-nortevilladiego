@@ -414,7 +414,7 @@ async function checkProfiles(sb: SupabaseClient, uid: string, other: string) {
   const area = 'viewer';
   const own = await run(sb.from('profiles').update({ display_name: `${MARK} name` }).eq('id', uid).select());
   expect(area, 'update own profiles.display_name → allowed', own.rows.length === 1, describe(own));
-  for (const patch of [{ role: 'admin' }, { person_id: fx.people.id }, { can_edit_programa: true }, { can_edit_privilegios: true }, { id: other }]) {
+  for (const patch of [{ role: 'admin' }, { person_id: fx.people.id }, { can_edit_programa_midweek: true }, { can_edit_programa_weekend: true }, { can_edit_privilegios: true }, { id: other }]) {
     const o = await run(sb.from('profiles').update(patch).eq('id', uid).select());
     expect(area, `update own profiles.${Object.keys(patch)[0]} → 42501`, isDenied(o), describe(o));
   }
@@ -425,7 +425,7 @@ async function checkProfiles(sb: SupabaseClient, uid: string, other: string) {
   const ups = await run(sb.from('profiles').upsert({ id: uid, role: 'admin' }).select());
   expect(area, 'upsert own profile with role admin → 42501', isDenied(ups), describe(ups));
   const mine = await adminRow('profiles', { id: uid });
-  expect(area, 'own profile still viewer with no grants', mine?.role === 'viewer' && !mine?.person_id && !mine?.can_edit_programa && !mine?.can_edit_privilegios);
+  expect(area, 'own profile still viewer with no grants', mine?.role === 'viewer' && !mine?.person_id && !mine?.can_edit_programa_midweek && !mine?.can_edit_programa_weekend && !mine?.can_edit_privilegios);
   const tok = await run(sb.from('device_tokens').insert({ ...probeRow('device_tokens', uid), token: `${RUN}-own-2` }).select());
   expect(area, 'insert own device token', tok.rows.length === 1, describe(tok));
   if (tok.rows[0]) {
@@ -449,7 +449,7 @@ function rpcArgs(name: string, uid: string): Row {
     case 'add_person_alias': return { p_person: person, p_alias: `${RUN} alias` };
     case 'create_person_from_name': return { p_name: `${RUN} rpc`, p_gender: 'M' };
     case 'set_account_role': return { p_user: uid, p_role: 'admin' };
-    case 'set_account_permissions': return { p_user: uid, p_programa: true, p_privilegios: true };
+    case 'set_account_permissions': return { p_user: uid, p_midweek: true, p_weekend: true, p_privilegios: true };
     default: return {};
   }
 }
@@ -467,7 +467,7 @@ async function checkRpcs(role: Role, sb: SupabaseClient, uid = '00000000-0000-00
   if (role === 'viewer') {
     const perms = await run(sb.rpc('my_permissions'));
     const p = perms.rows[0] ?? {};
-    expect(role, 'my_permissions is viewer with every flag false', p.role === 'viewer' && !p.can_edit_programa && !p.can_edit_privilegios && !p.sees_privilegios, JSON.stringify(p));
+    expect(role, 'my_permissions is viewer with every flag false', p.role === 'viewer' && !p.can_edit_programa_midweek && !p.can_edit_programa_weekend && !p.can_edit_privilegios && !p.sees_privilegios, JSON.stringify(p));
     const ed = await run(sb.rpc('is_editor'));
     expect(role, 'is_editor() is false', ed.rows[0] === undefined ? false : JSON.stringify(ed.rows[0]) !== 'true', describe(ed));
   }

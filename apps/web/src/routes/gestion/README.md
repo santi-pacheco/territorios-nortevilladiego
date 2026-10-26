@@ -11,8 +11,13 @@ pantalla te lo dice y te manda a la hoja de cuenta.
   actualización optimista. Se puede **agregar** una salida por día y **borrar** con confirmación
   dentro de la fila más un aviso **Deshacer** de 6 segundos. El domingo muestra los territorios
   por grupo (G1–G4).
-- **Carrito** y **Programa** — se cargan de forma diferida. Mientras no existan, muestran
-  "Próximamente". Son de otras tareas; este módulo no los define.
+- **Carrito** — se carga de forma diferida. Mientras no exista, muestra "Próximamente". Es de
+  otra tarea; este módulo no lo define.
+- **Programa** — dos pestañas, **Entre semana** y **Fin de semana**, y solo aparece la que el
+  perfil puede editar (`my_permissions().can_edit_programa_midweek` / `..._weekend`). Entre semana
+  tiene **Cargar PDF** (la importación del programa y de la Guía de actividades) y **Editar a
+  mano**; fin de semana se edita a mano. Cada semana muestra y guarda únicamente la reunión de la
+  pestaña activa.
 
 ### Conflictos de escritura
 

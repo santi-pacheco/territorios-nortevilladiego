@@ -14,7 +14,7 @@ describe('gestión usuarios model', () => {
   it('lists unlinked accounts first', () => {
     const row = (user_id: string, display_name: string, person_id: string | null): AccountRow => ({
       user_id, display_name, person_id, email: null, avatar_url: null, provider: 'google', role: 'viewer', person_name: null, created_at: '',
-      can_edit_programa: false, can_edit_privilegios: false,
+      can_edit_programa_midweek: false, can_edit_programa_weekend: false, can_edit_privilegios: false,
     });
     const sorted = sortAccounts([row('1', 'Beto', 'p'), row('2', 'Zoe', null), row('3', 'Abel', null)]);
     expect(sorted.map((r) => r.user_id)).toEqual(['3', '2', '1']);

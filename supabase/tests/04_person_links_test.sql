@@ -36,7 +36,8 @@ insert into auth.users (id, email) values
   ('dddddddd-0000-4000-8000-000000000003', 'privilegios@test.local'),
   ('dddddddd-0000-4000-8000-000000000004', 'editor@test.local'),
   ('dddddddd-0000-4000-8000-000000000005', 'plain@test.local');
-update public.profiles set can_edit_programa = true where id = 'dddddddd-0000-4000-8000-000000000002';
+update public.profiles set can_edit_programa_midweek = true, can_edit_programa_weekend = true
+ where id = 'dddddddd-0000-4000-8000-000000000002';
 update public.profiles set can_edit_privilegios = true where id = 'dddddddd-0000-4000-8000-000000000003';
 update public.profiles set role = 'editor' where id = 'dddddddd-0000-4000-8000-000000000004';
 
@@ -227,7 +228,7 @@ select results_eq(
 reset role;
 select tests.login_as('dddddddd-0000-4000-8000-000000000002');
 select ok((select count(*) from public.people_directory() where name like '%Fixture') = 2,
-  'can_edit_programa: people_directory allowed');
+  'either program grant: people_directory allowed');
 reset role;
 select tests.login_as('dddddddd-0000-4000-8000-000000000003');
 select ok((select count(*) from public.people_directory() where name like '%Fixture') = 2,
@@ -250,7 +251,7 @@ reset role;
 select tests.login_as('dddddddd-0000-4000-8000-000000000002');
 select lives_ok(
   $$select public.create_person_from_name('Nuevo Programa Fixture', 'F', true, '{sonido}')$$,
-  'can_edit_programa can create a person from the picker'
+  'either program grant can create a person from the picker'
 );
 select throws_ok(
   $$select public.create_person_from_name('l. fixture', 'M')$$, '23505', null,

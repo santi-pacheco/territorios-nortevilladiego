@@ -62,7 +62,7 @@ export async function fetchProgramWeeks(
 /**
  * Program editor save. Without `expectedVersion` the row is inserted (a row created by
  * someone else meanwhile ⇒ ConflictError, expectedVersion 0); with it, a CAS update on
- * (kind, date). Editors or can_edit_programa (RLS).
+ * (kind, date). Editors, or the grant for that meeting's kind (RLS).
  */
 export async function saveProgramWeek(
   sb: TerritoriosClient,

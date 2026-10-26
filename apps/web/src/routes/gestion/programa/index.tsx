@@ -14,8 +14,11 @@ import {
   isConflictError,
   mutations,
   useDataMutation,
+  useMyPermissions,
+  useRole,
   type ProgramWeekRow,
 } from '@territorios/data';
+import { allowedParts, PART_LABEL, type ProgramaPart } from './access';
 import { useProgramWeekList } from './data';
 import {
   KIND_LABEL,
@@ -25,6 +28,7 @@ import {
   publishPlan,
   carryLinks,
   publishedSummary,
+  restrictPreview,
   weekRange,
   type Preview,
   type PreviewEntry,
@@ -42,27 +46,81 @@ function useOnline(): boolean {
 
 type Outcome = { ok: number; failed: string[] };
 
-type ProgramaTab = 'pdf' | 'editar';
+type ImportTab = 'pdf' | 'editar';
 
-const PROGRAMA_TABS: readonly { value: ProgramaTab; label: string }[] = [
+const IMPORT_TABS: readonly { value: ImportTab; label: string }[] = [
   { value: 'pdf', label: 'Cargar PDF' },
-  { value: 'editar', label: 'Editar' },
+  { value: 'editar', label: 'Editar a mano' },
 ];
 
+/**
+ * Gestión ▸ Programa. The program has two meetings with separate grants, so each gets its own
+ * tab and only the parts the caller may edit are rendered (or saved). The PDF / Guía import
+ * belongs to the midweek meeting; the weekend tab edits by hand.
+ */
 export function GestionPrograma() {
-  const [tab, setTab] = useState<ProgramaTab>('pdf');
+  const { isEditor } = useRole();
+  const perms = useMyPermissions().data;
+  const parts = allowedParts(perms, isEditor);
+  const [choice, setChoice] = useState<ProgramaPart | null>(null);
+  const part = choice && parts.includes(choice) ? choice : parts[0];
+
+  if (!part) {
+    return (
+      <div className="flex flex-col gap-2">
+        <h2 className="text-title font-bold">Programa</h2>
+        <p className="text-body text-ink-soft">No tenés permiso para editar el programa.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {/* The Gestión layout owns the page h1; this is the section heading. */}
       <h2 className="text-title font-bold">Programa</h2>
 
+      {parts.length > 1 ? (
+        <div
+          className="segmented"
+          role="radiogroup"
+          aria-label="Reunión del programa"
+          style={{ gridTemplateColumns: `repeat(${parts.length}, 1fr)` }}
+        >
+          {parts.map((p) => (
+            <label key={p} className="segmented-item">
+              <input
+                type="radio"
+                name="programa-part"
+                value={p}
+                checked={part === p}
+                onChange={() => setChoice(p)}
+              />
+              <span>{PART_LABEL[p]}</span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="text-secondary text-ink-soft">
+          Editás la reunión de {PART_LABEL[part].toLowerCase()}.
+        </p>
+      )}
+
+      {part === 'midweek' ? <MidweekPrograma /> : <EditarPrograma part="weekend" />}
+    </div>
+  );
+}
+
+function MidweekPrograma() {
+  const [tab, setTab] = useState<ImportTab>('pdf');
+  return (
+    <div className="flex flex-col gap-4">
       <div
         className="segmented"
         role="radiogroup"
-        aria-label="Secciones del programa"
+        aria-label="Entre semana"
         style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
       >
-        {PROGRAMA_TABS.map((t) => (
+        {IMPORT_TABS.map((t) => (
           <label key={t.value} className="segmented-item">
             <input
               type="radio"
@@ -76,15 +134,18 @@ export function GestionPrograma() {
         ))}
       </div>
 
-      {tab === 'pdf' ? <CargarPdf /> : <EditarPrograma />}
+      {tab === 'pdf' ? <CargarPdf kind="midweek" /> : <EditarPrograma part="midweek" />}
     </div>
   );
 }
 
-function CargarPdf() {
+function CargarPdf({ kind }: { kind: ProgramaPart }) {
   const online = useOnline();
   const list = useProgramWeekList();
-  const published = useMemo(() => list.data ?? [], [list.data]);
+  const published = useMemo(
+    () => (list.data ?? []).filter((row) => row.kind === kind),
+    [list.data, kind],
+  );
 
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [files, setFiles] = useState<StagedFile[]>([]);
@@ -98,9 +159,10 @@ function CargarPdf() {
   const create = useDataMutation(mutations.createProgramWeek);
   const update = useDataMutation(mutations.updateProgramWeek);
 
+  // A PDF may carry both meetings; this tab only publishes its own.
   const preview = useMemo(
-    () => (files.length ? buildPreview(files, year, published) : null),
-    [files, year, published],
+    () => (files.length ? restrictPreview(buildPreview(files, year, published), kind) : null),
+    [files, year, published, kind],
   );
   const selected = useMemo(() => {
     if (!preview) return new Set<string>();
@@ -191,6 +253,7 @@ function CargarPdf() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-8">
         <UploadForm
+          kind={kind}
           year={year}
           onYear={setYear}
           onPick={onPick}
@@ -270,12 +333,14 @@ function publishError(err: unknown): string {
 }
 
 function UploadForm({
+  kind,
   year,
   onYear,
   onPick,
   reading,
   hasFiles,
 }: {
+  kind: ProgramaPart;
   year: number;
   onYear: (y: number) => void;
   onPick: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -287,7 +352,7 @@ function UploadForm({
   return (
     <section aria-labelledby={`${fileId}-h`} className="flex flex-col gap-4">
       <h2 id={`${fileId}-h`} className="text-heading font-bold">
-        Subir programa del mes
+        Subir programa de {KIND_LABEL[kind].toLowerCase()}
       </h2>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
         <label htmlFor={yearId} className="flex flex-col gap-1">
@@ -325,8 +390,8 @@ function UploadForm({
         </label>
       </div>
       <p className="text-secondary text-ink-soft">
-        Entre semana, fin de semana o los dos juntos. Cada reunión se guarda por fecha: subir un mes
-        no borra el anterior.
+        Subí el PDF de la reunión de {KIND_LABEL[kind].toLowerCase()}. Cada reunión se guarda por
+        fecha: subir un mes no borra el anterior.
       </p>
     </section>
   );

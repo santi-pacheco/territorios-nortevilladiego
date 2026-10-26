@@ -193,20 +193,23 @@ function AccountItem({
 
 /**
  * Admin grants for members: the stored flags from list_accounts (an editor or admin can edit
- * both anyway, which the note says). Each switch sends only its own flag (null = unchanged).
+ * everything anyway, which the note says). The program is split per meeting, so each part has
+ * its own switch. Each switch sends only its own flag (null = unchanged).
  */
 function PermissionSwitches({ account }: { account: AccountRow }) {
   const setPermissions = useSetAccountPermissions();
   const pending = setPermissions.isPending ? setPermissions.variables : null;
-  const programa = pending?.programa ?? account.can_edit_programa;
+  const midweek = pending?.midweek ?? account.can_edit_programa_midweek;
+  const weekend = pending?.weekend ?? account.can_edit_programa_weekend;
   const privilegios = pending?.privilegios ?? account.can_edit_privilegios;
   const isStaff = account.role !== 'viewer';
 
-  function toggle(flag: 'programa' | 'privilegios', value: boolean) {
+  function toggle(flag: 'midweek' | 'weekend' | 'privilegios', value: boolean) {
     if (setPermissions.isPending) return;
     setPermissions.mutate({
       userId: account.user_id,
-      programa: flag === 'programa' ? value : null,
+      midweek: flag === 'midweek' ? value : null,
+      weekend: flag === 'weekend' ? value : null,
       privilegios: flag === 'privilegios' ? value : null,
     });
   }
@@ -215,23 +218,29 @@ function PermissionSwitches({ account }: { account: AccountRow }) {
     <div className="usr-perms">
       <div className="usr-switches" role="group" aria-label={`Permisos de ${account.display_name ?? account.email ?? 'esta cuenta'}`}>
         <PermissionSwitch
-          label="Puede editar programa"
-          checked={programa}
+          label="Editar entre semana"
+          checked={midweek}
           busy={setPermissions.isPending}
-          onChange={(v) => toggle('programa', v)}
+          onChange={(v) => toggle('midweek', v)}
         />
         <PermissionSwitch
-          label="Puede editar privilegios"
+          label="Editar fin de semana"
+          checked={weekend}
+          busy={setPermissions.isPending}
+          onChange={(v) => toggle('weekend', v)}
+        />
+        <PermissionSwitch
+          label="Editar privilegios"
           checked={privilegios}
           busy={setPermissions.isPending}
           onChange={(v) => toggle('privilegios', v)}
         />
       </div>
-      {isStaff && (
-        <p className="text-secondary text-ink-soft">
-          Como {ROLE_LABEL[account.role].toLowerCase()} ya puede editar los dos.
-        </p>
-      )}
+      <p className="text-secondary text-ink-soft">
+        {isStaff
+          ? `Como ${ROLE_LABEL[account.role].toLowerCase()} ya puede editar todo.`
+          : 'Habilitá solo la reunión que esta persona va a completar.'}
+      </p>
       {setPermissions.isError && (
         <p role="alert" className="text-secondary text-danger">
           {errorCode(setPermissions.error) === '42501'
