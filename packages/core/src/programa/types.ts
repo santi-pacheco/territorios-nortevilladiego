@@ -35,7 +35,10 @@ export interface WeekendMeeting {
   date: string; // sábado ISO
   asamblea: string | null;
   presidente: string | null;
+  /** Canción inicial (antes del presidente); texto libre: número + título. */
   cancionInicio: string | null;
+  /** Canción antes de La Atalaya (antes del conductor/lector). */
+  cancionIntermedia: string | null;
   conductor: string | null;
   lector: string | null;
   cancionFin: string | null;

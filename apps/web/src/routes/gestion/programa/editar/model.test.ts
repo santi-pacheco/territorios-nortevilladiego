@@ -79,6 +79,7 @@ describe('editar · plantillas vacías', () => {
       asamblea: null,
       presidente: NO_PERSON,
       cancionInicio: null,
+      cancionIntermedia: null,
       conductor: NO_PERSON,
       lector: NO_PERSON,
       cancionFin: null,
@@ -149,6 +150,7 @@ describe('editar · limpieza antes de guardar', () => {
       asamblea: null,
       presidente: 'Persona 1',
       cancionInicio: null,
+      cancionIntermedia: null,
       conductor: null,
       lector: null,
       cancionFin: null,
@@ -197,7 +199,8 @@ describe('editar · limpieza antes de guardar', () => {
       date: '2026-10-10',
       asamblea: null,
       presidente: 'Persona 1',
-      cancionInicio: '134',
+      cancionInicio: '134 · Título',
+      cancionIntermedia: '12',
       conductor: 'Persona 2',
       lector: 'Persona 3',
       cancionFin: '45',
@@ -205,7 +208,8 @@ describe('editar · limpieza antes de guardar', () => {
       discurso: { tipo: 'ESPECIAL', titulo: 'Título', orador: 'Persona 5', congregacion: 'Otra', saliente: 'Persona 6' },
     };
     const parsed = sanitizeWeekend(stored, '2026-10-10');
-    expect(parsed.cancionInicio).toBe('134');
+    expect(parsed.cancionInicio).toBe('134 · Título');
+    expect(parsed.cancionIntermedia).toBe('12');
     expect(parsed.cancionFin).toBe('45');
     expect(parsed.discurso?.saliente).toBe('Persona 6');
     expect(cleanWeekend(parsed, '2026-10-10')).toEqual(stored);

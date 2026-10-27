@@ -587,11 +587,12 @@ function MidweekDetail({ week }: { week: MidweekWeek }) {
 
 function WeekendDetail({ meeting: m }: { meeting: WeekendMeeting }) {
   const rows: Array<[string, string | null]> = [
+    ['Canción inicial', m.cancionInicio],
     ['Presidente', m.presidente],
-    ['Canción de inicio', m.cancionInicio],
     ['Discurso', m.discurso ? `${m.discurso.titulo}${m.discurso.tipo ? ` (${m.discurso.tipo.toLowerCase()})` : ''}` : null],
     ['Orador', m.discurso?.orador ? [m.discurso.orador, m.discurso.congregacion].filter(Boolean).join(' · ') : null],
     ['Sale a dar discurso', m.discurso?.saliente ?? null],
+    ['Canción', m.cancionIntermedia],
     ['Conductor de La Atalaya', m.conductor],
     ['Lector', m.lector],
     ['Canción final', m.cancionFin],

@@ -101,6 +101,7 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeet
     asamblea: one('asamblea'),
     presidente: who('presidente'),
     cancionInicio: one('cancionInicio'),
+    cancionIntermedia: one('cancionIntermedia'),
     conductor: who('conductor'),
     lector: who('lector'),
     cancionFin: one('cancionFin'),
@@ -116,6 +117,7 @@ export function weekendHasContent(m: WeekendMeeting): boolean {
       m.conductor ||
       m.lector ||
       m.cancionInicio ||
+      m.cancionIntermedia ||
       m.cancionFin ||
       m.oracionFinal ||
       m.discurso,

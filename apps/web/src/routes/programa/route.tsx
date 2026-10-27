@@ -255,8 +255,9 @@ function WeekendSection({
 
   const rows: Array<{ label: string; value: string; mono?: boolean }> = [];
   if (meeting) {
-    if (meeting.presidente) rows.push({ label: 'Presidente', value: meeting.presidente });
     if (meeting.cancionInicio) rows.push({ label: 'Canción inicial', value: meeting.cancionInicio, mono: true });
+    if (meeting.presidente) rows.push({ label: 'Presidente', value: meeting.presidente });
+    if (meeting.cancionIntermedia) rows.push({ label: 'Canción', value: meeting.cancionIntermedia, mono: true });
     if (meeting.conductor) rows.push({ label: 'Conductor', value: meeting.conductor });
     if (meeting.lector) rows.push({ label: 'Lector', value: meeting.lector });
     if (meeting.cancionFin) rows.push({ label: 'Canción final', value: meeting.cancionFin, mono: true });

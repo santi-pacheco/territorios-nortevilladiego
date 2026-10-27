@@ -1,10 +1,10 @@
 /**
  * One weekend meeting as a controlled form: the fields the printed programme carries
- * (presidente, discurso, conductor, lector, oración final, asamblea). The discourse is
+ * (canciones, presidente, discurso, conductor, lector, oración final, asamblea). The discourse is
  * optional — the toggle adds a `WeekendDiscourse`, matching the core type `discurso: ... | null`.
  *
- * Fields the editor does not show (canciones, `discurso.saliente`) stay in the value and are
- * round-tripped untouched on save. Every person is a PersonPicker (linked to the directory);
+ * `discurso.saliente`, which the editor does not show, stays in the value and is round-tripped
+ * untouched on save. The three songs are free text (number + title). Every person is a PersonPicker (linked to the directory);
  * only the orador accepts free text, for visiting speakers.
  */
 import { useId } from 'react';
@@ -16,11 +16,17 @@ function newDiscourse(): DiscourseDraft {
   return { tipo: 'PÚBLICO', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null };
 }
 
-const PERSON_FIELDS: { key: WeekendPersonField; label: string }[] = [
-  { key: 'presidente', label: 'Presidente' },
-  { key: 'conductor', label: 'Conductor de La Atalaya' },
-  { key: 'lector', label: 'Lector' },
-  { key: 'oracionFinal', label: 'Oración final' },
+type SongField = 'cancionInicio' | 'cancionIntermedia' | 'cancionFin';
+
+// Meeting order: canción inicial, presidente, canción, conductor, lector, canción final, oración.
+const FIELDS: ({ kind: 'person'; key: WeekendPersonField; label: string } | { kind: 'song'; key: SongField; label: string })[] = [
+  { kind: 'song', key: 'cancionInicio', label: 'Canción inicial' },
+  { kind: 'person', key: 'presidente', label: 'Presidente' },
+  { kind: 'song', key: 'cancionIntermedia', label: 'Canción (antes de La Atalaya)' },
+  { kind: 'person', key: 'conductor', label: 'Conductor de La Atalaya' },
+  { kind: 'person', key: 'lector', label: 'Lector' },
+  { kind: 'song', key: 'cancionFin', label: 'Canción final' },
+  { kind: 'person', key: 'oracionFinal', label: 'Oración final' },
 ];
 
 export function WeekendEditor({
@@ -45,14 +51,26 @@ export function WeekendEditor({
       </h4>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {PERSON_FIELDS.map(({ key, label }) => (
-          <PersonPicker
-            key={key}
-            label={label}
-            value={value[key]}
-            onChange={(v) => onChange({ ...value, [key]: v })}
-          />
-        ))}
+        {FIELDS.map((f) =>
+          f.kind === 'person' ? (
+            <PersonPicker
+              key={f.key}
+              label={f.label}
+              value={value[f.key]}
+              onChange={(v) => onChange({ ...value, [f.key]: v })}
+            />
+          ) : (
+            <label key={f.key} className="flex flex-col gap-1">
+              <span className="text-secondary text-ink-soft">{f.label}</span>
+              <input
+                className="field"
+                value={value[f.key] ?? ''}
+                placeholder="2 · Jehová es mi Pastor"
+                onChange={(e) => onChange({ ...value, [f.key]: e.currentTarget.value })}
+              />
+            </label>
+          ),
+        )}
       </div>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-line bg-canvas px-3 py-3">

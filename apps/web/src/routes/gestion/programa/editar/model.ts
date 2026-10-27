@@ -145,6 +145,7 @@ export function emptyWeekend(date: string): WeekendDraft {
     asamblea: null,
     presidente: NO_PERSON,
     cancionInicio: null,
+    cancionIntermedia: null,
     conductor: NO_PERSON,
     lector: NO_PERSON,
     cancionFin: null,
@@ -229,6 +230,7 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendDraf
     asamblea: one('asamblea'),
     presidente: toDraft(src.presidente),
     cancionInicio: one('cancionInicio'),
+    cancionIntermedia: one('cancionIntermedia'),
     conductor: toDraft(src.conductor),
     lector: toDraft(src.lector),
     cancionFin: one('cancionFin'),
@@ -263,6 +265,7 @@ export function hasWeekendContent(m: WeekendDraft): boolean {
       m.lector.name.trim() ||
       m.oracionFinal.name.trim() ||
       m.cancionInicio?.trim() ||
+      m.cancionIntermedia?.trim() ||
       m.cancionFin?.trim() ||
       discourseHasContent(m.discurso),
   );
@@ -318,6 +321,7 @@ export function cleanWeekend(m: WeekendDraft, date: string): WeekendMeetingData 
     asamblea: one(m.asamblea),
     presidente: storeDraft(m.presidente),
     cancionInicio: one(m.cancionInicio),
+    cancionIntermedia: one(m.cancionIntermedia),
     conductor: storeDraft(m.conductor),
     lector: storeDraft(m.lector),
     cancionFin: one(m.cancionFin),
