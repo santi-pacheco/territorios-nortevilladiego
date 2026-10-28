@@ -100,7 +100,12 @@ export function Component() {
   const sections = SECTIONS.filter((s) => allowed.includes(s.key));
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-5">
+    <main
+      className={`mx-auto flex w-full flex-1 flex-col gap-4 px-4 py-5 ${
+        // The carrito schedule is a wide table: let it use the screen.
+        section === 'carrito' ? 'max-w-[96rem]' : 'max-w-5xl'
+      }`}
+    >
       <header className="flex items-start justify-between gap-2">
         <h1 className="text-display font-bold">Gestión</h1>
         <div className="lg:hidden">

@@ -1,5 +1,5 @@
 /**
- * Generar sub-tab: run the scheduler in a worker, review and tweak the preview grid, then
+ * Generar sub-tab: run the scheduler in a worker, review and tweak the preview table, then
  * publish it as `cart_schedules` + `cart_assignments`.
  *
  * The editor opens on the published schedule and always shows the whole period (every week,
@@ -8,7 +8,7 @@
  * target), replace / remove / add through the picker, and watch each person's turn count.
  */
 import { lazy, Suspense, useEffect, useId, useMemo, useState } from 'react';
-import { AlertTriangle, Share2, Upload, X } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Share2, Upload, X } from 'lucide-react';
 import type { ScheduleEntry } from '@territorios/core';
 import {
   mutations,
@@ -41,7 +41,13 @@ import {
   type PersonRef,
 } from './edit';
 import { ParticipationPanel } from './ParticipationPanel';
-import { applyNotes, buildScheduleInsert, collectNotes, planPublish, setEntryNote } from './publish';
+import {
+  applyNotes,
+  buildScheduleInsert,
+  collectNotes,
+  planPublish,
+  setEntryNote,
+} from './publish';
 import { ScheduleGrid, SelectionBar, type GridSlot } from './ScheduleGrid';
 import { runScheduler } from './scheduler';
 import { ConflictBar, EmptyState, Field, Sheet, errorMessage, useWriteState } from './ui';
@@ -72,6 +78,15 @@ function currentMonthRange(): { start: string; end: string } {
   return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, '0')}` };
 }
 
+/** "Mes de octubre", or "Octubre – noviembre" when the period crosses months. */
+function monthTitle(startDate: string, endDate: string): string {
+  const from = MONTHS[Number(startDate.slice(5, 7)) - 1] ?? '';
+  const to = MONTHS[Number(endDate.slice(5, 7)) - 1] ?? '';
+  if (!from) return 'Cronograma';
+  if (!to || to === from) return `Mes de ${from}`;
+  return `${from.charAt(0).toUpperCase()}${from.slice(1)} – ${to}`;
+}
+
 function defaultName(): string {
   const now = new Date();
   return `Carrito de ${MONTHS[now.getMonth()] ?? ''} de ${now.getFullYear()}`;
@@ -86,13 +101,7 @@ interface PickerTarget {
   index: number;
 }
 
-export function GenerarTab({
-  roster,
-  board,
-}: {
-  roster: PeopleRoster;
-  board: CartBoard;
-}) {
+export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: CartBoard }) {
   const range = useMemo(() => currentMonthRange(), []);
   const [name, setName] = useState(board.schedule?.name ?? defaultName());
   const [startDate, setStartDate] = useState(board.schedule?.start_date ?? range.start);
@@ -153,18 +162,14 @@ export function GenerarTab({
     () => new Set(board.blackouts.map((b) => `${b.date}|${b.slot_id}`)),
     [board.blackouts],
   );
-  const stats = useMemo(
-    () => participation(entries ?? [], people),
-    [entries, people],
-  );
+  const stats = useMemo(() => participation(entries ?? [], people), [entries, people]);
 
   const entryByKey = useMemo(() => {
     const map = new Map<string, ScheduleEntry>();
     for (const e of entries ?? []) map.set(entryKey(e.weekDate, e.slotId), e);
     return map;
   }, [entries]);
-  const getEntry = (weekDate: string, slotId: string) =>
-    entryByKey.get(entryKey(weekDate, slotId));
+  const getEntry = (weekDate: string, slotId: string) => entryByKey.get(entryKey(weekDate, slotId));
 
   // Only weeks inside the period publish: shrinking the range drops the cells left outside.
   const publishable = useMemo(() => {
@@ -258,7 +263,8 @@ export function GenerarTab({
 
   const onMove = (from: PersonRef, to: CellRef) =>
     applyMove((current) => movePerson(current, from, to, weekLabelByDate));
-  const onSwap = (from: PersonRef, to: PersonRef) => applyMove((current) => swapPeople(current, from, to));
+  const onSwap = (from: PersonRef, to: PersonRef) =>
+    applyMove((current) => swapPeople(current, from, to));
 
   /**
    * Publish the preview. Replacing updates the loaded schedule in place (only the cells that
@@ -343,6 +349,9 @@ export function GenerarTab({
     }
   }
 
+  const pickerPersonId = picker
+    ? getEntry(picker.weekDate, picker.slotId)?.personIds[picker.index]
+    : undefined;
   const pickerSlot = picker ? board.slots.find((s) => s.id === picker.slotId) : undefined;
 
   return (
@@ -420,11 +429,8 @@ export function GenerarTab({
           body="Creá turnos en la pestaña Turnos para poder armar el cronograma."
         />
       ) : (
-        <section aria-labelledby="carrito-preview-h" className="flex flex-col gap-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="carrito-preview-h" className="text-title font-bold">
-              Cronograma
-            </h2>
+        <section aria-label="Cronograma" className="flex flex-col gap-5">
+          <div className="flex justify-end">
             <button
               type="button"
               className="btn-secondary inline-flex items-center gap-2"
@@ -449,28 +455,34 @@ export function GenerarTab({
             </p>
           )}
 
-          <ScheduleGrid
-            weeks={weeks}
-            slots={gridSlots}
-            startDate={startDate}
-            endDate={endDate}
-            blackouts={blackoutKeys}
-            getEntry={getEntry}
-            personName={personName}
-            selection={selection}
-            highlight={highlight}
-            onSelect={setSelection}
-            onMove={onMove}
-            onSwap={onSwap}
-            onPick={(cell, index) => setPicker({ ...cell, index })}
-            onNote={setNote}
-          />
+          <div className="flex flex-col gap-5 min-[1700px]:grid min-[1700px]:grid-cols-[minmax(0,1fr)_15rem] min-[1700px]:items-start">
+            <ScheduleGrid
+              title={monthTitle(startDate, endDate)}
+              weeks={weeks}
+              slots={gridSlots}
+              startDate={startDate}
+              endDate={endDate}
+              blackouts={blackoutKeys}
+              getEntry={getEntry}
+              personName={personName}
+              selection={selection}
+              highlight={highlight}
+              onSelect={setSelection}
+              onMove={onMove}
+              onSwap={onSwap}
+              onPick={(cell, index) => setPicker({ ...cell, index })}
+              onRemove={(cell, index) => setPersonAt(cell, index, null)}
+              onNote={setNote}
+            />
+            <ParticipationPanel data={stats} highlight={highlight} onHighlight={setHighlight} />
+          </div>
 
           {selection && (
-            <SelectionBar name={personName(selection.personId)} onCancel={() => setSelection(null)} />
+            <SelectionBar
+              name={personName(selection.personId)}
+              onCancel={() => setSelection(null)}
+            />
           )}
-
-          <ParticipationPanel data={stats} highlight={highlight} onHighlight={setHighlight} />
 
           {board.schedule && (
             <fieldset className="flex flex-col gap-1">
@@ -533,7 +545,9 @@ export function GenerarTab({
       {outcome && (
         <div role="status" className="flex flex-col gap-1">
           {outcome.ok === 0 && outcome.failed.length === 0 && (
-            <p className="text-body font-semibold text-ok">Ya estaba publicado así; no hubo cambios.</p>
+            <p className="text-body font-semibold text-ok">
+              Ya estaba publicado así; no hubo cambios.
+            </p>
           )}
           {outcome.ok > 0 && (
             <p className="text-body font-semibold text-ok">
@@ -553,6 +567,18 @@ export function GenerarTab({
           people={people}
           slotId={picker.slotId}
           canRemove={picker.index >= 0}
+          onMove={
+            picker.index >= 0 && pickerPersonId
+              ? () => {
+                  setSelection({
+                    weekDate: picker.weekDate,
+                    slotId: picker.slotId,
+                    personId: pickerPersonId,
+                  });
+                  setPicker(null);
+                }
+              : undefined
+          }
           onChoose={(personId) => setPersonAt(picker, picker.index, personId)}
           onClose={() => setPicker(null)}
         />
@@ -597,10 +623,7 @@ function publishedEntries(board: CartBoard): ScheduleEntry[] | null {
       w.weekLabel,
     ]),
   );
-  return entriesFromAssignments(
-    board.assignments,
-    (date) => labels.get(mondayOfIso(date)) ?? date,
-  );
+  return entriesFromAssignments(board.assignments, (date) => labels.get(mondayOfIso(date)) ?? date);
 }
 
 function cellLabel(
@@ -620,12 +643,15 @@ function PersonPicker({
   people,
   slotId,
   canRemove,
+  onMove,
   onChoose,
   onClose,
 }: {
   people: RosterPerson[];
   slotId: string;
   canRemove: boolean;
+  /** Present when editing an existing person: pick it up to move it to another turn. */
+  onMove?: (() => void) | undefined;
   onChoose: (personId: string | null) => void;
   onClose: () => void;
 }) {
@@ -685,6 +711,16 @@ function PersonPicker({
           >
             <X aria-hidden size={20} className="mr-1 inline" />
             Quitar
+          </button>
+        )}
+        {onMove && (
+          <button
+            type="button"
+            className="btn-secondary inline-flex items-center gap-1"
+            onClick={onMove}
+          >
+            <ArrowRightLeft aria-hidden size={20} />
+            Mover a otro turno
           </button>
         )}
         <button type="button" className="btn-secondary" onClick={onClose}>

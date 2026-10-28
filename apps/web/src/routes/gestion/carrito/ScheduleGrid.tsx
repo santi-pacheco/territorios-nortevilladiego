@@ -1,12 +1,13 @@
 /**
- * The whole schedule at once: every week of the period, every turn of every day.
+ * The whole period as ONE continuous table: a row per week, a column per turn (schedule order).
  *
- * People move three ways: drag a name onto another turn (desktop; dropping on a name swaps),
- * tap a name and then tap the target turn / name (touch and keyboard), or use the pencil next
- * to a name to replace or remove it through the picker.
+ * People are edited in place: tap a name to change it (picker), the small x removes it, an
+ * "Agregar" line fills a free place and the note is a plain text field. People move by drag and
+ * drop on desktop (dropping on a name swaps), or by "Mover" in the picker and then a tap on the
+ * target cell (or on a name, to swap) on touch and keyboard.
  */
-import { useId, useRef, useState, type CSSProperties, type DragEvent } from 'react';
-import { ArrowRightLeft, Pencil, Plus, X } from 'lucide-react';
+import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { ArrowRightLeft, Plus, X } from 'lucide-react';
 import type { ScheduleEntry } from '@territorios/core';
 import type { CartSlotRow } from '@territorios/data';
 import { addDaysIso, dayName, mondayOfIso, timeRange, type WeekRef } from './model';
@@ -17,7 +18,12 @@ export interface GridSlot {
   place: string;
 }
 
+const CANCELLED_LABEL = 'Sin carrito';
+
+type CellState = { kind: 'outside' } | { kind: 'cancelled' } | { kind: 'open' };
+
 export function ScheduleGrid({
+  title,
   weeks,
   slots,
   startDate,
@@ -31,8 +37,10 @@ export function ScheduleGrid({
   onMove,
   onSwap,
   onPick,
+  onRemove,
   onNote,
 }: {
+  title: string;
   weeks: readonly WeekRef[];
   slots: readonly GridSlot[];
   startDate: string;
@@ -46,7 +54,9 @@ export function ScheduleGrid({
   onSelect: (ref: PersonRef | null) => void;
   onMove: (from: PersonRef, to: CellRef) => void;
   onSwap: (from: PersonRef, to: PersonRef) => void;
+  /** `index` -1 = add a person to the turn. */
   onPick: (cell: CellRef, index: number) => void;
+  onRemove: (cell: CellRef, index: number) => void;
   onNote: (cell: CellRef, note: string) => void;
 }) {
   // The dragged person lives in a ref: dataTransfer is unreadable while dragging over a target.
@@ -74,42 +84,96 @@ export function ScheduleGrid({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {weeks.map((week) => (
-        <section
-          key={week.weekDate}
-          aria-label={`Semana del ${week.weekLabel}`}
-          className="flex flex-col gap-2"
-        >
-          <h3 className="text-heading font-bold">Semana del {week.weekLabel}</h3>
-          <div className="overflow-x-auto pb-1">
-            <div
-              className="grid gap-2 sm:grid-cols-2 lg:[grid-template-columns:repeat(var(--cols),minmax(11rem,1fr))]"
-              style={{ '--cols': slots.length } as CSSProperties}
-            >
-              {slots.map(({ slot, place }) => {
-                const cell: CellRef = { weekDate: week.weekDate, slotId: slot.id };
+    <section aria-label={title} className="flex min-w-0 flex-col gap-3">
+      <h3 className="text-title font-bold">{title}</h3>
+      {/* Both axes scroll inside the frame so the header row and the Semana column stay put. */}
+      <div className="max-h-[calc(100dvh-6rem)] overflow-auto rounded-md border border-line bg-surface">
+        <table className="w-full min-w-max border-separate border-spacing-0 text-left lg:min-w-0">
+          <thead>
+            <tr>
+              <th scope="col" className={`${HEAD} left-0 z-30 w-24 min-w-24`}>
+                <span className="text-body-strong font-semibold text-ink-soft">Semana</span>
+              </th>
+              {slots.map(({ slot, place }) => (
+                <th key={slot.id} scope="col" className={`${HEAD} z-20 min-w-36`}>
+                  <span className="block text-body-strong font-bold">{dayName(slot.iso_dow)}</span>
+                  <span className="block font-mono text-secondary font-semibold">
+                    {timeRange(slot.start_time, slot.end_time)}
+                  </span>
+                  <span className="block break-words text-secondary font-normal text-ink-soft">
+                    {place}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {weeks.map((week) => {
+              const monday = mondayOfIso(week.weekDate);
+              const cells = slots.map(({ slot }): { slot: GridSlot['slot']; state: CellState } => {
                 const entry = getEntry(week.weekDate, slot.id);
                 // The scheduler anchors a clipped first week on the range start, not its Monday.
-                const date = addDaysIso(mondayOfIso(week.weekDate), slot.iso_dow - 1);
-                const outside = date < startDate || date > endDate;
-                if (outside && !entry) return null;
+                const date = addDaysIso(monday, slot.iso_dow - 1);
+                if ((date < startDate || date > endDate) && !entry) {
+                  return { slot, state: { kind: 'outside' } };
+                }
+                const cancelled = blackouts.has(`${date}|${slot.id}`);
+                return { slot, state: cancelled ? { kind: 'cancelled' } : { kind: 'open' } };
+              });
+
+              const row: ReactNode[] = [];
+              for (let i = 0; i < cells.length; i++) {
+                const current = cells[i];
+                if (!current) continue;
+                const { slot, state } = current;
+                const cell: CellRef = { weekDate: week.weekDate, slotId: slot.id };
+                const entry = getEntry(week.weekDate, slot.id);
+                const empty = !entry || (entry.personIds.length === 0 && !entry.note);
+
+                if (state.kind === 'outside') {
+                  row.push(<td key={slot.id} className={`${BODY} bg-canvas`} aria-hidden />);
+                  continue;
+                }
+                if (state.kind === 'cancelled' && empty) {
+                  // Merge the run of cancelled, empty turns into one banner, as on the printed card.
+                  let span = 1;
+                  while (true) {
+                    const next = cells[i + span];
+                    if (!next || next.state.kind !== 'cancelled') break;
+                    const e = getEntry(week.weekDate, next.slot.id);
+                    if (e && (e.personIds.length > 0 || e.note)) break;
+                    span++;
+                  }
+                  row.push(
+                    <td
+                      key={slot.id}
+                      colSpan={span}
+                      className={`${BODY} bg-canvas text-center align-middle`}
+                    >
+                      <span className="inline-block rounded-sm border border-line-strong bg-surface px-4 py-2 text-heading font-bold">
+                        {CANCELLED_LABEL}
+                      </span>
+                    </td>,
+                  );
+                  i += span - 1;
+                  continue;
+                }
                 const key = `${week.weekDate}|${slot.id}`;
-                return (
+                row.push(
                   <Cell
                     key={slot.id}
                     cell={cell}
-                    title={`${dayName(slot.iso_dow)} ${Number(date.slice(8))}`}
-                    subtitle={`${timeRange(slot.start_time, slot.end_time)}, ${place}`}
+                    label={`${week.weekLabel}, ${dayName(slot.iso_dow)} ${timeRange(slot.start_time, slot.end_time)}`}
                     max={slot.group_size}
                     entry={entry}
-                    cancelled={blackouts.has(`${date}|${slot.id}`)}
+                    cancelled={state.kind === 'cancelled'}
                     personName={personName}
                     selection={selection}
                     highlight={highlight}
                     dropActive={overKey === key}
                     onSelect={onSelect}
                     onPick={onPick}
+                    onRemove={onRemove}
                     onNote={onNote}
                     onDragStartPerson={startDrag}
                     onDragEnd={endDrag}
@@ -127,21 +191,36 @@ export function ScheduleGrid({
                     }}
                     onTapCell={() => selection && onMove(selection, cell)}
                     onTapPerson={(to) => selection && onSwap(selection, to)}
-                  />
+                  />,
                 );
-              })}
-            </div>
-          </div>
-        </section>
-      ))}
-    </div>
+              }
+
+              return (
+                <tr key={week.weekDate}>
+                  <th
+                    scope="row"
+                    className={`${BODY} sticky left-0 z-10 w-24 min-w-24 bg-surface align-middle text-body-strong font-semibold`}
+                  >
+                    {week.weekLabel}
+                  </th>
+                  {row}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
+const HEAD =
+  'sticky top-0 border-b border-r border-line bg-canvas px-2 py-3 align-top lg:px-3 last:border-r-0';
+const BODY = 'border-b border-r border-line px-2 py-2 lg:px-3 align-top last:border-r-0';
+
 function Cell({
   cell,
-  title,
-  subtitle,
+  label,
   max,
   entry,
   cancelled,
@@ -151,6 +230,7 @@ function Cell({
   dropActive,
   onSelect,
   onPick,
+  onRemove,
   onNote,
   onDragStartPerson,
   onDragEnd,
@@ -162,8 +242,7 @@ function Cell({
   onTapPerson,
 }: {
   cell: CellRef;
-  title: string;
-  subtitle: string;
+  label: string;
   max: number;
   entry: ScheduleEntry | undefined;
   cancelled: boolean;
@@ -173,6 +252,7 @@ function Cell({
   dropActive: boolean;
   onSelect: (ref: PersonRef | null) => void;
   onPick: (cell: CellRef, index: number) => void;
+  onRemove: (cell: CellRef, index: number) => void;
   onNote: (cell: CellRef, note: string) => void;
   onDragStartPerson: (event: DragEvent, ref: PersonRef) => void;
   onDragEnd: () => void;
@@ -185,14 +265,14 @@ function Cell({
 }) {
   const noteId = useId();
   const persons = entry?.personIds ?? [];
-  const full = persons.length >= max;
+  const free = Math.max(0, max - persons.length);
   const dimmed = highlight !== null && !persons.includes(highlight);
   const canReceive = selection !== null && !persons.includes(selection.personId);
 
   return (
-    <div
-      className={`flex min-w-0 flex-col gap-1 rounded-sm border bg-surface p-3 transition-opacity ${
-        dropActive ? 'border-focus-ring bg-canvas' : 'border-line'
+    <td
+      className={`${BODY} min-w-36 transition-opacity ${
+        dropActive ? 'bg-canvas outline outline-2 -outline-offset-2 outline-focus-ring' : ''
       } ${dimmed ? 'opacity-40' : ''}`}
       onDragOver={onDragOverCell}
       onDragLeave={onDragLeaveCell}
@@ -201,28 +281,18 @@ function Cell({
         onDropCell();
       }}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-body-strong font-semibold">{title}</p>
-        <p
-          className={`font-mono text-caption ${persons.length > max ? 'text-warn' : 'text-ink-soft'}`}
-          title="Personas / lugares del turno"
-        >
-          {persons.length}/{max}
-        </p>
-      </div>
-      <p className="break-words text-secondary text-ink-soft">{subtitle}</p>
-      {cancelled && <p className="text-secondary text-warn">Sin carrito ese día</p>}
+      <div className="flex flex-col">
+        {cancelled && <p className="text-secondary font-semibold text-warn">{CANCELLED_LABEL}</p>}
 
-      <ul className="flex flex-col">
         {persons.map((id, index) => {
           const ref: PersonRef = { ...cell, personId: id };
           const isSelected = selection?.personId === id && sameCellRef(selection, cell);
           return (
-            <li
+            <div
               key={id}
-              className={`flex items-center gap-1 rounded-sm ${
+              className={`group relative flex items-center rounded-sm ${
                 isSelected ? 'bg-canvas outline outline-2 outline-focus-ring' : ''
-              } ${highlight === id ? 'font-bold' : ''}`}
+              }`}
               onDragOver={(e) => {
                 e.stopPropagation();
                 onDragOverCell(e);
@@ -236,17 +306,18 @@ function Cell({
               <button
                 type="button"
                 draggable
-                aria-pressed={isSelected}
                 aria-label={
                   selection && !isSelected
                     ? `Intercambiar a ${personName(selection.personId)} con ${personName(id)}`
-                    : `${personName(id)}: ${isSelected ? 'quitar selección' : 'seleccionar para mover'}`
+                    : `${personName(id)}, ${label}: cambiar o mover`
                 }
-                className="flex min-h-touch min-w-0 flex-1 cursor-grab items-center gap-2 text-left text-body"
+                className={`flex min-h-touch min-w-0 flex-1 cursor-grab items-center gap-1 text-left text-body lg:min-h-9 ${
+                  highlight === id ? 'font-bold' : ''
+                }`}
                 onDragStart={(e) => onDragStartPerson(e, ref)}
                 onDragEnd={onDragEnd}
                 onClick={() => {
-                  if (!selection) onSelect(ref);
+                  if (!selection) onPick(cell, index);
                   else if (isSelected) onSelect(null);
                   else onTapPerson(ref);
                 }}
@@ -256,56 +327,58 @@ function Cell({
                 )}
                 <span className="min-w-0 break-words">{personName(id)}</span>
               </button>
-              <button
-                type="button"
-                className="icon-btn shrink-0"
-                aria-label={`Cambiar o quitar a ${personName(id)}`}
-                onClick={() => onPick(cell, index)}
-              >
-                <Pencil aria-hidden size={20} />
-              </button>
-            </li>
+              {!selection && (
+                <button
+                  type="button"
+                  className="grid h-11 w-7 shrink-0 place-items-center rounded-sm text-ink-soft hover:bg-canvas hover:text-ink lg:absolute lg:right-0 lg:h-9 lg:bg-surface lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+                  aria-label={`Quitar a ${personName(id)}`}
+                  onClick={() => onRemove(cell, index)}
+                >
+                  <X aria-hidden size={16} />
+                </button>
+              )}
+            </div>
           );
         })}
-        {persons.length === 0 && (
-          <li className="flex min-h-touch items-center text-secondary text-ink-soft">
-            Sin asignar
-          </li>
+
+        {selection === null &&
+          Array.from({ length: free }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              className="flex min-h-touch w-full items-center gap-1 text-left text-secondary text-ink-soft hover:text-ink lg:min-h-9"
+              aria-label={`Agregar persona, ${label}`}
+              onClick={() => onPick(cell, -1)}
+            >
+              <Plus aria-hidden size={16} className="shrink-0" />
+              Agregar
+            </button>
+          ))}
+
+        {canReceive && (
+          <button
+            type="button"
+            className="my-1 flex min-h-touch w-full items-center justify-center gap-1 rounded-sm border border-dashed border-line-strong text-secondary font-semibold lg:min-h-9"
+            onClick={onTapCell}
+          >
+            <ArrowRightLeft aria-hidden size={16} />
+            Mover acá
+          </button>
         )}
-      </ul>
 
-      {canReceive && (
-        <button
-          type="button"
-          className="btn-primary inline-flex items-center justify-center gap-2"
-          onClick={onTapCell}
-        >
-          <ArrowRightLeft aria-hidden size={20} />
-          Mover acá
-        </button>
-      )}
-
-      {!selection && (!full || persons.length === 0) && (
-        <button
-          type="button"
-          className="inline-flex min-h-touch w-fit items-center gap-1 text-secondary font-semibold text-ink-soft hover:text-ink"
-          onClick={() => onPick(cell, -1)}
-        >
-          <Plus aria-hidden size={16} />
-          Agregar
-        </button>
-      )}
-      <label htmlFor={noteId} className="sr-only">
-        Nota del turno
-      </label>
-      <input
-        id={noteId}
-        className="field text-secondary"
-        value={entry?.note ?? ''}
-        placeholder="Nota…"
-        onChange={(e) => onNote(cell, e.target.value)}
-      />
-    </div>
+        <label htmlFor={noteId} className="sr-only">
+          Nota, {label}
+        </label>
+        <input
+          id={noteId}
+          className="min-h-touch w-full bg-transparent text-secondary italic text-ink-soft placeholder:text-ink-soft focus:not-italic focus:text-ink lg:min-h-9"
+          value={entry?.note ?? ''}
+          placeholder="nota…"
+          autoComplete="off"
+          onChange={(e) => onNote(cell, e.target.value)}
+        />
+      </div>
+    </td>
   );
 }
 
@@ -314,23 +387,21 @@ function sameCellRef(a: CellRef, b: CellRef): boolean {
 }
 
 /** Banner while a person is picked up: says who, and offers the way out. */
-export function SelectionBar({
-  name,
-  onCancel,
-}: {
-  name: string;
-  onCancel: () => void;
-}) {
+export function SelectionBar({ name, onCancel }: { name: string; onCancel: () => void }) {
   return (
     <div
       role="status"
-      className="sticky bottom-2 z-10 flex items-center justify-between gap-3 rounded-sm border border-line-strong bg-surface p-3 shadow-sm"
+      className="sticky bottom-2 z-40 flex items-center justify-between gap-3 rounded-sm border border-line-strong bg-surface p-3 shadow-sm"
     >
       <p className="min-w-0 break-words text-body">
         Moviendo a <strong>{name}</strong>. Tocá «Mover acá» en otro turno, o a otra persona para
         intercambiar.
       </p>
-      <button type="button" className="btn-secondary inline-flex shrink-0 items-center gap-1" onClick={onCancel}>
+      <button
+        type="button"
+        className="btn-secondary inline-flex shrink-0 items-center gap-1"
+        onClick={onCancel}
+      >
         <X aria-hidden size={20} />
         Cancelar
       </button>
