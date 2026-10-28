@@ -2,11 +2,13 @@
  * Generar sub-tab: run the scheduler in a worker, review and tweak the preview grid, then
  * publish it as `cart_schedules` + `cart_assignments`.
  *
- * Notes are preserved across regenerations (keyed by Monday of the week + slot id) and the
- * preview is editable by hand: click a name to swap it, "Agregar" to append, or type a note.
+ * The editor opens on the published schedule and always shows the whole period (every week,
+ * every turn). Notes are preserved across regenerations (keyed by Monday of the week + slot id)
+ * and the preview is editable by hand: move people between turns (drag, or tap then tap the
+ * target), replace / remove / add through the picker, and watch each person's turn count.
  */
-import { useId, useMemo, useState } from 'react';
-import { AlertTriangle, Plus, Upload, X } from 'lucide-react';
+import { lazy, Suspense, useEffect, useId, useMemo, useState } from 'react';
+import { AlertTriangle, Share2, Upload, X } from 'lucide-react';
 import type { ScheduleEntry } from '@territorios/core';
 import {
   mutations,
@@ -19,7 +21,7 @@ import {
   buildRoster,
   dayName,
   entryKey,
-  findEntry,
+  mondayOfIso,
   sortSlots,
   timeRange,
   toBlackouts,
@@ -28,9 +30,24 @@ import {
   weekRefsInRange,
   type RosterPerson,
 } from './model';
+import {
+  entriesFromAssignments,
+  movePerson,
+  participation,
+  prune,
+  setPersonAt as applyPersonAt,
+  swapPeople,
+  type CellRef,
+  type PersonRef,
+} from './edit';
+import { ParticipationPanel } from './ParticipationPanel';
 import { applyNotes, buildScheduleInsert, collectNotes, planPublish, setEntryNote } from './publish';
+import { ScheduleGrid, SelectionBar, type GridSlot } from './ScheduleGrid';
 import { runScheduler } from './scheduler';
 import { ConflictBar, EmptyState, Field, Sheet, errorMessage, useWriteState } from './ui';
+
+/** Card + PNG + share sheet: only fetched when someone taps "Compartir imagen". */
+const ShareSchedule = lazy(() => import('./ShareSchedule'));
 
 const MONTHS = [
   'enero',
@@ -80,12 +97,17 @@ export function GenerarTab({
   const [name, setName] = useState(board.schedule?.name ?? defaultName());
   const [startDate, setStartDate] = useState(board.schedule?.start_date ?? range.start);
   const [endDate, setEndDate] = useState(board.schedule?.end_date ?? range.end);
-  const [entries, setEntries] = useState<ScheduleEntry[] | null>(null);
+  const [entries, setEntries] = useState<ScheduleEntry[] | null>(() => publishedEntries(board));
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [outcome, setOutcome] = useState<{ ok: number; failed: string[] } | null>(null);
   const [picker, setPicker] = useState<PickerTarget | null>(null);
+  const [selection, setSelection] = useState<PersonRef | null>(null);
+  const [highlight, setHighlight] = useState<string | null>(null);
+  const [moveNotice, setMoveNotice] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
   const [target, setTarget] = useState<PublishTarget>(board.schedule ? 'replace' : 'new');
   const write = useWriteState();
   const targetName = useId();
@@ -101,7 +123,16 @@ export function GenerarTab({
     () => buildRoster(roster.people, roster.availability, roster.pairs),
     [roster],
   );
-  const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const personName = useMemo(() => {
+    const map = new Map(people.map((p) => [p.id, p.name]));
+    // Someone removed from the roster still has a name on the published row.
+    for (const a of board.assignments) {
+      a.person_ids.forEach((id, i) => {
+        if (!map.has(id)) map.set(id, a.person_names[i] ?? id);
+      });
+    }
+    return (id: string) => map.get(id) ?? id;
+  }, [people, board.assignments]);
   const placeName = useMemo(() => {
     const map = new Map(board.places.map((p) => [p.id, p.name]));
     return (id: string) => map.get(id) ?? id;
@@ -114,6 +145,19 @@ export function GenerarTab({
     return (date: string) => map.get(date) ?? date;
   }, [weeks]);
 
+  const gridSlots = useMemo<GridSlot[]>(
+    () => orderedSlots.map((slot) => ({ slot, place: placeName(slot.place_id) })),
+    [orderedSlots, placeName],
+  );
+  const blackoutKeys = useMemo(
+    () => new Set(board.blackouts.map((b) => `${b.date}|${b.slot_id}`)),
+    [board.blackouts],
+  );
+  const stats = useMemo(
+    () => participation(entries ?? [], people),
+    [entries, people],
+  );
+
   const entryByKey = useMemo(() => {
     const map = new Map<string, ScheduleEntry>();
     for (const e of entries ?? []) map.set(entryKey(e.weekDate, e.slotId), e);
@@ -122,10 +166,21 @@ export function GenerarTab({
   const getEntry = (weekDate: string, slotId: string) =>
     entryByKey.get(entryKey(weekDate, slotId));
 
-  const publishable = useMemo(
-    () => (entries ?? []).filter((e) => e.personIds.length > 0 || (e.note?.trim() ?? '') !== ''),
-    [entries],
-  );
+  // Only weeks inside the period publish: shrinking the range drops the cells left outside.
+  const publishable = useMemo(() => {
+    const inRange = new Set(weeks.map((w) => mondayOfIso(w.weekDate)));
+    return prune(entries ?? []).filter((e) => inRange.has(mondayOfIso(e.weekDate)));
+  }, [entries, weeks]);
+
+  // Escape drops a picked-up person.
+  useEffect(() => {
+    if (!selection) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelection(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selection]);
 
   async function generate() {
     if (!startDate || !endDate) {
@@ -145,6 +200,7 @@ export function GenerarTab({
       return;
     }
     setGenerating(true);
+    setSelection(null);
     write.setError(null);
     setOutcome(null);
     try {
@@ -177,31 +233,32 @@ export function GenerarTab({
     }
   }
 
-  function setPersonAt(weekDate: string, slotId: string, index: number, personId: string | null) {
-    setEntries((prev) => {
-      const list = (prev ?? []).map((e) => ({ ...e, personIds: [...e.personIds] }));
-      let target = findEntry(list, weekDate, slotId);
-      if (!target) {
-        target = { weekDate, weekLabel: weekLabelByDate(weekDate), slotId, personIds: [] };
-        list.push(target);
-      }
-      if (index >= 0 && index < target.personIds.length) {
-        if (personId === null) target.personIds.splice(index, 1);
-        else target.personIds[index] = personId;
-      } else if (personId !== null) {
-        target.personIds.push(personId);
-      }
-      target.personIds = target.personIds.filter((id, i, arr) => arr.indexOf(id) === i);
-      return prune(list);
-    });
+  function setPersonAt(cell: CellRef, index: number, personId: string | null) {
+    setEntries((prev) => applyPersonAt(prev ?? [], cell, index, personId, weekLabelByDate));
+    setSelection(null);
     setPicker(null);
   }
 
-  function setNote(weekDate: string, slotId: string, note: string) {
+  function setNote(cell: CellRef, note: string) {
     setEntries((prev) =>
-      prune(setEntryNote(prev ?? [], { weekDate, weekLabel: weekLabelByDate(weekDate), slotId }, note)),
+      prune(setEntryNote(prev ?? [], { ...cell, weekLabel: weekLabelByDate(cell.weekDate) }, note)),
     );
   }
+
+  function applyMove(compute: (current: ScheduleEntry[]) => ScheduleEntry[] | null) {
+    const next = compute(entries ?? []);
+    setSelection(null);
+    if (next === null) {
+      setMoveNotice('No se pudo mover: esa persona ya está en ese turno o el turno cambió.');
+      return;
+    }
+    setMoveNotice(null);
+    setEntries(next);
+  }
+
+  const onMove = (from: PersonRef, to: CellRef) =>
+    applyMove((current) => movePerson(current, from, to, weekLabelByDate));
+  const onSwap = (from: PersonRef, to: PersonRef) => applyMove((current) => swapPeople(current, from, to));
 
   /**
    * Publish the preview. Replacing updates the loaded schedule in place (only the cells that
@@ -364,30 +421,56 @@ export function GenerarTab({
         />
       ) : (
         <section aria-labelledby="carrito-preview-h" className="flex flex-col gap-5">
-          <h2 id="carrito-preview-h" className="text-title font-bold">
-            Vista previa
-          </h2>
-
-          <div className="flex flex-col gap-5">
-            {weeks.map((week) => (
-              <div key={week.weekDate} className="flex flex-col gap-2">
-                <h3 className="text-heading font-bold">Semana del {week.weekLabel}</h3>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {orderedSlots.map((slot) => (
-                    <Cell
-                      key={slot.id}
-                      label={`${dayName(slot.iso_dow)} ${timeRange(slot.start_time, slot.end_time)}, ${placeName(slot.place_id)}`}
-                      max={slot.group_size}
-                      entry={getEntry(week.weekDate, slot.id)}
-                      personById={personById}
-                      onPick={(index) => setPicker({ weekDate: week.weekDate, slotId: slot.id, index })}
-                      onNote={(note) => setNote(week.weekDate, slot.id, note)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="carrito-preview-h" className="text-title font-bold">
+              Cronograma
+            </h2>
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center gap-2"
+              disabled={sharing || publishable.length === 0}
+              onClick={() => {
+                setShareFailed(false);
+                setSharing(true);
+              }}
+            >
+              <Share2 aria-hidden size={20} />
+              {sharing ? 'Preparando imagen…' : 'Compartir imagen'}
+            </button>
           </div>
+          {shareFailed && (
+            <p role="alert" className="text-secondary text-danger">
+              No pudimos preparar la imagen. Probá de nuevo.
+            </p>
+          )}
+          {moveNotice && (
+            <p role="alert" className="text-secondary text-danger">
+              {moveNotice}
+            </p>
+          )}
+
+          <ScheduleGrid
+            weeks={weeks}
+            slots={gridSlots}
+            startDate={startDate}
+            endDate={endDate}
+            blackouts={blackoutKeys}
+            getEntry={getEntry}
+            personName={personName}
+            selection={selection}
+            highlight={highlight}
+            onSelect={setSelection}
+            onMove={onMove}
+            onSwap={onSwap}
+            onPick={(cell, index) => setPicker({ ...cell, index })}
+            onNote={setNote}
+          />
+
+          {selection && (
+            <SelectionBar name={personName(selection.personId)} onCancel={() => setSelection(null)} />
+          )}
+
+          <ParticipationPanel data={stats} highlight={highlight} onHighlight={setHighlight} />
 
           {board.schedule && (
             <fieldset className="flex flex-col gap-1">
@@ -434,12 +517,14 @@ export function GenerarTab({
               className="btn-secondary"
               disabled={publishing}
               onClick={() => {
-                setEntries(null);
+                setEntries(publishedEntries(board));
                 setWarnings([]);
                 setOutcome(null);
+                setSelection(null);
+                setMoveNotice(null);
               }}
             >
-              Descartar
+              Descartar cambios
             </button>
           </div>
         </section>
@@ -468,17 +553,54 @@ export function GenerarTab({
           people={people}
           slotId={picker.slotId}
           canRemove={picker.index >= 0}
-          onChoose={(personId) => setPersonAt(picker.weekDate, picker.slotId, picker.index, personId)}
+          onChoose={(personId) => setPersonAt(picker, picker.index, personId)}
           onClose={() => setPicker(null)}
         />
+      )}
+
+      {sharing && entries && (
+        <Suspense fallback={null}>
+          <ShareSchedule
+            source={{
+              places: board.places,
+              slots: board.slots,
+              blackouts: board.blackouts,
+              schedule: { start_date: startDate, end_date: endDate },
+              assignments: publishable.map((e) => ({
+                week_date: mondayOfIso(e.weekDate),
+                slot_id: e.slotId,
+                person_names: e.personIds.map(personName),
+                note: e.note?.trim() || null,
+              })),
+            }}
+            name={name.trim() || defaultName()}
+            startDate={startDate}
+            endDate={endDate}
+            onDone={(failed) => {
+              setSharing(false);
+              setShareFailed(failed);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );
 }
 
-/** Drop entries that carry neither people nor a note (they would publish nothing). */
-function prune(list: ScheduleEntry[]): ScheduleEntry[] {
-  return list.filter((e) => e.personIds.length > 0 || (e.note?.trim() ?? '') !== '');
+/** The published schedule as editable entries, or null when nothing is published yet. */
+function publishedEntries(board: CartBoard): ScheduleEntry[] | null {
+  const { schedule } = board;
+  if (!schedule) return null;
+  const labels = new Map(
+    weekRefsInRange(schedule.start_date, schedule.end_date).map((w) => [
+      mondayOfIso(w.weekDate),
+      w.weekLabel,
+    ]),
+  );
+  return entriesFromAssignments(
+    board.assignments,
+    (date) => labels.get(mondayOfIso(date)) ?? date,
+  );
 }
 
 function cellLabel(
@@ -492,68 +614,6 @@ function cellLabel(
     ? `${dayName(slot.iso_dow)} ${timeRange(slot.start_time, slot.end_time)}, ${placeName(slot.place_id)}`
     : 'un turno';
   return `Semana del ${weekDate}: no se pudo guardar ${where}. Alguien lo cambió o no hay conexión; generá y publicá de nuevo.`;
-}
-
-function Cell({
-  label,
-  max,
-  entry,
-  personById,
-  onPick,
-  onNote,
-}: {
-  label: string;
-  max: number;
-  entry: ScheduleEntry | undefined;
-  personById: Map<string, RosterPerson>;
-  onPick: (index: number) => void;
-  onNote: (note: string) => void;
-}) {
-  const noteId = useId();
-  const persons = entry?.personIds ?? [];
-  return (
-    <div className="flex flex-col gap-2 rounded-sm border border-line bg-surface p-3">
-      <p className="text-secondary font-semibold text-ink">{label}</p>
-      <ul className="flex flex-col">
-        {persons.map((id, index) => (
-          <li key={`${id}-${index}`}>
-            <button
-              type="button"
-              className="flex min-h-touch w-full items-center text-left text-body underline-offset-2 hover:underline"
-              onClick={() => onPick(index)}
-            >
-              {personById.get(id)?.name ?? id}
-            </button>
-          </li>
-        ))}
-        {persons.length === 0 && (
-          <li className="flex min-h-touch items-center text-secondary text-ink-soft">
-            Sin asignar
-          </li>
-        )}
-      </ul>
-      {persons.length < max && (
-        <button
-          type="button"
-          className="inline-flex min-h-touch w-fit items-center gap-1 text-secondary font-semibold text-ink-soft hover:text-ink"
-          onClick={() => onPick(-1)}
-        >
-          <Plus aria-hidden size={16} />
-          Agregar
-        </button>
-      )}
-      <label htmlFor={noteId} className="sr-only">
-        Nota del turno
-      </label>
-      <input
-        id={noteId}
-        className="field text-secondary"
-        value={entry?.note ?? ''}
-        placeholder="Nota…"
-        onChange={(e) => onNote(e.target.value)}
-      />
-    </div>
-  );
 }
 
 function PersonPicker({

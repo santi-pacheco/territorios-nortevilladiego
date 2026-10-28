@@ -2,7 +2,7 @@ import type { RefObject } from 'react';
 import type { CartScheduleRow } from '@territorios/data';
 import { longDate } from '../../lib/week';
 import { shortRange } from '../programa/model';
-import type { Turn, WeekSection } from './route';
+import type { Turn, WeekSection } from './weeks';
 
 const WIDTH = 1080;
 const COLUMNS = '250px 160px minmax(0,1.25fr) minmax(0,1.55fr) minmax(0,1.15fr)';
@@ -18,7 +18,7 @@ export function MonthShareCard({
   sections,
 }: {
   cardRef: RefObject<HTMLDivElement | null>;
-  schedule: CartScheduleRow;
+  schedule: Pick<CartScheduleRow, 'name' | 'start_date' | 'end_date'>;
   sections: WeekSection[];
 }) {
   return (
