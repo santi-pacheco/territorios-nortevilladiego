@@ -21,14 +21,14 @@ function keepNode(node: HTMLElement): boolean {
  * lands in the startup bundle; the self-hosted Atkinson fonts are embedded once so the image
  * keeps the app's face instead of a system fallback.
  */
-export async function renderPng(node: HTMLElement): Promise<Blob> {
+export async function renderPng(node: HTMLElement, maxPixelRatio = 2): Promise<Blob> {
   const { toBlob, getFontEmbedCSS } = await import('html-to-image');
   // Web fonts must be settled before the snapshot, or text renders in the fallback face.
   await document.fonts?.ready;
   if (fontEmbed === null) fontEmbed = getFontEmbedCSS(node).catch(() => '');
   const blob = await toBlob(node, {
     // Tall documents (a month of Programa) drop the ratio instead of exceeding canvas limits.
-    pixelRatio: Math.min(2, MAX_CANVAS_SIDE / Math.max(node.offsetHeight, 1)),
+    pixelRatio: Math.min(maxPixelRatio, MAX_CANVAS_SIDE / Math.max(node.offsetHeight, 1)),
     backgroundColor: '#ffffff',
     fontEmbedCSS: await fontEmbed,
     filter: keepNode,

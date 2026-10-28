@@ -1,138 +1,164 @@
-import type { RefObject } from 'react';
-import type { CartScheduleRow } from '@territorios/data';
-import { longDate } from '../../lib/week';
-import { shortRange } from '../programa/model';
-import type { Turn, WeekSection } from './weeks';
+import type { CSSProperties, RefObject } from 'react';
+import { themes } from '@territorios/ui-tokens';
+import type { MonthCell, MonthTable } from './monthTable';
 
-const WIDTH = 1080;
-const COLUMNS = '250px 160px minmax(0,1.25fr) minmax(0,1.55fr) minmax(0,1.15fr)';
+/** Wide enough that the text stays readable once a phone fits the image to its screen. */
+export const SHARE_WIDTH = 1600;
+const WEEK_COL = 170;
+
+// The image is always the light theme on white, whatever theme the app is showing.
+const t = themes.light;
+const INK = t.text.primary;
+const SOFT = t.text.secondary;
+const LINE = t.border.subtle;
+const CANVAS = t.bg.canvas;
+const SURFACE = t.bg.surface;
+const DANGER = t.status.danger;
+
+const cellBase: CSSProperties = {
+  border: `1px solid ${LINE}`,
+  padding: '12px 14px',
+  verticalAlign: 'top',
+  textAlign: 'left',
+};
 
 /**
- * The whole schedule as one printable card, hidden off-screen and captured by
- * `shareNodeAsPng`. One row per turn, blackouts read "Sin carrito" in the people column.
- * The Carrito route is already a lazy chunk, so this renders with it (no extra startup cost).
+ * The whole schedule as ONE monthly table (title, a column per turn, a row per week), hidden
+ * off-screen and captured by `renderPng`. Blocked turns are merged into a banner with the reason.
  */
 export function MonthShareCard({
   cardRef,
-  schedule,
-  sections,
+  table,
 }: {
   cardRef: RefObject<HTMLDivElement | null>;
-  schedule: Pick<CartScheduleRow, 'name' | 'start_date' | 'end_date'>;
-  sections: WeekSection[];
+  table: MonthTable;
 }) {
+  const { columns, rows } = table;
+  const colWidth = (SHARE_WIDTH - 2 * 40 - WEEK_COL) / Math.max(columns.length, 1);
   return (
     <div aria-hidden style={{ position: 'fixed', left: -100_000, top: 0, pointerEvents: 'none' }}>
       <div
         ref={cardRef}
         style={{
-          width: WIDTH,
-          background: '#FFFFFF',
-          color: '#14181F',
+          width: SHARE_WIDTH,
+          boxSizing: 'border-box',
+          background: SURFACE,
+          color: INK,
           fontFamily: 'var(--tk-font-ui)',
           padding: 40,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 28,
         }}
       >
-        <header>
-          <h1 style={{ margin: 0, fontSize: 40, lineHeight: 1.2, fontWeight: 700 }}>
-            Carrito · {schedule.name}
-          </h1>
-          <p style={{ margin: '6px 0 0', fontSize: 24, color: '#4A5363' }}>
-            {shortRange(schedule.start_date, schedule.end_date)}
-          </p>
-        </header>
-        {sections.map((section) => (
-          <WeekBlock key={section.weekStart} section={section} />
-        ))}
+        <h1
+          style={{
+            margin: '0 0 24px',
+            fontSize: 48,
+            lineHeight: 1.15,
+            fontWeight: 700,
+            letterSpacing: '0.01em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {table.title}
+        </h1>
+        <table
+          style={{
+            width: '100%',
+            tableLayout: 'fixed',
+            borderCollapse: 'collapse',
+            fontSize: 23,
+            lineHeight: 1.35,
+          }}
+        >
+          <colgroup>
+            <col style={{ width: WEEK_COL }} />
+            {columns.map((c) => (
+              <col key={c.slotId} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr style={{ background: CANVAS }}>
+              <th scope="col" style={{ ...cellBase, color: SOFT, verticalAlign: 'middle' }}>
+                SEMANA
+              </th>
+              {columns.map((c) => (
+                <th key={c.slotId} scope="col" style={cellBase}>
+                  <div style={{ fontSize: 20, color: SOFT, textTransform: 'uppercase' }}>
+                    {c.day}
+                  </div>
+                  <div style={{ fontFamily: 'var(--tk-font-numeric)', fontSize: 22 }}>{c.time}</div>
+                  <div style={{ fontSize: 20, color: SOFT, textTransform: 'uppercase' }}>
+                    {c.place}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.weekStart}>
+                <th scope="row" style={{ ...cellBase, verticalAlign: 'middle', fontWeight: 600 }}>
+                  {row.label}
+                </th>
+                {row.cells.map((cell, i) => (
+                  <Cell key={i} cell={cell} colWidth={colWidth} />
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-function WeekBlock({ section }: { section: WeekSection }) {
+/** Banner text size: big when the banner is wide, shrunk so the longest word fits one line. */
+function bannerSize(reason: string, width: number): number {
+  const longest = Math.max(...reason.split(/\s+/).map((w) => w.length), 1);
+  const room = width - 2 * 16 - 2 * 14;
+  // Uppercase bold runs ~0.8 em per glyph: size so the longest word never breaks mid-word.
+  return Math.max(14, Math.min(44, Math.floor(room / (longest * 0.8))));
+}
+
+function Cell({ cell, colWidth }: { cell: MonthCell; colWidth: number }) {
+  if (cell.kind === 'outside') {
+    return <td style={{ ...cellBase, background: CANVAS }} />;
+  }
+  if (cell.kind === 'blocked') {
+    return (
+      <td colSpan={cell.span} style={{ ...cellBase, textAlign: 'center', verticalAlign: 'middle' }}>
+        <span
+          style={{
+            display: 'inline-block',
+            maxWidth: '100%',
+            padding: '14px 16px',
+            borderRadius: 14,
+            background: SURFACE,
+            boxShadow: '0 4px 18px rgb(20 24 31 / 22%)',
+            color: DANGER,
+            fontSize: bannerSize(cell.reason, cell.span * colWidth),
+            fontWeight: 700,
+            lineHeight: 1.1,
+            textTransform: 'uppercase',
+            overflowWrap: 'break-word',
+          }}
+        >
+          {cell.reason}
+        </span>
+      </td>
+    );
+  }
   return (
-    <section style={{ border: '2px solid #14181F' }}>
-      <div
-        style={{
-          background: '#14181F',
-          color: '#FFFFFF',
-          padding: '8px 18px',
-          fontSize: 24,
-          fontWeight: 700,
-        }}
-      >
-        {section.heading}
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: COLUMNS,
-          gap: 0,
-          background: '#EEF1F4',
-          padding: '6px 18px',
-          fontSize: 17,
-          fontWeight: 700,
-        }}
-      >
-        <span>Día</span>
-        <span>Horario</span>
-        <span>Lugar</span>
-        <span>Publicadores</span>
-        <span>Nota</span>
-      </div>
-      {section.turns.map((turn, i) => (
-        <TurnRow key={`${turn.date}-${turn.timeRange}-${i}`} turn={turn} last={i === section.turns.length - 1} />
+    <td style={cellBase}>
+      {cell.people.map((name) => (
+        <div key={name} style={{ overflowWrap: 'anywhere' }}>
+          {name}
+        </div>
       ))}
-    </section>
-  );
-}
-
-function TurnRow({ turn, last }: { turn: Turn; last: boolean }) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: COLUMNS,
-        alignItems: 'start',
-        gap: '0 12px',
-        padding: '10px 18px',
-        fontSize: 22,
-        lineHeight: 1.35,
-        borderBottom: last ? 'none' : '1px solid #D5DBE4',
-      }}
-    >
-      <span>
-        <span style={{ fontWeight: 700 }}>{turn.weekday}</span>{' '}
-        <span style={{ color: '#4A5363' }}>{longDate(turn.dateObj)}</span>
-      </span>
-      <span style={{ fontFamily: 'var(--tk-font-numeric)', fontWeight: 700 }}>{turn.timeRange}</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8, overflowWrap: 'anywhere' }}>
-        {turn.placeColor && (
-          <span
-            style={{
-              display: 'inline-block',
-              width: 16,
-              height: 16,
-              flexShrink: 0,
-              borderRadius: 3,
-              border: '1px solid #8994A6',
-              background: turn.placeColor,
-            }}
-          />
-        )}
-        {turn.place}
-      </span>
-      <span style={{ overflowWrap: 'anywhere' }}>
-        {turn.isBlackout ? (
-          <span style={{ color: '#4A5363' }}>Sin carrito</span>
-        ) : (
-          turn.people.join(', ')
-        )}
-      </span>
-      <span style={{ color: '#4A5363', overflowWrap: 'anywhere' }}>{turn.note}</span>
-    </div>
+      {cell.note && (
+        <div style={{ marginTop: 4, fontSize: 20, fontStyle: 'italic', color: SOFT }}>
+          {cell.note}
+        </div>
+      )}
+    </td>
   );
 }

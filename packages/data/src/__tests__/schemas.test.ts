@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   CartAssignmentRow,
+  CartBlackoutInsert,
+  CartBlackoutRow,
   CartSlotInsert,
   ProgramWeekInsert,
   ServiceMeetingRow,
@@ -74,6 +76,26 @@ describe('schemas mirror the SQL check constraints', () => {
       CartAssignmentRow.safeParse({ ...row, person_ids: [p, p], person_names: ['a', 'a'] }).success,
     ).toBe(false);
     expect(CartAssignmentRow.safeParse({ ...row, week_date: '2026-10-13' }).success).toBe(false);
+  });
+
+  it('cart_blackouts: reason is optional, nullable and at most 60 characters', () => {
+    const base = { slot_id: '00000000-0000-4000-8000-000000000007', date: '2026-10-24' };
+    expect(CartBlackoutInsert.safeParse(base).success).toBe(true);
+    expect(CartBlackoutInsert.safeParse({ ...base, reason: 'Asamblea' }).success).toBe(true);
+    expect(CartBlackoutInsert.safeParse({ ...base, reason: null }).success).toBe(true);
+    expect(CartBlackoutInsert.safeParse({ ...base, reason: 'x'.repeat(61) }).success).toBe(false);
+    const row = {
+      ...base,
+      id: '00000000-0000-4000-8000-000000000008',
+      reason: 'Asamblea',
+      updated_at: TS,
+      version: 1,
+      updated_by: null,
+    };
+    expect(CartBlackoutRow.safeParse(row).success).toBe(true);
+    expect(CartBlackoutRow.safeParse({ ...row, reason: null }).success).toBe(true);
+    // The column is always selected: a row without it is not a valid row.
+    expect(CartBlackoutRow.safeParse({ ...row, reason: undefined }).success).toBe(false);
   });
 
   it('territory geometry must be Polygon/MultiPolygon', () => {

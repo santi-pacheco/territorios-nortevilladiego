@@ -14,6 +14,8 @@ export interface Turn {
   people: string[];
   note: string | null;
   isBlackout: boolean;
+  /** Why the turn is blocked ("Asamblea"); null when none was given. */
+  blackoutReason: string | null;
   isMine: boolean;
 }
 
@@ -31,7 +33,10 @@ function timeRange(start: string, end: string): string {
 /** What `buildWeeks` reads: a published board, or the editor's unpublished preview. */
 export type WeeksSource = Pick<CartBoard, 'places' | 'slots' | 'blackouts'> & {
   schedule: { start_date: string; end_date: string } | null;
-  assignments: readonly Pick<CartAssignmentRow, 'week_date' | 'slot_id' | 'person_names' | 'note'>[];
+  assignments: readonly Pick<
+    CartAssignmentRow,
+    'week_date' | 'slot_id' | 'person_names' | 'note'
+  >[];
 };
 
 /** Rows for every slot date inside the schedule range that has an assignment or a blackout. */
@@ -43,7 +48,9 @@ export function buildWeeks(board: WeeksSource, me: string): WeekSection[] {
     (a, b) => a.iso_dow - b.iso_dow || a.start_time.localeCompare(b.start_time),
   );
   const assignmentAt = new Map(assignments.map((a) => [`${a.week_date}|${a.slot_id}`, a]));
-  const blackedOut = new Set(blackouts.map((b) => `${b.date}|${b.slot_id}`));
+  const blackedOut = new Map(
+    blackouts.map((b) => [`${b.date}|${b.slot_id}`, b.reason?.trim() || null]),
+  );
 
   const sections: WeekSection[] = [];
   for (
@@ -55,7 +62,8 @@ export function buildWeeks(board: WeeksSource, me: string): WeekSection[] {
     for (const slot of sortedSlots) {
       const date = addDaysIso(weekStart, slot.iso_dow - 1);
       if (date < schedule.start_date || date > schedule.end_date) continue;
-      const isBlackout = blackedOut.has(`${date}|${slot.id}`);
+      const blackoutKey = `${date}|${slot.id}`;
+      const isBlackout = blackedOut.has(blackoutKey);
       const assignment = assignmentAt.get(`${weekStart}|${slot.id}`);
       if (!isBlackout && !assignment) continue;
       const people = isBlackout ? [] : (assignment?.person_names ?? []);
@@ -71,6 +79,7 @@ export function buildWeeks(board: WeeksSource, me: string): WeekSection[] {
         people,
         note: isBlackout ? null : (assignment?.note ?? null),
         isBlackout,
+        blackoutReason: blackedOut.get(blackoutKey) ?? null,
         isMine: me !== '' && people.some((name) => matchesMe(me, name)),
       });
     }
@@ -83,4 +92,3 @@ export function buildWeeks(board: WeeksSource, me: string): WeekSection[] {
   }
   return sections;
 }
-

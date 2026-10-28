@@ -65,7 +65,7 @@ inferred type of the same name.
 `ProfileRow/ProfileUpdate`, `TerritoryRow/Insert/Update`, `TerritoryGeometry`,
 `ServiceWeekRow/Insert/Update`, `ServiceMeetingRow/Insert/Update`, `GroupTerritories`,
 `MeetingKind`, `CartPlaceRow/Insert/Update`, `CartSlotRow/Insert/Update`,
-`CartScheduleRow/Insert/Update`, `CartAssignmentRow/Insert/Update`, `CartBlackoutRow/Insert`,
+`CartScheduleRow/Insert/Update`, `CartAssignmentRow/Insert/Update`, `CartBlackoutRow/Insert` (with the optional `reason`, max 60 chars),
 `PersonRow/Insert/Update`, `Gender`, `PersonAvailabilityRow/Insert`, `PersonPairRow/Insert`,
 `ProgramWeekRow/Insert/Update`, `ProgramKind`, `ProgramData`, `DeviceTokenRow/Insert`,
 `DevicePlatform`, `Role`; Privilegios (docs/PRIVILEGIOS.md): `DutyRole`, `DutySlot`,

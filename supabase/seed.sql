@@ -53,8 +53,8 @@ insert into public.cart_assignments (schedule_id, slot_id, week_date, person_ids
   ('00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000302', '2026-10-12',
    '{00000000-0000-4000-8000-000000000403,00000000-0000-4000-8000-000000000404,00000000-0000-4000-8000-000000000405}', 'Llevar exhibidor');
 
-insert into public.cart_blackouts (slot_id, date) values
-  ('00000000-0000-4000-8000-000000000302', '2026-10-24');
+insert into public.cart_blackouts (slot_id, date, reason) values
+  ('00000000-0000-4000-8000-000000000302', '2026-10-24', 'Asamblea');
 
 -- Programa: Tuesday (midweek) and Saturday (weekend) keys.
 -- 'Ana Prueba' has one assignment of each kind (docs/ASSIGNMENTS.md): carrito Tue 10-13,

@@ -7,7 +7,7 @@ import { withDb } from '../client';
 import { listAccounts, myAssignments, myLink, myPermissions } from '../repos/accounts';
 import { fetchRole, fetchSession, isEditorRole, type AppRole } from '../repos/auth';
 import { addDays } from '../repos/base';
-import { fetchCartBoard } from '../repos/carrito';
+import { fetchCartBlackouts, fetchCartBoard } from '../repos/carrito';
 import {
   fetchDutyPeople,
   fetchNameSources,
@@ -44,6 +44,12 @@ export const cartBoardQuery = (scheduleId: string | null = null) =>
   queryOptions({
     queryKey: qk.cartBoard(scheduleId),
     queryFn: () => withDb((sb) => fetchCartBoard(sb, scheduleId, todayIso())),
+  });
+
+export const cartBlackoutsQuery = (from: string, to: string) =>
+  queryOptions({
+    queryKey: qk.cartBlackouts(from, to),
+    queryFn: () => withDb((sb) => fetchCartBlackouts(sb, from, to)),
   });
 
 export const peopleQuery = () =>
@@ -123,6 +129,9 @@ export const useTerritories = () => useQuery(territoriesQuery());
 /** Omit `scheduleId` for the schedule covering today. */
 export const useCartSchedule = (scheduleId: string | null = null) =>
   useQuery(cartBoardQuery(scheduleId));
+/** Blackouts with `from <= date <= to`, for a period that may not have a published schedule. */
+export const useCartBlackouts = (from: string, to: string, opts: { enabled?: boolean } = {}) =>
+  useQuery({ ...cartBlackoutsQuery(from, to), enabled: opts.enabled ?? true });
 /** Editor-only data: disabled unless the caller's role is editor/admin (override with `enabled`). */
 export function usePeople(opts: { enabled?: boolean } = {}) {
   const { isEditor } = useRole();

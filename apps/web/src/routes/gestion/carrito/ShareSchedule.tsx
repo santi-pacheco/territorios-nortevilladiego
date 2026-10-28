@@ -1,11 +1,12 @@
 /**
- * Renders the preview as the same month card the public Carrito screen shares, then hands the
+ * Renders the preview as the same monthly table the public Carrito screen shares, then hands the
  * PNG to the shared sheet. Loaded on demand: the card, `html-to-image` and the sheet only
  * cost anything once someone taps "Compartir imagen".
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildWeeks, type WeeksSource } from '../../carrito/weeks';
+import type { WeeksSource } from '../../carrito/weeks';
 import { MonthShareCard } from '../../carrito/MonthShareCard';
+import { buildMonthTable } from '../../carrito/monthTable';
 import { shortRange } from '../../programa/model';
 import { renderPng } from '../../../lib/shareImage';
 import { ShareImageSheet } from '../../../shell/ShareImageSheet';
@@ -26,17 +27,13 @@ export default function ShareSchedule({
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
-  const sections = useMemo(() => buildWeeks(source, ''), [source]);
-  const schedule = useMemo(
-    () => ({ name, start_date: startDate, end_date: endDate }),
-    [name, startDate, endDate],
-  );
+  const table = useMemo(() => buildMonthTable(source), [source]);
 
   useEffect(() => {
     const node = cardRef.current;
     if (!node) return;
     let cancelled = false;
-    renderPng(node).then(
+    renderPng(node, 1).then(
       (png) => {
         if (!cancelled) setBlob(png);
       },
@@ -53,7 +50,7 @@ export default function ShareSchedule({
 
   return (
     <>
-      <MonthShareCard cardRef={cardRef} schedule={schedule} sections={sections} />
+      <MonthShareCard cardRef={cardRef} table={table} />
       {blob && (
         <ShareImageSheet
           blob={blob}

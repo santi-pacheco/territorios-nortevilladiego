@@ -14,6 +14,7 @@ import {
   mutations,
   useDataMutation,
   type CartBoard,
+  useCartBlackouts,
   type CartScheduleUpdate,
   type PeopleRoster,
 } from '@territorios/data';
@@ -40,6 +41,9 @@ import {
   type CellRef,
   type PersonRef,
 } from './edit';
+import { monthTitle } from '../../carrito/monthTable';
+import { BlockSheet } from './BlockSheet';
+import { normalizeReason, scopeTargets, toBlock, toUnblock, type BlockScope } from './blackouts';
 import { ParticipationPanel } from './ParticipationPanel';
 import {
   applyNotes,
@@ -48,7 +52,7 @@ import {
   planPublish,
   setEntryNote,
 } from './publish';
-import { ScheduleGrid, SelectionBar, type GridSlot } from './ScheduleGrid';
+import { ScheduleGrid, SelectionBar, type BlockedTurn, type GridSlot } from './ScheduleGrid';
 import { runScheduler } from './scheduler';
 import { ConflictBar, EmptyState, Field, Sheet, errorMessage, useWriteState } from './ui';
 
@@ -76,15 +80,6 @@ function currentMonthRange(): { start: string; end: string } {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
   return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, '0')}` };
-}
-
-/** "Mes de octubre", or "Octubre – noviembre" when the period crosses months. */
-function monthTitle(startDate: string, endDate: string): string {
-  const from = MONTHS[Number(startDate.slice(5, 7)) - 1] ?? '';
-  const to = MONTHS[Number(endDate.slice(5, 7)) - 1] ?? '';
-  if (!from) return 'Cronograma';
-  if (!to || to === from) return `Mes de ${from}`;
-  return `${from.charAt(0).toUpperCase()}${from.slice(1)} – ${to}`;
 }
 
 function defaultName(): string {
@@ -117,12 +112,21 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
   const [moveNotice, setMoveNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
+  const [blocking, setBlocking] = useState<{ scope: BlockScope; label: string } | null>(null);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
   const [target, setTarget] = useState<PublishTarget>(board.schedule ? 'replace' : 'new');
   const write = useWriteState();
   const targetName = useId();
 
+  // The period being edited, not the published one: blocking comes before publishing.
+  const blackoutsQuery = useCartBlackouts(startDate, endDate, { enabled: startDate <= endDate });
+  const blackouts = blackoutsQuery.data ?? board.blackouts;
+
   const createSchedule = useDataMutation(mutations.createSchedule);
   const updateSchedule = useDataMutation(mutations.updateSchedule);
+  const createBlackout = useDataMutation(mutations.createBlackout);
+  const deleteBlackout = useDataMutation(mutations.deleteBlackout);
   const createAssignment = useDataMutation(mutations.createAssignment);
   const updateAssignment = useDataMutation(mutations.updateAssignment);
   const deleteAssignment = useDataMutation(mutations.deleteAssignment);
@@ -159,8 +163,11 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
     [orderedSlots, placeName],
   );
   const blackoutKeys = useMemo(
-    () => new Set(board.blackouts.map((b) => `${b.date}|${b.slot_id}`)),
-    [board.blackouts],
+    () =>
+      new Map<string, BlockedTurn>(
+        blackouts.map((b) => [`${b.date}|${b.slot_id}`, { reason: b.reason }]),
+      ),
+    [blackouts],
   );
   const stats = useMemo(() => participation(entries ?? [], people), [entries, people]);
 
@@ -186,6 +193,44 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selection]);
+
+  /** Blocks the turns of a week or one turn; they save at once (not part of the preview). */
+  async function block(reason: string) {
+    if (!blocking) return;
+    const targets = toBlock(
+      scopeTargets(blocking.scope, board.slots, startDate, endDate),
+      blackouts,
+    );
+    setBlockBusy(true);
+    setBlockError(null);
+    try {
+      for (const t of targets) {
+        await createBlackout.mutateAsync({ ...t, reason: normalizeReason(reason) });
+      }
+      // Blocked turns hold nobody: the preview cells give way to the banner.
+      const gone = new Set(targets.map((t) => entryKey(t.date, t.slot_id)));
+      setEntries((prev) => prev && prev.filter((e) => !gone.has(entryKey(e.weekDate, e.slotId))));
+      setBlocking(null);
+    } catch (error) {
+      setBlockError(errorMessage(error));
+    } finally {
+      setBlockBusy(false);
+    }
+  }
+
+  async function unblock(cells: CellRef[]) {
+    const targets = cells.flatMap((c) => scopeTargets(c, board.slots, startDate, endDate));
+    write.setError(null);
+    try {
+      for (const row of toUnblock(targets, blackouts)) {
+        await deleteBlackout.mutateAsync({ id: row.id, version: row.version });
+      }
+    } catch (error) {
+      if (!write.report(error, 'El bloqueo', () => void unblock(cells))) {
+        write.setError(errorMessage(error));
+      }
+    }
+  }
 
   async function generate() {
     if (!startDate || !endDate) {
@@ -213,7 +258,7 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
         people,
         slots: toCoreSlots(board.slots),
         places: toCorePlaces(board.places),
-        blackouts: toBlackouts(board.blackouts),
+        blackouts: toBlackouts(blackouts),
         name: name.trim() || defaultName(),
         startDate,
         endDate,
@@ -455,7 +500,7 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
             </p>
           )}
 
-          <div className="flex flex-col gap-5 min-[1700px]:grid min-[1700px]:grid-cols-[minmax(0,1fr)_15rem] min-[1700px]:items-start">
+          <div className="flex flex-col gap-5 min-[1700px]:grid min-[1700px]:grid-cols-[minmax(0,1fr)_18rem] min-[1700px]:items-start">
             <ScheduleGrid
               title={monthTitle(startDate, endDate)}
               weeks={weeks}
@@ -473,6 +518,11 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
               onPick={(cell, index) => setPicker({ ...cell, index })}
               onRemove={(cell, index) => setPersonAt(cell, index, null)}
               onNote={setNote}
+              onBlock={(scope, label) => {
+                setBlockError(null);
+                setBlocking({ scope, label });
+              }}
+              onUnblock={(cells) => void unblock(cells)}
             />
             <ParticipationPanel data={stats} highlight={highlight} onHighlight={setHighlight} />
           </div>
@@ -562,6 +612,17 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
         </div>
       )}
 
+      {blocking && (
+        <BlockSheet
+          label={blocking.label}
+          whole={blocking.scope.slotId === undefined}
+          busy={blockBusy}
+          error={blockError}
+          onBlock={(reason) => void block(reason)}
+          onClose={() => setBlocking(null)}
+        />
+      )}
+
       {picker && pickerSlot && (
         <PersonPicker
           people={people}
@@ -590,7 +651,7 @@ export function GenerarTab({ roster, board }: { roster: PeopleRoster; board: Car
             source={{
               places: board.places,
               slots: board.slots,
-              blackouts: board.blackouts,
+              blackouts,
               schedule: { start_date: startDate, end_date: endDate },
               assignments: publishable.map((e) => ({
                 week_date: mondayOfIso(e.weekDate),

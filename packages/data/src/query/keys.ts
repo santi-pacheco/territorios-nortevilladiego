@@ -15,6 +15,8 @@ export const qk = {
 
   cart: ['tm', 'cart'] as const,
   cartBoards: ['tm', 'cart', 'board'] as const,
+  /** Blackouts of an arbitrary period (the editor's, which may not be published yet). */
+  cartBlackouts: (from: string, to: string) => ['tm', 'cart', 'blackouts', from, to] as const,
   /** `scheduleId` null = "the schedule covering today". */
   cartBoard: (scheduleId: string | null) =>
     ['tm', 'cart', 'board', scheduleId ?? 'current'] as const,

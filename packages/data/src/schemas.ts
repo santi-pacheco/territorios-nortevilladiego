@@ -330,9 +330,22 @@ export const CartAssignmentUpdate = z
   .check(z.superRefine(uniquePeople));
 export type CartAssignmentUpdate = z.infer<typeof CartAssignmentUpdate>;
 
-export const CartBlackoutRow = z.object({ id: Uuid, slot_id: Uuid, date: IsoDate, ...Meta });
+/** Label for the banner over a blocked turn ("Asamblea"); null on blackouts made before it existed. */
+const blackoutReason = z.nullable(z.string().check(z.maxLength(60)));
+export const CartBlackoutRow = z.object({
+  id: Uuid,
+  slot_id: Uuid,
+  date: IsoDate,
+  reason: blackoutReason,
+  ...Meta,
+});
 export type CartBlackoutRow = z.infer<typeof CartBlackoutRow>;
-export const CartBlackoutInsert = z.object({ id: z.optional(Uuid), slot_id: Uuid, date: IsoDate });
+export const CartBlackoutInsert = z.object({
+  id: z.optional(Uuid),
+  slot_id: Uuid,
+  date: IsoDate,
+  reason: z.optional(blackoutReason),
+});
 export type CartBlackoutInsert = z.infer<typeof CartBlackoutInsert>;
 
 // ---------------------------------------------------------------------------

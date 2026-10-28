@@ -51,35 +51,39 @@ export function ParticipationPanel({
                 flagged > 0 ? `; ${flagged} para revisar` : ''
               }. Tocá un nombre para ver sus turnos.`}
         </p>
-        <ul className="grid border-t border-line sm:grid-cols-2 sm:gap-x-6 min-[1700px]:grid-cols-1">
+        {/* One column on phones; more only when each can keep a readable name (220px+). */}
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-6 border-t border-line">
           {data.rows.map((row) => {
             const active = highlight === row.id;
             return (
-              <li key={row.id} className="border-b border-line">
+              <li key={row.id} className="min-w-0 border-b border-line">
                 <button
                   type="button"
                   aria-pressed={active}
-                  className={`flex min-h-touch w-full items-center justify-between gap-3 px-1 text-left ${
-                    active ? 'bg-canvas font-bold' : ''
+                  title={row.name}
+                  className={`grid min-h-touch w-full grid-cols-[minmax(0,1fr)_auto_2.5ch] items-center gap-x-2 rounded-sm px-1 text-left ${
+                    active
+                      ? 'bg-canvas font-bold outline outline-2 -outline-offset-2 outline-focus-ring'
+                      : ''
                   }`}
                   onClick={() => onHighlight(active ? null : row.id)}
                 >
-                  <span className="min-w-0 break-words text-body">{row.name}</span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    {row.flag && (
-                      <span
-                        className={`inline-flex items-center gap-1 text-caption ${
-                          row.flag === 'zero' ? 'text-danger' : 'text-warn'
-                        }`}
-                      >
-                        {row.flag === 'zero' && <AlertTriangle aria-hidden size={16} />}
-                        {row.flag === 'high' && <ArrowUp aria-hidden size={16} />}
-                        {row.flag === 'low' && <ArrowDown aria-hidden size={16} />}
-                        {FLAG_TEXT[row.flag]}
-                      </span>
-                    )}
-                    <span className="font-mono text-body font-semibold">{row.count}</span>
-                  </span>
+                  <span className="truncate text-body">{row.name}</span>
+                  {row.flag ? (
+                    <span
+                      className={`inline-flex items-center gap-0.5 whitespace-nowrap rounded-sm border border-current px-1.5 text-caption font-semibold ${
+                        row.flag === 'zero' ? 'text-danger' : 'text-warn'
+                      }`}
+                    >
+                      {row.flag === 'zero' && <AlertTriangle aria-hidden size={12} />}
+                      {row.flag === 'high' && <ArrowUp aria-hidden size={12} />}
+                      {row.flag === 'low' && <ArrowDown aria-hidden size={12} />}
+                      {FLAG_TEXT[row.flag]}
+                    </span>
+                  ) : (
+                    <span aria-hidden />
+                  )}
+                  <span className="text-right font-mono text-body font-semibold">{row.count}</span>
                 </button>
               </li>
             );

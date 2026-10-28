@@ -7,11 +7,12 @@
  * target cell (or on a name, to swap) on touch and keyboard.
  */
 import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react';
-import { ArrowRightLeft, Plus, X } from 'lucide-react';
+import { ArrowRightLeft, Ban, LockOpen, Plus, X } from 'lucide-react';
 import type { ScheduleEntry } from '@territorios/core';
 import type { CartSlotRow } from '@territorios/data';
 import { addDaysIso, dayName, mondayOfIso, timeRange, type WeekRef } from './model';
 import type { CellRef, PersonRef } from './edit';
+import type { BlockScope } from './blackouts';
 
 export interface GridSlot {
   slot: CartSlotRow;
@@ -20,7 +21,12 @@ export interface GridSlot {
 
 const CANCELLED_LABEL = 'Sin carrito';
 
-type CellState = { kind: 'outside' } | { kind: 'cancelled' } | { kind: 'open' };
+/** A blocked turn, keyed `date|slotId`; `reason` is the banner text (null reads "Sin carrito"). */
+export interface BlockedTurn {
+  reason: string | null;
+}
+
+type CellState = { kind: 'outside' } | { kind: 'cancelled'; reason: string } | { kind: 'open' };
 
 export function ScheduleGrid({
   title,
@@ -39,14 +45,16 @@ export function ScheduleGrid({
   onPick,
   onRemove,
   onNote,
+  onBlock,
+  onUnblock,
 }: {
   title: string;
   weeks: readonly WeekRef[];
   slots: readonly GridSlot[];
   startDate: string;
   endDate: string;
-  /** `date|slotId` of the turns cancelled for a day. */
-  blackouts: ReadonlySet<string>;
+  /** The turns blocked for a day, by `date|slotId`. */
+  blackouts: ReadonlyMap<string, BlockedTurn>;
   getEntry: (weekDate: string, slotId: string) => ScheduleEntry | undefined;
   personName: (id: string) => string;
   selection: PersonRef | null;
@@ -58,6 +66,10 @@ export function ScheduleGrid({
   onPick: (cell: CellRef, index: number) => void;
   onRemove: (cell: CellRef, index: number) => void;
   onNote: (cell: CellRef, note: string) => void;
+  /** Opens the block form for a whole week or one turn. */
+  onBlock: (scope: BlockScope, label: string) => void;
+  /** Removes the block of these turns right away. */
+  onUnblock: (cells: CellRef[]) => void;
 }) {
   // The dragged person lives in a ref: dataTransfer is unreadable while dragging over a target.
   const dragging = useRef<PersonRef | null>(null);
@@ -91,7 +103,7 @@ export function ScheduleGrid({
         <table className="w-full min-w-max border-separate border-spacing-0 text-left lg:min-w-0">
           <thead>
             <tr>
-              <th scope="col" className={`${HEAD} left-0 z-30 w-24 min-w-24`}>
+              <th scope="col" className={`${HEAD} left-0 z-30 w-28 min-w-28`}>
                 <span className="text-body-strong font-semibold text-ink-soft">Semana</span>
               </th>
               {slots.map(({ slot, place }) => (
@@ -117,8 +129,13 @@ export function ScheduleGrid({
                 if ((date < startDate || date > endDate) && !entry) {
                   return { slot, state: { kind: 'outside' } };
                 }
-                const cancelled = blackouts.has(`${date}|${slot.id}`);
-                return { slot, state: cancelled ? { kind: 'cancelled' } : { kind: 'open' } };
+                const blocked = blackouts.get(`${date}|${slot.id}`);
+                return {
+                  slot,
+                  state: blocked
+                    ? { kind: 'cancelled', reason: blocked.reason?.trim() || CANCELLED_LABEL }
+                    : { kind: 'open' },
+                };
               });
 
               const row: ReactNode[] = [];
@@ -140,19 +157,34 @@ export function ScheduleGrid({
                   while (true) {
                     const next = cells[i + span];
                     if (!next || next.state.kind !== 'cancelled') break;
+                    if (next.state.reason !== state.reason) break;
                     const e = getEntry(week.weekDate, next.slot.id);
                     if (e && (e.personIds.length > 0 || e.note)) break;
                     span++;
                   }
+                  const run: CellRef[] = cells
+                    .slice(i, i + span)
+                    .map((c) => ({ weekDate: week.weekDate, slotId: c.slot.id }));
                   row.push(
                     <td
                       key={slot.id}
                       colSpan={span}
                       className={`${BODY} bg-canvas text-center align-middle`}
                     >
-                      <span className="inline-block rounded-sm border border-line-strong bg-surface px-4 py-2 text-heading font-bold">
-                        {CANCELLED_LABEL}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="inline-block max-w-full break-words rounded-sm border border-line-strong bg-surface px-4 py-2 text-heading font-bold uppercase text-danger shadow-sm">
+                          {state.reason}
+                        </span>
+                        <button
+                          type="button"
+                          className={LINK_BTN}
+                          aria-label={`Desbloquear ${state.reason}, ${week.weekLabel}`}
+                          onClick={() => onUnblock(run)}
+                        >
+                          <LockOpen aria-hidden size={16} />
+                          Desbloquear
+                        </button>
+                      </div>
                     </td>,
                   );
                   i += span - 1;
@@ -166,7 +198,7 @@ export function ScheduleGrid({
                     label={`${week.weekLabel}, ${dayName(slot.iso_dow)} ${timeRange(slot.start_time, slot.end_time)}`}
                     max={slot.group_size}
                     entry={entry}
-                    cancelled={state.kind === 'cancelled'}
+                    cancelled={state.kind === 'cancelled' ? state.reason : null}
                     personName={personName}
                     selection={selection}
                     highlight={highlight}
@@ -175,6 +207,13 @@ export function ScheduleGrid({
                     onPick={onPick}
                     onRemove={onRemove}
                     onNote={onNote}
+                    onBlock={() =>
+                      onBlock(
+                        { weekDate: week.weekDate, slotId: slot.id },
+                        `${week.weekLabel} · ${dayName(slot.iso_dow)} ${timeRange(slot.start_time, slot.end_time)}`,
+                      )
+                    }
+                    onUnblock={() => onUnblock([cell])}
                     onDragStartPerson={startDrag}
                     onDragEnd={endDrag}
                     onDragOverCell={(e) => allowDrop(e, key)}
@@ -195,13 +234,44 @@ export function ScheduleGrid({
                 );
               }
 
+              const inPeriod = cells.filter((c) => c.state.kind !== 'outside');
+              const blockedCells = cells.flatMap((c) =>
+                c.state.kind === 'cancelled'
+                  ? [{ weekDate: week.weekDate, slotId: c.slot.id }]
+                  : [],
+              );
+              const hasOpen = inPeriod.some((c) => c.state.kind === 'open');
               return (
                 <tr key={week.weekDate}>
                   <th
                     scope="row"
-                    className={`${BODY} sticky left-0 z-10 w-24 min-w-24 bg-surface align-middle text-body-strong font-semibold`}
+                    className={`${BODY} sticky left-0 z-10 w-28 min-w-28 bg-surface align-middle text-body-strong font-semibold`}
                   >
-                    {week.weekLabel}
+                    <span className="block">{week.weekLabel}</span>
+                    {hasOpen && (
+                      <button
+                        type="button"
+                        className={`${LINK_BTN} mt-1`}
+                        aria-label={`Bloquear la semana del ${week.weekLabel}`}
+                        onClick={() =>
+                          onBlock({ weekDate: week.weekDate }, `Semana del ${week.weekLabel}`)
+                        }
+                      >
+                        <Ban aria-hidden size={16} />
+                        Bloquear
+                      </button>
+                    )}
+                    {blockedCells.length > 0 && (
+                      <button
+                        type="button"
+                        className={LINK_BTN}
+                        aria-label={`Desbloquear la semana del ${week.weekLabel}`}
+                        onClick={() => onUnblock(blockedCells)}
+                      >
+                        <LockOpen aria-hidden size={16} />
+                        Desbloquear
+                      </button>
+                    )}
                   </th>
                   {row}
                 </tr>
@@ -214,6 +284,8 @@ export function ScheduleGrid({
   );
 }
 
+const LINK_BTN =
+  'inline-flex min-h-touch items-center gap-1 text-secondary font-semibold text-ink-soft underline-offset-2 hover:text-ink hover:underline lg:min-h-8';
 const HEAD =
   'sticky top-0 border-b border-r border-line bg-canvas px-2 py-3 align-top lg:px-3 last:border-r-0';
 const BODY = 'border-b border-r border-line px-2 py-2 lg:px-3 align-top last:border-r-0';
@@ -232,6 +304,8 @@ function Cell({
   onPick,
   onRemove,
   onNote,
+  onBlock,
+  onUnblock,
   onDragStartPerson,
   onDragEnd,
   onDragOverCell,
@@ -245,7 +319,8 @@ function Cell({
   label: string;
   max: number;
   entry: ScheduleEntry | undefined;
-  cancelled: boolean;
+  /** The banner text when this turn is blocked (it still holds people or a note). */
+  cancelled: string | null;
   personName: (id: string) => string;
   selection: PersonRef | null;
   highlight: string | null;
@@ -254,6 +329,8 @@ function Cell({
   onPick: (cell: CellRef, index: number) => void;
   onRemove: (cell: CellRef, index: number) => void;
   onNote: (cell: CellRef, note: string) => void;
+  onBlock: () => void;
+  onUnblock: () => void;
   onDragStartPerson: (event: DragEvent, ref: PersonRef) => void;
   onDragEnd: () => void;
   onDragOverCell: (event: DragEvent) => void;
@@ -282,7 +359,9 @@ function Cell({
       }}
     >
       <div className="flex flex-col">
-        {cancelled && <p className="text-secondary font-semibold text-warn">{CANCELLED_LABEL}</p>}
+        {cancelled && (
+          <p className="text-secondary font-semibold uppercase text-danger">{cancelled}</p>
+        )}
 
         {persons.map((id, index) => {
           const ref: PersonRef = { ...cell, personId: id };
@@ -377,6 +456,28 @@ function Cell({
           autoComplete="off"
           onChange={(e) => onNote(cell, e.target.value)}
         />
+        {selection === null &&
+          (cancelled ? (
+            <button
+              type="button"
+              className={LINK_BTN}
+              aria-label={`Desbloquear, ${label}`}
+              onClick={onUnblock}
+            >
+              <LockOpen aria-hidden size={16} />
+              Desbloquear
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={LINK_BTN}
+              aria-label={`Bloquear, ${label}`}
+              onClick={onBlock}
+            >
+              <Ban aria-hidden size={16} />
+              Bloquear
+            </button>
+          ))}
       </div>
     </td>
   );

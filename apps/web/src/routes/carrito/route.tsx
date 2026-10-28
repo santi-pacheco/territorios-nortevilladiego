@@ -10,6 +10,7 @@ import { ShareImageSheet } from '../../shell/ShareImageSheet';
 import { addDaysIso, longDate, toIso } from '../../lib/week';
 import { shortRange } from '../programa/model';
 import { MonthShareCard } from './MonthShareCard';
+import { DEFAULT_BLOCK_LABEL, buildMonthTable } from './monthTable';
 import { buildWeeks, type Turn } from './weeks';
 
 function NameList({ people, me }: { people: string[]; me: string }) {
@@ -36,8 +37,8 @@ function Swatch({ color }: { color: string }) {
   );
 }
 
-function BlackoutText() {
-  return <span className="text-ink-soft">Sin carrito</span>;
+function BlackoutText({ reason }: { reason: string | null }) {
+  return <span className="font-semibold text-danger">{reason ?? DEFAULT_BLOCK_LABEL}</span>;
 }
 
 function DesktopWeekTable({ turns, me, headerH }: { turns: Turn[]; me: string; headerH: number }) {
@@ -75,7 +76,11 @@ function DesktopWeekTable({ turns, me, headerH }: { turns: Turn[]; me: string; h
               </span>
             </td>
             <td className="border-b border-line px-3 py-3 align-top text-body break-words">
-              {turn.isBlackout ? <BlackoutText /> : <NameList people={turn.people} me={me} />}
+              {turn.isBlackout ? (
+                <BlackoutText reason={turn.blackoutReason} />
+              ) : (
+                <NameList people={turn.people} me={me} />
+              )}
             </td>
             <td className="border-b border-line px-3 py-3 align-top text-secondary text-ink-soft">
               {turn.note}
@@ -108,7 +113,11 @@ function MobileWeekList({ turns, me }: { turns: Turn[]; me: string }) {
           </span>
           {turn.label && <span className="text-secondary text-ink-soft">{turn.label}</span>}
           <span className="text-body break-words">
-            {turn.isBlackout ? <BlackoutText /> : <NameList people={turn.people} me={me} />}
+            {turn.isBlackout ? (
+              <BlackoutText reason={turn.blackoutReason} />
+            ) : (
+              <NameList people={turn.people} me={me} />
+            )}
           </span>
           {turn.note && (
             <span className="text-secondary text-ink-soft break-words">{turn.note}</span>
@@ -194,6 +203,7 @@ export function Component() {
   }, []);
 
   const sections = useMemo(() => (board.data ? buildWeeks(board.data, me) : []), [board.data, me]);
+  const shareTable = useMemo(() => (board.data ? buildMonthTable(board.data) : null), [board.data]);
   const today = toIso(new Date());
   const myTurns = useMemo(
     () =>
@@ -218,7 +228,7 @@ export function Component() {
     setShareError(false);
     setSharing(true);
     try {
-      setShareBlob(await renderPng(node));
+      setShareBlob(await renderPng(node, 1));
     } catch {
       setShareError(true);
     } finally {
@@ -365,8 +375,8 @@ export function Component() {
         )}
       </div>
 
-      {schedule && sections.length > 0 && (
-        <MonthShareCard cardRef={shareRef} schedule={schedule} sections={sections} />
+      {schedule && sections.length > 0 && shareTable && (
+        <MonthShareCard cardRef={shareRef} table={shareTable} />
       )}
       {shareBlob && schedule && (
         <ShareImageSheet
