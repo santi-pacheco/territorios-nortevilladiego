@@ -587,6 +587,7 @@ function MidweekDetail({ week }: { week: MidweekWeek }) {
 
 function WeekendDetail({ meeting: m }: { meeting: WeekendMeeting }) {
   const rows: Array<[string, string | null]> = [
+    ['Hospitalidad', m.hospitalidad],
     ['Canción inicial', m.cancionInicio],
     ['Presidente', m.presidente],
     ['Discurso', m.discurso ? `${m.discurso.titulo}${m.discurso.tipo ? ` (${m.discurso.tipo.toLowerCase()})` : ''}` : null],

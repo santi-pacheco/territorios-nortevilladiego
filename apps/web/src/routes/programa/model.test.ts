@@ -8,6 +8,7 @@ import {
   sanitizeMidweek,
   sanitizeWeekend,
   shortRange,
+  weekendHasContent,
   type MyPart,
 } from './model';
 
@@ -99,6 +100,13 @@ describe('programa sanitizers', () => {
 
   it('treats a discurso with no type and no title as absent', () => {
     expect(sanitizeWeekend({ discurso: { tipo: '  ', titulo: null } }, '2026-10-17')?.discurso).toBeNull();
+  });
+
+  it('reads hospitalidad as trimmed text and counts it as content', () => {
+    const m = sanitizeWeekend({ hospitalidad: '  Grupo 3 ' }, '2026-10-17');
+    expect(m?.hospitalidad).toBe('Grupo 3');
+    expect(m && weekendHasContent(m)).toBe(true);
+    expect(sanitizeWeekend({}, '2026-10-17')?.hospitalidad).toBeNull();
   });
 });
 

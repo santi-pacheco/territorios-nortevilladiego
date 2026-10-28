@@ -79,6 +79,7 @@ function parseBlock(items: PdfItem[], date: string): WeekendMeeting {
   return {
     date,
     asamblea,
+    hospitalidad: null,
     presidente,
     cancionInicio: songs[0] ?? null,
     cancionIntermedia: songs.length > 2 ? (songs[1] ?? null) : null,

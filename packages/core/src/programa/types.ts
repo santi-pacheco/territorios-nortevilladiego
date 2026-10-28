@@ -34,6 +34,8 @@ export interface WeekendDiscourse {
 export interface WeekendMeeting {
   date: string; // sábado ISO
   asamblea: string | null;
+  /** Grupo a cargo de Hospitalidad (ej. "Grupo 3"); texto libre. */
+  hospitalidad: string | null;
   presidente: string | null;
   /** Canción inicial (antes del presidente); texto libre: número + título. */
   cancionInicio: string | null;

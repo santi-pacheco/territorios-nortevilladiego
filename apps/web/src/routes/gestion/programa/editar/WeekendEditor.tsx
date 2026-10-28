@@ -17,9 +17,15 @@ function newDiscourse(): DiscourseDraft {
 }
 
 type SongField = 'cancionInicio' | 'cancionIntermedia' | 'cancionFin';
+type TextField = 'hospitalidad';
 
-// Meeting order: canción inicial, presidente, canción, conductor, lector, canción final, oración.
-const FIELDS: ({ kind: 'person'; key: WeekendPersonField; label: string } | { kind: 'song'; key: SongField; label: string })[] = [
+// Meeting order: hospitalidad, canción inicial, presidente, canción, conductor, lector, canción final, oración.
+const FIELDS: (
+  | { kind: 'person'; key: WeekendPersonField; label: string }
+  | { kind: 'song'; key: SongField; label: string }
+  | { kind: 'text'; key: TextField; label: string; placeholder: string }
+)[] = [
+  { kind: 'text', key: 'hospitalidad', label: 'Hospitalidad', placeholder: 'Grupo …' },
   { kind: 'song', key: 'cancionInicio', label: 'Canción inicial' },
   { kind: 'person', key: 'presidente', label: 'Presidente' },
   { kind: 'song', key: 'cancionIntermedia', label: 'Canción (antes de La Atalaya)' },
@@ -65,7 +71,7 @@ export function WeekendEditor({
               <input
                 className="field"
                 value={value[f.key] ?? ''}
-                placeholder="2 · Jehová es mi Pastor"
+                placeholder={f.kind === 'text' ? f.placeholder : '2 · Jehová es mi Pastor'}
                 onChange={(e) => onChange({ ...value, [f.key]: e.currentTarget.value })}
               />
             </label>

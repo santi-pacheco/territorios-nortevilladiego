@@ -98,6 +98,7 @@ function MidweekBlock({ block }: { block: Extract<ShareBlock, { kind: 'midweek' 
 function WeekendBlock({ block }: { block: Extract<ShareBlock, { kind: 'weekend' }> }) {
   const m = block.meeting;
   const rows: Array<{ label: string; value: string | null; mono?: boolean }> = [
+    { label: 'Hospitalidad', value: m.hospitalidad },
     { label: 'Canción inicial', value: m.cancionInicio, mono: true },
     { label: 'Presidente', value: m.presidente },
     { label: 'Canción', value: m.cancionIntermedia, mono: true },

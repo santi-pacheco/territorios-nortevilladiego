@@ -99,6 +99,7 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeet
   return {
     date: str(raw.date) || fallbackDate,
     asamblea: one('asamblea'),
+    hospitalidad: one('hospitalidad'),
     presidente: who('presidente'),
     cancionInicio: one('cancionInicio'),
     cancionIntermedia: one('cancionIntermedia'),
@@ -113,7 +114,8 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeet
 /** Does the weekend meeting have anything to show beyond its asamblea note? */
 export function weekendHasContent(m: WeekendMeeting): boolean {
   return Boolean(
-    m.presidente ||
+    m.hospitalidad ||
+      m.presidente ||
       m.conductor ||
       m.lector ||
       m.cancionInicio ||
