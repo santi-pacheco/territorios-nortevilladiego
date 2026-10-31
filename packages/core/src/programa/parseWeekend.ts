@@ -88,6 +88,7 @@ function parseBlock(items: PdfItem[], date: string): WeekendMeeting {
     cancionFin: songs.length > 1 ? (songs[songs.length - 1] ?? null) : null,
     oracionFinal,
     discurso,
+    discursantesSalientes: [],
   };
 }
 

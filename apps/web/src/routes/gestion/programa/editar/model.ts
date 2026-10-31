@@ -131,12 +131,15 @@ export interface DiscourseDraft extends Omit<WeekendDiscourse, 'orador'> {
 }
 
 /** The weekend meeting as the editor holds it: every person field is a `PersonDraft`. */
-export interface WeekendDraft extends Omit<WeekendMeeting, WeekendPersonField | 'discurso'> {
+export interface WeekendDraft
+  extends Omit<WeekendMeeting, WeekendPersonField | 'discurso' | 'discursantesSalientes'> {
   presidente: PersonDraft;
   conductor: PersonDraft;
   lector: PersonDraft;
   oracionFinal: PersonDraft;
   discurso: DiscourseDraft | null;
+  /** Discursantes salientes, in the order picked; none, one or many. */
+  discursantesSalientes: PersonDraft[];
 }
 
 export function emptyWeekend(date: string): WeekendDraft {
@@ -152,6 +155,7 @@ export function emptyWeekend(date: string): WeekendDraft {
     cancionFin: null,
     oracionFinal: NO_PERSON,
     discurso: null,
+    discursantesSalientes: [],
   };
 }
 
@@ -238,6 +242,9 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendDraf
     cancionFin: one('cancionFin'),
     oracionFinal: toDraft(src.oracionFinal),
     discurso: sanitizeDiscourse(src.discurso),
+    discursantesSalientes: Array.isArray(src.discursantesSalientes)
+      ? src.discursantesSalientes.map(toDraft).filter((p) => p.name)
+      : [],
   };
 }
 
@@ -270,6 +277,7 @@ export function hasWeekendContent(m: WeekendDraft): boolean {
       m.cancionInicio?.trim() ||
       m.cancionIntermedia?.trim() ||
       m.cancionFin?.trim() ||
+      m.discursantesSalientes.some((p) => p.name.trim()) ||
       discourseHasContent(m.discurso),
   );
 }
@@ -331,6 +339,7 @@ export function cleanWeekend(m: WeekendDraft, date: string): WeekendMeetingData 
     cancionFin: one(m.cancionFin),
     oracionFinal: storeDraft(m.oracionFinal),
     discurso: cleanDiscourse(m.discurso),
+    discursantesSalientes: m.discursantesSalientes.flatMap((p) => storeDraft(p) ?? []),
   };
 }
 

@@ -458,6 +458,15 @@ function programPeopleShape(p: { data?: ProgramData | undefined }, ctx: z.core.$
   for (const key of WEEKEND_PERSON_KEYS) {
     if (key in data && !ProgramPersonValue.safeParse(data[key]).success) bad([key]);
   }
+  if ('discursantesSalientes' in data) {
+    const list = data.discursantesSalientes;
+    if (!Array.isArray(list)) bad(['discursantesSalientes']);
+    else {
+      list.forEach((v, i) => {
+        if (!ProgramPersonValue.safeParse(v).success) bad(['discursantesSalientes', i]);
+      });
+    }
+  }
   const disc = data.discurso;
   if (isObj(disc) && 'orador' in disc && !ProgramPersonValue.safeParse(disc.orador).success) {
     bad(['discurso', 'orador']);

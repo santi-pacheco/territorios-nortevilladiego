@@ -108,6 +108,9 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeet
     cancionFin: one('cancionFin'),
     oracionFinal: who('oracionFinal'),
     discurso: sanitizeDiscurso(raw.discurso),
+    discursantesSalientes: Array.isArray(raw.discursantesSalientes)
+      ? raw.discursantesSalientes.map(personName).filter(Boolean)
+      : [],
   };
 }
 
@@ -122,6 +125,7 @@ export function weekendHasContent(m: WeekendMeeting): boolean {
       m.cancionIntermedia ||
       m.cancionFin ||
       m.oracionFinal ||
+      m.discursantesSalientes.length > 0 ||
       m.discurso,
   );
 }

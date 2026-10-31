@@ -106,6 +106,7 @@ function WeekendBlock({ block }: { block: Extract<ShareBlock, { kind: 'weekend' 
     { label: 'Lector', value: m.lector },
     { label: 'Canción final', value: m.cancionFin, mono: true },
     { label: 'Oración final', value: m.oracionFinal },
+    { label: 'Discursantes salientes', value: m.discursantesSalientes.join(', ') || null },
   ];
   const d = m.discurso;
   return (

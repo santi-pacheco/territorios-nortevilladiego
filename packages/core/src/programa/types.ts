@@ -46,6 +46,8 @@ export interface WeekendMeeting {
   cancionFin: string | null;
   oracionFinal: string | null;
   discurso: WeekendDiscourse | null;
+  /** Discursantes salientes: gente de la congregación que sale a dar un discurso; ninguno, uno o varios. */
+  discursantesSalientes: string[];
 }
 
 /** A weekend person linked (or not yet) to a people row. */
@@ -70,12 +72,16 @@ export interface WeekendDiscourseData extends Omit<WeekendDiscourse, 'orador'> {
  * PDF parser produces and the screens render.
  */
 export interface WeekendMeetingData
-  extends Omit<WeekendMeeting, 'presidente' | 'conductor' | 'lector' | 'oracionFinal' | 'discurso'> {
+  extends Omit<
+    WeekendMeeting,
+    'presidente' | 'conductor' | 'lector' | 'oracionFinal' | 'discurso' | 'discursantesSalientes'
+  > {
   presidente: StoredPerson | null;
   conductor: StoredPerson | null;
   lector: StoredPerson | null;
   oracionFinal: StoredPerson | null;
   discurso: WeekendDiscourseData | null;
+  discursantesSalientes: StoredPerson[];
 }
 
 /** The weekend fields that name a person. */

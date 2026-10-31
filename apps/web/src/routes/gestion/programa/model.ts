@@ -267,6 +267,7 @@ function personValues(data: Record<string, unknown>): unknown[] {
   }
   for (const key of WEEKEND_PERSON_FIELDS) out.push(data[key]);
   if (isRecord(data.discurso)) out.push(data.discurso.orador);
+  if (Array.isArray(data.discursantesSalientes)) out.push(...data.discursantesSalientes);
   return out;
 }
 
@@ -311,5 +312,8 @@ export function carryLinks(
     if (key in next) out[key] = relink(next[key]);
   }
   if (isRecord(next.discurso)) out.discurso = { ...next.discurso, orador: relink(next.discurso.orador) };
+  if (Array.isArray(next.discursantesSalientes)) {
+    out.discursantesSalientes = next.discursantesSalientes.map(relink);
+  }
   return out;
 }

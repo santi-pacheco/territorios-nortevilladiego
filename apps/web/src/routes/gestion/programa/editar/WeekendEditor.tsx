@@ -5,12 +5,13 @@
  *
  * `discurso.saliente`, which the editor does not show, stays in the value and is round-tripped
  * untouched on save. The three songs are free text (number + title). Every person is a PersonPicker (linked to the directory);
- * only the orador accepts free text, for visiting speakers.
+ * only the orador accepts free text, for visiting speakers. "Discursantes salientes" closes the
+ * form: none, one or many directory people, each added with its own picker.
  */
 import { useId } from 'react';
 import type { WeekendPersonField } from '@territorios/core';
 import { PersonPicker } from '../../../../shell/PersonPicker';
-import { DISCOURSE_TIPOS, NO_PERSON, type DiscourseDraft, type WeekendDraft } from './model';
+import { DISCOURSE_TIPOS, NO_PERSON, type DiscourseDraft, type PersonDraft, type WeekendDraft } from './model';
 
 function newDiscourse(): DiscourseDraft {
   return { tipo: 'PÚBLICO', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null };
@@ -44,6 +45,9 @@ export function WeekendEditor({
 }) {
   const id = useId();
   const disc = value.discurso;
+  const salientes = value.discursantesSalientes;
+  const setSaliente = (i: number, v: PersonDraft) =>
+    onChange({ ...value, discursantesSalientes: salientes.map((p, j) => (j === i ? v : p)) });
 
   const text = (key: 'asamblea') => value[key] ?? '';
   const setText = (key: 'asamblea', v: string) => onChange({ ...value, [key]: v });
@@ -157,6 +161,46 @@ export function WeekendEditor({
           Si la semana tiene asamblea, el discurso es el de la asamblea.
         </span>
       </label>
+
+      <fieldset className="flex flex-col gap-3 rounded-md border border-line bg-canvas px-3 py-3">
+        <legend className="px-1 text-secondary font-semibold text-ink-soft">
+          Discursante saliente
+        </legend>
+        {salientes.length === 0 && (
+          <p className="text-body text-ink-soft">Nadie sale a dar discurso esta semana.</p>
+        )}
+        {salientes.map((p, i) => (
+          <div key={i} className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <PersonPicker
+                label={`Discursante saliente ${i + 1}`}
+                value={p}
+                onChange={(v) => setSaliente(i, v)}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              aria-label={`Quitar discursante saliente ${i + 1}`}
+              onClick={() =>
+                onChange({
+                  ...value,
+                  discursantesSalientes: salientes.filter((_, j) => j !== i),
+                })
+              }
+            >
+              Quitar
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn-secondary self-start"
+          onClick={() => onChange({ ...value, discursantesSalientes: [...salientes, NO_PERSON] })}
+        >
+          Agregar discursante saliente
+        </button>
+      </fieldset>
     </section>
   );
 }

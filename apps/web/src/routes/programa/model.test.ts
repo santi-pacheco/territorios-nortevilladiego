@@ -102,6 +102,16 @@ describe('programa sanitizers', () => {
     expect(sanitizeWeekend({ discurso: { tipo: '  ', titulo: null } }, '2026-10-17')?.discurso).toBeNull();
   });
 
+  it('reads discursantes salientes as names and counts them as content', () => {
+    const m = sanitizeWeekend(
+      { discursantesSalientes: ['Persona 1', { name: ' Persona 2 ', person_id: 'x' }, '', null] },
+      '2026-10-17',
+    );
+    expect(m?.discursantesSalientes).toEqual(['Persona 1', 'Persona 2']);
+    expect(m && weekendHasContent(m)).toBe(true);
+    expect(sanitizeWeekend({}, '2026-10-17')?.discursantesSalientes).toEqual([]);
+  });
+
   it('reads hospitalidad as trimmed text and counts it as content', () => {
     const m = sanitizeWeekend({ hospitalidad: '  Grupo 3 ' }, '2026-10-17');
     expect(m?.hospitalidad).toBe('Grupo 3');

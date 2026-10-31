@@ -598,6 +598,7 @@ function WeekendDetail({ meeting: m }: { meeting: WeekendMeeting }) {
     ['Lector', m.lector],
     ['Canción final', m.cancionFin],
     ['Oración final', m.oracionFinal],
+    ['Discursantes salientes', m.discursantesSalientes.join(', ') || null],
   ];
   return (
     <div className="flex flex-col gap-2">
@@ -605,7 +606,7 @@ function WeekendDetail({ meeting: m }: { meeting: WeekendMeeting }) {
       <dl className="flex flex-col divide-y divide-line">
         {rows
           // An assembly weekend prints only the talk; an empty "Sale a dar discurso" is normal.
-          .filter(([label, value]) => value || (!m.asamblea && label !== 'Sale a dar discurso'))
+          .filter(([label, value]) => value || (!m.asamblea && label !== 'Sale a dar discurso' && label !== 'Discursantes salientes'))
           .map(([label, value]) => (
             <div key={label} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:gap-3">
               <dt className="text-secondary text-ink-soft sm:w-48 sm:shrink-0">{label}</dt>

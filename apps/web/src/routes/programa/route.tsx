@@ -263,6 +263,9 @@ function WeekendSection({
     if (meeting.lector) rows.push({ label: 'Lector', value: meeting.lector });
     if (meeting.cancionFin) rows.push({ label: 'Canción final', value: meeting.cancionFin, mono: true });
     if (meeting.oracionFinal) rows.push({ label: 'Oración final', value: meeting.oracionFinal });
+    if (meeting.discursantesSalientes.length > 0) {
+      rows.push({ label: 'Discursantes salientes', value: meeting.discursantesSalientes.join(', ') });
+    }
   }
 
   return (

@@ -86,6 +86,7 @@ describe('editar · plantillas vacías', () => {
       cancionFin: null,
       oracionFinal: NO_PERSON,
       discurso: null,
+      discursantesSalientes: [],
     });
   });
 
@@ -158,12 +159,34 @@ describe('editar · limpieza antes de guardar', () => {
       cancionFin: null,
       oracionFinal: null,
       discurso: { tipo: 'PÚBLICO', titulo: 'Título', orador: null, congregacion: null, saliente: 'Persona 3' },
+      discursantesSalientes: [],
     });
     const blank: WeekendDraft = {
       ...emptyWeekend('2026-01-01'),
       discurso: { tipo: '', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null },
     };
     expect(cleanWeekend(blank, '2026-10-10').discurso).toBeNull();
+  });
+
+  it('keeps none, one or many discursantes salientes, linked or not, and drops blanks', () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    const draft: WeekendDraft = {
+      ...emptyWeekend('2026-01-01'),
+      discursantesSalientes: [
+        { person_id: id, name: ' Persona 7 ' },
+        NO_PERSON,
+        { person_id: null, name: 'Persona 8' },
+      ],
+    };
+    expect(hasWeekendContent(draft)).toBe(true);
+    const stored = cleanWeekend(draft, '2026-10-10');
+    expect(stored.discursantesSalientes).toEqual([{ name: 'Persona 7', person_id: id }, 'Persona 8']);
+    expect(sanitizeWeekend(stored, '2026-10-10').discursantesSalientes).toEqual([
+      { person_id: id, name: 'Persona 7' },
+      { person_id: null, name: 'Persona 8' },
+    ]);
+    expect(sanitizeWeekend({}, '2026-10-10').discursantesSalientes).toEqual([]);
+    expect(cleanWeekend(emptyWeekend('2026-01-01'), '2026-10-10').discursantesSalientes).toEqual([]);
   });
 
   it('stores linked people as {name, person_id} and unlinked ones as plain names', () => {
@@ -209,6 +232,7 @@ describe('editar · limpieza antes de guardar', () => {
       cancionFin: '45',
       oracionFinal: 'Persona 4',
       discurso: { tipo: 'ESPECIAL', titulo: 'Título', orador: 'Persona 5', congregacion: 'Otra', saliente: 'Persona 6' },
+      discursantesSalientes: [],
     };
     const parsed = sanitizeWeekend(stored, '2026-10-10');
     expect(parsed.hospitalidad).toBe('Grupo 3');
