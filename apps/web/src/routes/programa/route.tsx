@@ -1,9 +1,11 @@
 import { Link, useSearchParams } from 'react-router';
 import { CalendarDays, Mic } from 'lucide-react';
-import { useMyPermissions, useProgramWeek } from '@territorios/data';
+import { useMyPermissions, useProgramWeek, useRole } from '@territorios/data';
 import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import { ScreenHeader } from '../../shell/ScreenHeader';
 import { ShareProgramButton } from './ShareProgramButton';
+import { ReminderButton } from './ReminderButton';
+import { canEditPart } from '../gestion/programa/access';
 import { useMeName } from '../../lib/me';
 import { addDaysIso, fromIso, mondayOf } from '../../lib/week';
 import {
@@ -30,7 +32,11 @@ export function Component() {
   const monday = parseSemanaParam(params.get('semana'), fromIso(thisMonday));
   const isThisWeek = monday === thisMonday;
   const me = useMeName();
-  const seesPrivilegios = useMyPermissions().data?.sees_privilegios === true;
+  const perms = useMyPermissions().data;
+  const { isEditor } = useRole();
+  const seesPrivilegios = perms?.sees_privilegios === true;
+  const canRemindMidweek = canEditPart(perms, 'midweek', isEditor);
+  const canRemindWeekend = canEditPart(perms, 'weekend', isEditor);
 
   const week = useProgramWeek(monday);
 
@@ -111,8 +117,16 @@ export function Component() {
             ) : (
               <div className="flex flex-col gap-10">
                 {parts.length > 0 && <MyParts parts={parts} />}
-                <MidweekSection week={midweek} fallbackDate={addDaysIso(monday, 1)} />
-                <WeekendSection meeting={weekend} fallbackDate={addDaysIso(monday, 5)} />
+                <MidweekSection
+                  week={midweek}
+                  fallbackDate={addDaysIso(monday, 1)}
+                  canRemind={canRemindMidweek}
+                />
+                <WeekendSection
+                  meeting={weekend}
+                  fallbackDate={addDaysIso(monday, 5)}
+                  canRemind={canRemindWeekend}
+                />
               </div>
             )}
           </>
@@ -174,7 +188,15 @@ function MeetingHeading({ id, title, date }: { id: string; title: string; date: 
   );
 }
 
-function MidweekSection({ week, fallbackDate }: { week: MidweekWeek | null; fallbackDate: string }) {
+function MidweekSection({
+  week,
+  fallbackDate,
+  canRemind,
+}: {
+  week: MidweekWeek | null;
+  fallbackDate: string;
+  canRemind: boolean;
+}) {
   const date = dayHeading(week?.date ?? fallbackDate);
   const groups = groupParts(week?.parts ?? []);
 
@@ -221,11 +243,21 @@ function MidweekSection({ week, fallbackDate }: { week: MidweekWeek | null; fall
                           {part.people.map((person, j) => (
                             <li
                               key={`${person.name}-${j}`}
-                              className="flex flex-wrap items-baseline gap-x-2"
+                              className="flex items-center justify-between gap-2"
                             >
-                              <span className="text-body text-ink">{person.name}</span>
-                              {person.role && (
-                                <span className="text-secondary text-ink-soft">{person.role}</span>
+                              <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                                <span className="text-body text-ink">{person.name}</span>
+                                {person.role && (
+                                  <span className="text-secondary text-ink-soft">{person.role}</span>
+                                )}
+                              </span>
+                              {canRemind && (
+                                <ReminderButton
+                                  name={person.name}
+                                  part={part.title}
+                                  detail={person.role}
+                                  date={week?.date ?? fallbackDate}
+                                />
                               )}
                             </li>
                           ))}
@@ -246,23 +278,25 @@ function MidweekSection({ week, fallbackDate }: { week: MidweekWeek | null; fall
 function WeekendSection({
   meeting,
   fallbackDate,
+  canRemind,
 }: {
   meeting: WeekendMeeting | null;
   fallbackDate: string;
+  canRemind: boolean;
 }) {
   const date = dayHeading(meeting?.date ?? fallbackDate);
   const hasContent = meeting ? weekendHasContent(meeting) : false;
 
-  const rows: Array<{ label: string; value: string; mono?: boolean }> = [];
+  const rows: Array<{ label: string; value: string; mono?: boolean; remind?: boolean }> = [];
   if (meeting) {
-    if (meeting.hospitalidad) rows.push({ label: 'Hospitalidad', value: meeting.hospitalidad });
+    if (meeting.hospitalidad) rows.push({ label: 'Hospitalidad', value: meeting.hospitalidad, remind: true });
     if (meeting.cancionInicio) rows.push({ label: 'Canción inicial', value: meeting.cancionInicio, mono: true });
-    if (meeting.presidente) rows.push({ label: 'Presidente', value: meeting.presidente });
+    if (meeting.presidente) rows.push({ label: 'Presidente', value: meeting.presidente, remind: true });
     if (meeting.cancionIntermedia) rows.push({ label: 'Canción', value: meeting.cancionIntermedia, mono: true });
-    if (meeting.conductor) rows.push({ label: 'Conductor', value: meeting.conductor });
-    if (meeting.lector) rows.push({ label: 'Lector', value: meeting.lector });
+    if (meeting.conductor) rows.push({ label: 'Conductor', value: meeting.conductor, remind: true });
+    if (meeting.lector) rows.push({ label: 'Lector', value: meeting.lector, remind: true });
     if (meeting.cancionFin) rows.push({ label: 'Canción final', value: meeting.cancionFin, mono: true });
-    if (meeting.oracionFinal) rows.push({ label: 'Oración final', value: meeting.oracionFinal });
+    if (meeting.oracionFinal) rows.push({ label: 'Oración final', value: meeting.oracionFinal, remind: true });
     if (meeting.discursantesSalientes.length > 0) {
       rows.push({ label: 'Discursantes salientes', value: meeting.discursantesSalientes.join(', ') });
     }
@@ -289,10 +323,20 @@ function WeekendSection({
             <p className="mt-0.5 text-body-strong break-words">{meeting.discurso.titulo}</p>
           )}
           {(meeting.discurso.orador || meeting.discurso.congregacion) && (
-            <p className="mt-0.5 text-body break-words">
-              {meeting.discurso.orador}
-              {meeting.discurso.congregacion ? ` · Congregación ${meeting.discurso.congregacion}` : ''}
-            </p>
+            <div className="mt-0.5 flex items-center justify-between gap-2">
+              <p className="min-w-0 text-body break-words">
+                {meeting.discurso.orador}
+                {meeting.discurso.congregacion ? ` · Congregación ${meeting.discurso.congregacion}` : ''}
+              </p>
+              {canRemind && meeting.discurso.orador && (
+                <ReminderButton
+                  name={meeting.discurso.orador}
+                  part={meeting.discurso.tipo ? `Discurso ${meeting.discurso.tipo.toLowerCase()}` : 'Discurso'}
+                  detail={meeting.discurso.titulo}
+                  date={meeting.date}
+                />
+              )}
+            </div>
           )}
           {meeting.discurso.saliente && (
             <p className="mt-1 text-secondary text-ink-soft break-words">
@@ -311,9 +355,12 @@ function WeekendSection({
             >
               <dt className="text-secondary text-ink-soft">{row.label}</dt>
               <dd
-                className={`min-w-0 text-right break-words ${row.mono ? 'font-mono text-body' : 'text-body-strong'}`}
+                className={`flex min-w-0 items-center justify-end gap-2 text-right break-words ${row.mono ? 'font-mono text-body' : 'text-body-strong'}`}
               >
                 {row.value}
+                {canRemind && row.remind && meeting && (
+                  <ReminderButton name={row.value} part={row.label} date={meeting.date} />
+                )}
               </dd>
             </div>
           ))}
