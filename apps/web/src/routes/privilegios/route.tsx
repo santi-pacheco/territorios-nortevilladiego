@@ -3,10 +3,10 @@
  * (Tuesday and Saturday) of a month. Visible to editors, to can_edit_privilegios and to members
  * whose linked person has a duty (`my_permissions().sees_privilegios`).
  */
-import { useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { Suspense, lazy, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { onlineManager } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, PencilLine } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PencilLine, Share2 } from 'lucide-react';
 import { useDutyRoster, useMyPermissions, useSession, type DutyRole } from '@territorios/data';
 import { AccountButton } from '../../shell/AccountSheet';
 import { GoogleButton } from '../../shell/GoogleButton';
@@ -29,6 +29,9 @@ import {
   type RosterDay,
 } from './model';
 import './privilegios.css';
+
+// The card, html-to-image and the sheet load only when someone taps "Compartir imagen".
+const SharePrivilegios = lazy(() => import('./SharePrivilegios'));
 
 const CONGREGATION = 'Cong. Norte Villa Diego';
 
@@ -193,6 +196,8 @@ function Roster({ month, canEdit }: { month: Month; canEdit: boolean }) {
   const { from, to } = monthBounds(month);
   const roster = useDutyRoster(from, to);
   const me = useMeName();
+  const [sharing, setSharing] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
   const todayIso = toIso(new Date());
 
   const days = useMemo(
@@ -212,14 +217,49 @@ function Roster({ month, canEdit }: { month: Month; canEdit: boolean }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {canEdit && (
-        <Link
-          to="/gestion/privilegios"
-          className="btn-secondary inline-flex items-center justify-center gap-2 self-start"
-        >
-          <PencilLine aria-hidden size={20} />
-          Editar privilegios
-        </Link>
+      <div className="flex flex-wrap items-start gap-3">
+        {canEdit && (
+          <Link
+            to="/gestion/privilegios"
+            className="btn-secondary inline-flex items-center justify-center gap-2"
+          >
+            <PencilLine aria-hidden size={20} />
+            Editar privilegios
+          </Link>
+        )}
+        {(hasRows || hasMarks) && (
+          <button
+            type="button"
+            className="btn-secondary inline-flex items-center justify-center gap-2"
+            disabled={sharing}
+            onClick={() => {
+              setShareFailed(false);
+              setSharing(true);
+            }}
+          >
+            <Share2 aria-hidden size={20} />
+            {sharing ? 'Preparando imagen…' : 'Compartir imagen'}
+          </button>
+        )}
+      </div>
+      {shareFailed && (
+        <p role="alert" className="text-secondary text-danger">
+          No pudimos preparar la imagen. Probá de nuevo.
+        </p>
+      )}
+      {sharing && (
+        <Suspense fallback={null}>
+          <SharePrivilegios
+            month={month}
+            days={days}
+            columns={columns}
+            congregation={CONGREGATION}
+            onDone={(failed) => {
+              setSharing(false);
+              setShareFailed(failed);
+            }}
+          />
+        </Suspense>
       )}
 
       {!hasRows && !hasMarks ? (
