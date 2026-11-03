@@ -3,18 +3,18 @@
  * (canciones, presidente, discurso, conductor, lector, oración final, asamblea). The discourse is
  * optional — the toggle adds a `WeekendDiscourse`, matching the core type `discurso: ... | null`.
  *
- * `discurso.saliente`, which the editor does not show, stays in the value and is round-tripped
- * untouched on save. The three songs are free text (number + title). Every person is a PersonPicker (linked to the directory);
- * only the orador accepts free text, for visiting speakers. "Discursantes salientes" closes the
- * form: none, one or many directory people, each added with its own picker.
+ * The three songs are free text (number + title). Every person is a PersonPicker (linked to the
+ * directory), except the orador: a visiting speaker, plain free text, never linked.
+ * "Discursantes salientes" closes the form: none, one or many entries, each a directory person
+ * (search and select, no free text) plus the free-text congregation they go to.
  */
 import { useId } from 'react';
 import type { WeekendPersonField } from '@territorios/core';
 import { PersonPicker } from '../../../../shell/PersonPicker';
-import { DISCOURSE_TIPOS, NO_PERSON, type DiscourseDraft, type PersonDraft, type WeekendDraft } from './model';
+import { DISCOURSE_TIPOS, NO_SALIENTE, type DiscourseDraft, type PersonDraft, type SalienteDraft, type WeekendDraft } from './model';
 
 function newDiscourse(): DiscourseDraft {
-  return { tipo: 'PÚBLICO', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null };
+  return { tipo: 'PÚBLICO', titulo: '', orador: null, congregacion: null };
 }
 
 type SongField = 'cancionInicio' | 'cancionIntermedia' | 'cancionFin';
@@ -46,8 +46,9 @@ export function WeekendEditor({
   const id = useId();
   const disc = value.discurso;
   const salientes = value.discursantesSalientes;
-  const setSaliente = (i: number, v: PersonDraft) =>
-    onChange({ ...value, discursantesSalientes: salientes.map((p, j) => (j === i ? v : p)) });
+  const setSaliente = (i: number, patch: Partial<SalienteDraft>) =>
+    onChange({ ...value, discursantesSalientes: salientes.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
+  const pickSaliente = (i: number, v: PersonDraft) => setSaliente(i, { person_id: v.person_id, name: v.name });
 
   const text = (key: 'asamblea') => value[key] ?? '';
   const setText = (key: 'asamblea', v: string) => onChange({ ...value, [key]: v });
@@ -111,13 +112,14 @@ export function WeekendEditor({
               />
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <PersonPicker
-                label="Orador"
-                value={disc.orador}
-                // A visiting speaker is not in the directory: free text is allowed here only.
-                allowFreeText
-                onChange={(v) => setDisc({ orador: v })}
-              />
+              <label className="flex flex-col gap-1">
+                <span className="text-secondary text-ink-soft">Orador</span>
+                <input
+                  className="field"
+                  value={disc.orador ?? ''}
+                  onChange={(e) => setDisc({ orador: e.currentTarget.value })}
+                />
+              </label>
               <label className="flex flex-col gap-1">
                 <span className="text-secondary text-ink-soft">Congregación</span>
                 <input
@@ -169,14 +171,23 @@ export function WeekendEditor({
         {salientes.length === 0 && (
           <p className="text-body text-ink-soft">Nadie sale a dar discurso esta semana.</p>
         )}
-        {salientes.map((p, i) => (
+        {salientes.map((s, i) => (
           <div key={i} className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
               <PersonPicker
                 label={`Discursante saliente ${i + 1}`}
-                value={p}
-                onChange={(v) => setSaliente(i, v)}
+                value={s}
+                onChange={(v) => pickSaliente(i, v)}
               />
+              <label className="flex flex-col gap-1">
+                <span className="text-secondary text-ink-soft">Congregación</span>
+                <input
+                  className="field"
+                  aria-label={`Congregación del discursante saliente ${i + 1}`}
+                  value={s.congregacion}
+                  onChange={(e) => setSaliente(i, { congregacion: e.currentTarget.value })}
+                />
+              </label>
             </div>
             <button
               type="button"
@@ -196,7 +207,7 @@ export function WeekendEditor({
         <button
           type="button"
           className="btn-secondary self-start"
-          onClick={() => onChange({ ...value, discursantesSalientes: [...salientes, NO_PERSON] })}
+          onClick={() => onChange({ ...value, discursantesSalientes: [...salientes, NO_SALIENTE] })}
         >
           Agregar discursante saliente
         </button>

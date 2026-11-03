@@ -189,8 +189,8 @@ update public.people set name = 'Luis Fixture', aliases = '{"L. Fixture"}'
 select is(
   (select count(*)::int from private.assignments_for_person(
      'cccccccc-0000-4000-8000-000000000002', '2027-06-01', '2027-06-14')),
-  4,
-  'Otro gets the entries linked to them (midweek part, orador, salida) plus the oración by name'
+  3,
+  'Otro gets the entries linked to them (midweek part, salida) plus the oración by name; a legacy-linked orador is ignored'
 );
 
 -- ---------------------------------------------------------------------------

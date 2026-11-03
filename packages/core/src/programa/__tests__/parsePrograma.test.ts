@@ -102,8 +102,8 @@ describe('programa fin de semana (octubre 2026)', () => {
       titulo: 'Luchemos contra el espíritu del mundo',
       orador: 'Persona 47',
       congregacion: 'Congregación Ejemplo',
-      saliente: null,
     });
+    expect(w.discursantesSalientes).toEqual([]);
   });
 
   it('3 oct: discurso con discursante saliente', () => {
@@ -112,7 +112,7 @@ describe('programa fin de semana (octubre 2026)', () => {
     expect(w.lector).toBe('Persona 38');
     expect(w.discurso?.titulo).toBe('Imitemos al Padre de tiernas misericordias');
     expect(w.discurso?.orador).toBe('Persona 40');
-    expect(w.discurso?.saliente).toBe('Persona 41 – Congregación Ejemplo');
+    expect(w.discursantesSalientes).toEqual([{ name: 'Persona 41', congregacion: 'Ejemplo' }]);
   });
 
   it('10 oct es asamblea regional: sin presidente ni asignaciones', () => {

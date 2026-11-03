@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MidweekWeek } from '@territorios/core';
 import {
   NO_PERSON,
+  NO_SALIENTE,
   addPart,
   addPerson,
   cleanMidweek,
@@ -98,7 +99,7 @@ describe('editar · plantillas vacías', () => {
       hasWeekendContent({ ...emptyWeekend('2026-10-10'), lector: { person_id: null, name: 'Persona 2' } }),
     ).toBe(true);
     expect(
-      hasWeekendContent({ ...emptyWeekend('2026-10-10'), discurso: { tipo: '', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null } }),
+      hasWeekendContent({ ...emptyWeekend('2026-10-10'), discurso: { tipo: '', titulo: '', orador: null, congregacion: null } }),
     ).toBe(false);
   });
 });
@@ -145,7 +146,7 @@ describe('editar · limpieza antes de guardar', () => {
     const messy: WeekendDraft = {
       ...emptyWeekend('2026-01-01'),
       presidente: { person_id: null, name: ' Persona 1 ' },
-      discurso: { tipo: 'PÚBLICO', titulo: ' Título ', orador: NO_PERSON, congregacion: null, saliente: ' Persona 3 ' },
+      discurso: { tipo: 'PÚBLICO', titulo: ' Título ', orador: '  ', congregacion: null },
     };
     expect(cleanWeekend(messy, '2026-10-10')).toEqual({
       date: '2026-10-10',
@@ -158,33 +159,48 @@ describe('editar · limpieza antes de guardar', () => {
       lector: null,
       cancionFin: null,
       oracionFinal: null,
-      discurso: { tipo: 'PÚBLICO', titulo: 'Título', orador: null, congregacion: null, saliente: 'Persona 3' },
+      discurso: { tipo: 'PÚBLICO', titulo: 'Título', orador: null, congregacion: null },
       discursantesSalientes: [],
     });
     const blank: WeekendDraft = {
       ...emptyWeekend('2026-01-01'),
-      discurso: { tipo: '', titulo: '', orador: NO_PERSON, congregacion: null, saliente: null },
+      discurso: { tipo: '', titulo: '', orador: ' ', congregacion: null },
     };
     expect(cleanWeekend(blank, '2026-10-10').discurso).toBeNull();
   });
 
-  it('keeps none, one or many discursantes salientes, linked or not, and drops blanks', () => {
+  it('keeps none, one or many discursantes salientes (person + free-text congregación) and drops blanks', () => {
     const id = '11111111-1111-4111-8111-111111111111';
     const draft: WeekendDraft = {
       ...emptyWeekend('2026-01-01'),
       discursantesSalientes: [
-        { person_id: id, name: ' Persona 7 ' },
-        NO_PERSON,
-        { person_id: null, name: 'Persona 8' },
+        { person_id: id, name: ' Persona 7 ', congregacion: ' Villa Sur 2 ' },
+        NO_SALIENTE,
+        { person_id: null, name: 'Persona 8', congregacion: '' },
       ],
     };
     expect(hasWeekendContent(draft)).toBe(true);
     const stored = cleanWeekend(draft, '2026-10-10');
-    expect(stored.discursantesSalientes).toEqual([{ name: 'Persona 7', person_id: id }, 'Persona 8']);
-    expect(sanitizeWeekend(stored, '2026-10-10').discursantesSalientes).toEqual([
-      { person_id: id, name: 'Persona 7' },
-      { person_id: null, name: 'Persona 8' },
+    expect(stored.discursantesSalientes).toEqual([
+      { name: 'Persona 7', congregacion: 'Villa Sur 2', person_id: id },
+      { name: 'Persona 8', congregacion: null },
     ]);
+    expect(sanitizeWeekend(stored, '2026-10-10').discursantesSalientes).toEqual([
+      { person_id: id, name: 'Persona 7', congregacion: 'Villa Sur 2' },
+      { person_id: null, name: 'Persona 8', congregacion: '' },
+    ]);
+    // Old stored shapes (bare name, {name, person_id}, discurso.saliente text) are migrated on read.
+    expect(
+      sanitizeWeekend({ discursantesSalientes: ['Persona 1', { name: 'Persona 2', person_id: id }] }, '2026-10-10')
+        .discursantesSalientes,
+    ).toEqual([
+      { person_id: null, name: 'Persona 1', congregacion: '' },
+      { person_id: id, name: 'Persona 2', congregacion: '' },
+    ]);
+    expect(
+      sanitizeWeekend({ discurso: { tipo: 'PÚBLICO', titulo: 'T', saliente: 'Persona 3 – Congre Norte' } }, '2026-10-10')
+        .discursantesSalientes,
+    ).toEqual([{ person_id: null, name: 'Persona 3', congregacion: 'Norte' }]);
     expect(sanitizeWeekend({}, '2026-10-10').discursantesSalientes).toEqual([]);
     expect(cleanWeekend(emptyWeekend('2026-01-01'), '2026-10-10').discursantesSalientes).toEqual([]);
   });
@@ -194,7 +210,7 @@ describe('editar · limpieza antes de guardar', () => {
       ...emptyWeekend('2026-10-10'),
       lector: { person_id: P1, name: ' Persona 3 ' },
       conductor: { person_id: null, name: 'Persona 2' },
-      discurso: { tipo: 'PÚBLICO', titulo: 'T', orador: { person_id: null, name: 'Visitante' }, congregacion: null, saliente: null },
+      discurso: { tipo: 'PÚBLICO', titulo: 'T', orador: ' Visitante ', congregacion: null },
     };
     const stored = cleanWeekend(draft, '2026-10-10');
     expect(stored.lector).toEqual({ name: 'Persona 3', person_id: P1 });
@@ -204,7 +220,10 @@ describe('editar · limpieza antes de guardar', () => {
     const again = sanitizeWeekend(stored, '2026-10-10');
     expect(again.lector).toEqual({ person_id: P1, name: 'Persona 3' });
     expect(again.conductor).toEqual({ person_id: null, name: 'Persona 2' });
-    expect(again.discurso?.orador).toEqual({ person_id: null, name: 'Visitante' });
+    expect(again.discurso?.orador).toBe('Visitante');
+    // A legacy linked orador is read as its plain name and saved without the link.
+    const legacy = sanitizeWeekend({ discurso: { tipo: 'PÚBLICO', titulo: 'T', orador: { name: 'Dario', person_id: P1 } } }, '2026-10-10');
+    expect(cleanWeekend(legacy, '2026-10-10').discurso?.orador).toBe('Dario');
   });
 
   it('keeps person_id on midweek people through read and clean', () => {
@@ -231,15 +250,15 @@ describe('editar · limpieza antes de guardar', () => {
       lector: 'Persona 3',
       cancionFin: '45',
       oracionFinal: 'Persona 4',
-      discurso: { tipo: 'ESPECIAL', titulo: 'Título', orador: 'Persona 5', congregacion: 'Otra', saliente: 'Persona 6' },
-      discursantesSalientes: [],
+      discurso: { tipo: 'ESPECIAL', titulo: 'Título', orador: 'Persona 5', congregacion: 'Otra' },
+      discursantesSalientes: [{ name: 'Persona 6', congregacion: 'Sur' }],
     };
     const parsed = sanitizeWeekend(stored, '2026-10-10');
     expect(parsed.hospitalidad).toBe('Grupo 3');
     expect(parsed.cancionInicio).toBe('134 · Título');
     expect(parsed.cancionIntermedia).toBe('12');
     expect(parsed.cancionFin).toBe('45');
-    expect(parsed.discurso?.saliente).toBe('Persona 6');
+    expect(parsed.discursantesSalientes).toEqual([{ person_id: null, name: 'Persona 6', congregacion: 'Sur' }]);
     expect(cleanWeekend(parsed, '2026-10-10')).toEqual(stored);
   });
 });

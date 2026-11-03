@@ -6,6 +6,7 @@
  */
 import {
   personName,
+  readSalientes,
   type MidweekPart,
   type MidweekSection,
   type MidweekWeek,
@@ -84,10 +85,9 @@ function sanitizeDiscurso(raw: unknown): WeekendDiscourse | null {
   return {
     tipo,
     titulo,
-    // A string (legacy, unlinked) or {name, person_id} (linked): the screen shows the name.
+    // Free text (visiting speaker). Older rows may hold {name, person_id}: only the name shows.
     orador: personName(raw.orador) || null,
     congregacion: str(raw.congregacion) || null,
-    saliente: str(raw.saliente) || null,
   };
 }
 
@@ -108,9 +108,7 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendMeet
     cancionFin: one('cancionFin'),
     oracionFinal: who('oracionFinal'),
     discurso: sanitizeDiscurso(raw.discurso),
-    discursantesSalientes: Array.isArray(raw.discursantesSalientes)
-      ? raw.discursantesSalientes.map(personName).filter(Boolean)
-      : [],
+    discursantesSalientes: readSalientes(raw).map(({ name, congregacion }) => ({ name, congregacion })),
   };
 }
 
@@ -227,9 +225,6 @@ export function myParts(midweek: MidweekWeek | null, weekend: WeekendMeeting | n
       ['Lector', weekend.lector],
       ['Oración final', weekend.oracionFinal],
     ];
-    if (weekend.discurso?.orador) {
-      roles.push([`Discurso ${weekend.discurso.tipo.toLowerCase()}`.trim(), weekend.discurso.orador]);
-    }
     for (const [role, name] of roles) {
       if (!name || !matchesMe(me, name)) continue;
       out.push({

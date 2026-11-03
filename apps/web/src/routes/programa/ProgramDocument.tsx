@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { formatSaliente } from '@territorios/core';
 import { SECTION_LABEL, dayHeading, groupParts, shortRange } from './model';
 import type { ShareBlock } from './shareModel';
 import { addDaysIso } from '../../lib/week';
@@ -106,7 +107,7 @@ function WeekendBlock({ block }: { block: Extract<ShareBlock, { kind: 'weekend' 
     { label: 'Lector', value: m.lector },
     { label: 'Canción final', value: m.cancionFin, mono: true },
     { label: 'Oración final', value: m.oracionFinal },
-    { label: 'Discursantes salientes', value: m.discursantesSalientes.join(', ') || null },
+    { label: 'Discursantes salientes', value: m.discursantesSalientes.map(formatSaliente).join(', ') || null },
   ];
   const d = m.discurso;
   return (
@@ -122,7 +123,6 @@ function WeekendBlock({ block }: { block: Extract<ShareBlock, { kind: 'weekend' 
               {d.congregacion ? ` · Congregación ${d.congregacion}` : ''}
             </p>
           )}
-          {d.saliente && <p className="pd-sub">Discursante saliente: {d.saliente}</p>}
         </div>
       )}
       <dl>

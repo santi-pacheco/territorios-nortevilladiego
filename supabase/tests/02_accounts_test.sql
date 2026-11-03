@@ -133,9 +133,8 @@ select results_eq(
   $$select key, title, role
       from private.assignments_for_person('dddddddd-0000-4000-8000-000000000001', '2027-03-01', '2027-03-14')
      where key like 'programa:weekend:%' order by key$$,
-  $$values ('programa:weekend:2027-03-06:lector', 'Estudio de La Atalaya', 'Lector'),
-           ('programa:weekend:2027-03-06:orador', 'Discurso fixture', 'Orador')$$,
-  'programa weekend: lector via alias, orador via name, title = discurso.titulo'
+  $$values ('programa:weekend:2027-03-06:lector', 'Estudio de La Atalaya', 'Lector')$$,
+  'programa weekend: lector via alias; the orador (visiting speaker, free text) is never an assignment'
 );
 
 select results_eq(

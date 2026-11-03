@@ -1,4 +1,4 @@
-import type { PdfItem, WeekendDiscourse, WeekendMeeting } from './types';
+import { parseSalienteText, type PdfItem, type WeekendDiscourse, type WeekendMeeting } from './types';
 import { cleanTitle, groupLines, isoDate, joinItems, monthNumber, normalizeName, yearForMonth } from './text';
 
 // "Reunión del fin de semana" (PDF "RP <mes> <año>"). Es una cuadrícula 2×2 hecha en Word:
@@ -74,7 +74,9 @@ function parseBlock(items: PdfItem[], date: string): WeekendMeeting {
 
   const { conductor, lector } = findConductorLector(items);
 
-  const discurso = parseDiscurso(lines);
+  const { discurso, saliente } = parseDiscurso(lines);
+  const parsedSaliente = saliente ? parseSalienteText(saliente) : null;
+  const salientes = parsedSaliente ? [parsedSaliente] : [];
 
   return {
     date,
@@ -88,7 +90,8 @@ function parseBlock(items: PdfItem[], date: string): WeekendMeeting {
     cancionFin: songs.length > 1 ? (songs[songs.length - 1] ?? null) : null,
     oracionFinal,
     discurso,
-    discursantesSalientes: [],
+    // "Discursante Saliente: Nombre – Congre X" → una entrada {name, congregacion}.
+    discursantesSalientes: salientes,
   };
 }
 
@@ -117,11 +120,15 @@ function findConductorLector(items: PdfItem[]): { conductor: string | null; lect
   };
 }
 
-function parseDiscurso(lines: ReturnType<typeof groupLines>): WeekendDiscourse | null {
+function parseDiscurso(lines: ReturnType<typeof groupLines>): {
+  discurso: WeekendDiscourse | null;
+  saliente: string | null;
+} {
+  const none = { discurso: null, saliente: null };
   const tipoLine = lines.find((l) => /^(PÚBLICO|ESPECIAL)\b/.test(l.text));
   const asambleaLine = lines.find((l) => /ASAMBLEA/.test(l.text));
   const start = tipoLine ?? asambleaLine;
-  if (!start) return null;
+  if (!start) return none;
 
   const reunion = lines.find((l) => /^REUNIÓN\b/.test(l.text));
   const speakerLine = lines.find((l) => /^.+?\s*[–-]\s*Congre\b/.test(l.text));
@@ -156,12 +163,14 @@ function parseDiscurso(lines: ReturnType<typeof groupLines>): WeekendDiscourse |
     }
   }
 
-  if (!titulo && !orador) return null;
+  if (!titulo && !orador) return none;
   return {
-    tipo: tipoLine && /^ESPECIAL/.test(tipoLine.text) ? 'ESPECIAL' : 'PÚBLICO',
-    titulo,
-    orador,
-    congregacion,
+    discurso: {
+      tipo: tipoLine && /^ESPECIAL/.test(tipoLine.text) ? 'ESPECIAL' : 'PÚBLICO',
+      titulo,
+      orador,
+      congregacion,
+    },
     saliente,
   };
 }

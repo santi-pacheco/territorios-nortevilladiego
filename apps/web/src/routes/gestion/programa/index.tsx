@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { AlertTriangle, FileUp, Trash2, Upload, X } from 'lucide-react';
-import type { MidweekWeek, WeekendMeeting } from '@territorios/core';
+import { formatSaliente, type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import {
   DataError,
   isConflictError,
@@ -592,21 +592,20 @@ function WeekendDetail({ meeting: m }: { meeting: WeekendMeeting }) {
     ['Presidente', m.presidente],
     ['Discurso', m.discurso ? `${m.discurso.titulo}${m.discurso.tipo ? ` (${m.discurso.tipo.toLowerCase()})` : ''}` : null],
     ['Orador', m.discurso?.orador ? [m.discurso.orador, m.discurso.congregacion].filter(Boolean).join(' · ') : null],
-    ['Sale a dar discurso', m.discurso?.saliente ?? null],
     ['Canción', m.cancionIntermedia],
     ['Conductor de La Atalaya', m.conductor],
     ['Lector', m.lector],
     ['Canción final', m.cancionFin],
     ['Oración final', m.oracionFinal],
-    ['Discursantes salientes', m.discursantesSalientes.join(', ') || null],
+    ['Discursantes salientes', m.discursantesSalientes.map(formatSaliente).join(', ') || null],
   ];
   return (
     <div className="flex flex-col gap-2">
       {m.asamblea && <p className="text-body font-semibold">{m.asamblea}</p>}
       <dl className="flex flex-col divide-y divide-line">
         {rows
-          // An assembly weekend prints only the talk; an empty "Sale a dar discurso" is normal.
-          .filter(([label, value]) => value || (!m.asamblea && label !== 'Sale a dar discurso' && label !== 'Discursantes salientes'))
+          // An assembly weekend prints only the talk; an empty "Discursantes salientes" is normal.
+          .filter(([label, value]) => value || (!m.asamblea && label !== 'Discursantes salientes'))
           .map(([label, value]) => (
             <div key={label} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:gap-3">
               <dt className="text-secondary text-ink-soft sm:w-48 sm:shrink-0">{label}</dt>

@@ -26,9 +26,22 @@ export interface MidweekWeek {
 export interface WeekendDiscourse {
   tipo: string; // "PÚBLICO" | "ESPECIAL"
   titulo: string;
+  /** Discursante entrante: visitante de otra congregación, texto libre (nunca del directorio). */
   orador: string | null;
+  /** Congregación del orador, texto libre. */
   congregacion: string | null;
-  saliente: string | null;
+}
+
+/** Discursante saliente: alguien de nuestra congregación (del directorio) y a qué congregación va. */
+export interface WeekendSaliente {
+  name: string;
+  /** Texto libre, sin restricciones. */
+  congregacion: string | null;
+}
+
+/** A saliente as stored: `person_id` links the directory person (`name` stays as the snapshot). */
+export interface StoredSaliente extends WeekendSaliente {
+  person_id?: string;
 }
 
 export interface WeekendMeeting {
@@ -47,7 +60,7 @@ export interface WeekendMeeting {
   oracionFinal: string | null;
   discurso: WeekendDiscourse | null;
   /** Discursantes salientes: gente de la congregación que sale a dar un discurso; ninguno, uno o varios. */
-  discursantesSalientes: string[];
+  discursantesSalientes: WeekendSaliente[];
 }
 
 /** A weekend person linked (or not yet) to a people row. */
@@ -62,11 +75,6 @@ export interface PersonRef {
  */
 export type StoredPerson = string | PersonRef;
 
-/** `WeekendDiscourse` as stored: the orador may be linked. */
-export interface WeekendDiscourseData extends Omit<WeekendDiscourse, 'orador'> {
-  orador: StoredPerson | null;
-}
-
 /**
  * `WeekendMeeting` as stored. `WeekendMeeting` itself is the display shape (names only) that the
  * PDF parser produces and the screens render.
@@ -74,14 +82,13 @@ export interface WeekendDiscourseData extends Omit<WeekendDiscourse, 'orador'> {
 export interface WeekendMeetingData
   extends Omit<
     WeekendMeeting,
-    'presidente' | 'conductor' | 'lector' | 'oracionFinal' | 'discurso' | 'discursantesSalientes'
+    'presidente' | 'conductor' | 'lector' | 'oracionFinal' | 'discursantesSalientes'
   > {
   presidente: StoredPerson | null;
   conductor: StoredPerson | null;
   lector: StoredPerson | null;
   oracionFinal: StoredPerson | null;
-  discurso: WeekendDiscourseData | null;
-  discursantesSalientes: StoredPerson[];
+  discursantesSalientes: StoredSaliente[];
 }
 
 /** The weekend fields that name a person. */
@@ -114,6 +121,55 @@ export function storePerson(name: string, personId: string | null | undefined): 
   const n = name.trim();
   if (!n) return null;
   return personId ? { name: n, person_id: personId } : n;
+}
+
+/** "Nombre - Congregación" (or just the name when no congregation was given). */
+export function formatSaliente(s: WeekendSaliente): string {
+  return s.congregacion ? `${s.name} - ${s.congregacion}` : s.name;
+}
+
+/** "Persona – Congre X" as the PDF prints it → {name, congregacion}; null when blank. */
+export function parseSalienteText(text: string): WeekendSaliente | null {
+  const [who, ...rest] = text.split(/\s+[–-]\s+/);
+  const name = (who ?? '').trim();
+  if (!name) return null;
+  const where = rest.join(' - ').replace(/^Congre(gación)?\.?\s+/i, '').trim();
+  return { name, congregacion: where || null };
+}
+
+/** One stored saliente: a bare name or `{name, person_id?}` (legacy) or the current `{name, person_id?, congregacion}`. */
+export function readSaliente(v: unknown): StoredSaliente | null {
+  const name = personName(v);
+  if (!name) return null;
+  const out: StoredSaliente = { name, congregacion: null };
+  if (isPlainObject(v) && typeof v.congregacion === 'string') out.congregacion = v.congregacion.trim() || null;
+  const id = personLink(v);
+  if (id) out.person_id = id;
+  return out;
+}
+
+/**
+ * The salientes of stored weekend data, whatever shape it has: current entries, legacy
+ * person strings / `{name, person_id}`, or (older still) the PDF's `discurso.saliente` text
+ * when the list is empty.
+ */
+export function readSalientes(data: Record<string, unknown>): StoredSaliente[] {
+  const list = Array.isArray(data.discursantesSalientes)
+    ? data.discursantesSalientes.flatMap((v) => readSaliente(v) ?? [])
+    : [];
+  if (list.length > 0) return list;
+  const legacy = isPlainObject(data.discurso) ? data.discurso.saliente : null;
+  const parsed = typeof legacy === 'string' ? parseSalienteText(legacy) : null;
+  return parsed ? [parsed] : [];
+}
+
+/** The stored form of a saliente: person link kept, congregation free text, blank name → null. */
+export function storeSaliente(name: string, personId: string | null | undefined, congregacion: string | null | undefined): StoredSaliente | null {
+  const n = name.trim();
+  if (!n) return null;
+  const out: StoredSaliente = { name: n, congregacion: congregacion?.trim() || null };
+  if (personId) out.person_id = personId;
+  return out;
 }
 
 export interface ProgramaData {

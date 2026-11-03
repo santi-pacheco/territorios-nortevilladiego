@@ -136,18 +136,25 @@ describe('carryLinks (re-publishing a PDF keeps person links)', () => {
     });
   });
 
-  it('relinks weekend fields and the orador; ambiguous names stay unlinked', () => {
+  it('relinks weekend fields and salientes; the orador is free text and never relinked; ambiguous names stay unlinked', () => {
     const existing = {
       presidente: { name: 'Ana Prueba', person_id: A },
       lector: { name: 'Bruno Prueba', person_id: B },
       conductor: { name: 'Bruno Prueba', person_id: A },
       discurso: { titulo: 'T', orador: { name: 'Ana Prueba', person_id: A } },
+      discursantesSalientes: [{ name: 'Carla Prueba', person_id: B, congregacion: 'Sur' }],
     };
-    const next = { presidente: 'Bruno Prueba', lector: 'Ana Prueba', discurso: { titulo: 'U', orador: 'Ana Prueba' } };
+    const next = {
+      presidente: 'Bruno Prueba',
+      lector: 'Ana Prueba',
+      discurso: { titulo: 'U', orador: 'Ana Prueba' },
+      discursantesSalientes: [{ name: 'Carla Prueba', congregacion: 'Norte' }],
+    };
     expect(carryLinks(next, existing)).toEqual({
       presidente: 'Bruno Prueba',
       lector: { name: 'Ana Prueba', person_id: A },
-      discurso: { titulo: 'U', orador: { name: 'Ana Prueba', person_id: A } },
+      discurso: { titulo: 'U', orador: 'Ana Prueba' },
+      discursantesSalientes: [{ name: 'Carla Prueba', congregacion: 'Norte', person_id: B }],
     });
   });
 

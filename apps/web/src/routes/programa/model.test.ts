@@ -102,12 +102,29 @@ describe('programa sanitizers', () => {
     expect(sanitizeWeekend({ discurso: { tipo: '  ', titulo: null } }, '2026-10-17')?.discurso).toBeNull();
   });
 
-  it('reads discursantes salientes as names and counts them as content', () => {
+  it('reads discursantes salientes (name + congregación, old shapes included) and counts them as content', () => {
     const m = sanitizeWeekend(
-      { discursantesSalientes: ['Persona 1', { name: ' Persona 2 ', person_id: 'x' }, '', null] },
+      {
+        discursantesSalientes: [
+          'Persona 1',
+          { name: ' Persona 2 ', person_id: 'x' },
+          { name: 'Persona 3', person_id: 'x', congregacion: ' Villa Sur ' },
+          '',
+          null,
+        ],
+      },
       '2026-10-17',
     );
-    expect(m?.discursantesSalientes).toEqual(['Persona 1', 'Persona 2']);
+    expect(m?.discursantesSalientes).toEqual([
+      { name: 'Persona 1', congregacion: null },
+      { name: 'Persona 2', congregacion: null },
+      { name: 'Persona 3', congregacion: 'Villa Sur' },
+    ]);
+    // Older PDF imports kept the speaker as text on the discurso.
+    expect(
+      sanitizeWeekend({ discurso: { tipo: 'PÚBLICO', titulo: 'T', saliente: 'Persona 4 – Congre Norte' } }, '2026-10-17')
+        ?.discursantesSalientes,
+    ).toEqual([{ name: 'Persona 4', congregacion: 'Norte' }]);
     expect(m && weekendHasContent(m)).toBe(true);
     expect(sanitizeWeekend({}, '2026-10-17')?.discursantesSalientes).toEqual([]);
   });

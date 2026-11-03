@@ -51,7 +51,6 @@ export function tokens(s: string): string[] {
   return s.split(/[\s,–-]+/).map(norm).filter(Boolean);
 }
 
-const DASH_RE = /\s*[–-]\s*/;
 
 // Nombres de personas y lugares tal como los leen los parsers, en orden de aparición.
 export function collectNames(src: Source): { people: string[]; places: string[] } {
@@ -62,11 +61,9 @@ export function collectNames(src: Source): { people: string[]; places: string[] 
   }
   for (const m of src.parsed.weekend) {
     for (const v of [m.presidente, m.conductor, m.lector, m.oracionFinal, m.discurso?.orador]) if (v) people.push(v);
-    const saliente = m.discurso?.saliente;
-    if (saliente) {
-      const [who, where] = saliente.split(DASH_RE);
-      if (who) people.push(who);
-      if (where) places.push(where);
+    for (const s of m.discursantesSalientes) {
+      people.push(s.name);
+      if (s.congregacion) places.push(s.congregacion);
     }
     if (m.discurso?.congregacion) places.push(m.discurso.congregacion);
     const sede = m.asamblea?.match(/ASAMBLEA\s+REGIONAL\s+(.+?)\s+\d{4}/);

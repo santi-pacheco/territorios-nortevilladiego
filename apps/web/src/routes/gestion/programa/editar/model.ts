@@ -9,14 +9,15 @@
 import {
   personLink,
   personName,
+  readSalientes,
   storePerson,
+  storeSaliente,
   type MidweekPart,
   type MidweekSection,
   type MidweekWeek,
   type ProgramaPerson,
   type StoredPerson,
   type WeekendDiscourse,
-  type WeekendDiscourseData,
   type WeekendMeeting,
   type WeekendMeetingData,
   type WeekendPersonField,
@@ -126,9 +127,15 @@ export interface PersonDraft {
 
 export const NO_PERSON: PersonDraft = { person_id: null, name: '' };
 
-export interface DiscourseDraft extends Omit<WeekendDiscourse, 'orador'> {
-  orador: PersonDraft;
+/** The orador (visiting speaker) and its congregation are free text: no directory link. */
+export type DiscourseDraft = WeekendDiscourse;
+
+/** A discursante saliente in the editor: a directory person plus a free-text congregation. */
+export interface SalienteDraft extends PersonDraft {
+  congregacion: string;
 }
+
+export const NO_SALIENTE: SalienteDraft = { ...NO_PERSON, congregacion: '' };
 
 /** The weekend meeting as the editor holds it: every person field is a `PersonDraft`. */
 export interface WeekendDraft
@@ -139,7 +146,7 @@ export interface WeekendDraft
   oracionFinal: PersonDraft;
   discurso: DiscourseDraft | null;
   /** Discursantes salientes, in the order picked; none, one or many. */
-  discursantesSalientes: PersonDraft[];
+  discursantesSalientes: SalienteDraft[];
 }
 
 export function emptyWeekend(date: string): WeekendDraft {
@@ -220,9 +227,9 @@ function sanitizeDiscourse(raw: unknown): DiscourseDraft | null {
   const d: DiscourseDraft = {
     tipo: str(raw.tipo),
     titulo: str(raw.titulo),
-    orador: toDraft(raw.orador),
+    // Free text; older rows may hold {name, person_id}, of which only the name is kept.
+    orador: personName(raw.orador) || null,
     congregacion: str(raw.congregacion) || null,
-    saliente: str(raw.saliente) || null,
   };
   return discourseHasContent(d) ? d : null;
 }
@@ -242,9 +249,11 @@ export function sanitizeWeekend(raw: unknown, fallbackDate: string): WeekendDraf
     cancionFin: one('cancionFin'),
     oracionFinal: toDraft(src.oracionFinal),
     discurso: sanitizeDiscourse(src.discurso),
-    discursantesSalientes: Array.isArray(src.discursantesSalientes)
-      ? src.discursantesSalientes.map(toDraft).filter((p) => p.name)
-      : [],
+    discursantesSalientes: readSalientes(src).map((s) => ({
+      person_id: s.person_id ?? null,
+      name: s.name,
+      congregacion: s.congregacion ?? '',
+    })),
   };
 }
 
@@ -260,9 +269,8 @@ function discourseHasContent(d: DiscourseDraft | null): boolean {
     d &&
       (d.tipo.trim() ||
         d.titulo.trim() ||
-        d.orador.name.trim() ||
-        d.congregacion?.trim() ||
-        d.saliente?.trim()),
+        d.orador?.trim() ||
+        d.congregacion?.trim()),
   );
 }
 
@@ -314,14 +322,13 @@ export function storeDraft(p: PersonDraft): StoredPerson | null {
   return storePerson(p.name, p.person_id);
 }
 
-function cleanDiscourse(d: DiscourseDraft | null): WeekendDiscourseData | null {
+function cleanDiscourse(d: DiscourseDraft | null): WeekendDiscourse | null {
   if (!d || !discourseHasContent(d)) return null;
   return {
     tipo: d.tipo.trim(),
     titulo: d.titulo.trim(),
-    orador: storeDraft(d.orador),
+    orador: d.orador?.trim() || null,
     congregacion: d.congregacion?.trim() || null,
-    saliente: d.saliente?.trim() || null,
   };
 }
 
@@ -339,7 +346,9 @@ export function cleanWeekend(m: WeekendDraft, date: string): WeekendMeetingData 
     cancionFin: one(m.cancionFin),
     oracionFinal: storeDraft(m.oracionFinal),
     discurso: cleanDiscourse(m.discurso),
-    discursantesSalientes: m.discursantesSalientes.flatMap((p) => storeDraft(p) ?? []),
+    discursantesSalientes: m.discursantesSalientes.flatMap(
+      (s) => storeSaliente(s.name, s.person_id, s.congregacion) ?? [],
+    ),
   };
 }
 

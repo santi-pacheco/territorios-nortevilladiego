@@ -257,7 +257,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** Every person value in a program payload (midweek people, weekend fields, orador). */
+/** Every directory-linkable person value in a program payload (midweek people, weekend fields, salientes). The orador is free text and never linked. */
 function personValues(data: Record<string, unknown>): unknown[] {
   const out: unknown[] = [];
   if (Array.isArray(data.parts)) {
@@ -266,7 +266,6 @@ function personValues(data: Record<string, unknown>): unknown[] {
     }
   }
   for (const key of WEEKEND_PERSON_FIELDS) out.push(data[key]);
-  if (isRecord(data.discurso)) out.push(data.discurso.orador);
   if (Array.isArray(data.discursantesSalientes)) out.push(...data.discursantesSalientes);
   return out;
 }
@@ -311,7 +310,6 @@ export function carryLinks(
   for (const key of WEEKEND_PERSON_FIELDS) {
     if (key in next) out[key] = relink(next[key]);
   }
-  if (isRecord(next.discurso)) out.discurso = { ...next.discurso, orador: relink(next.discurso.orador) };
   if (Array.isArray(next.discursantesSalientes)) {
     out.discursantesSalientes = next.discursantesSalientes.map(relink);
   }

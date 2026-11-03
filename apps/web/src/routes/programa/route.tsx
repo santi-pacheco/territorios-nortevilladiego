@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router';
 import { CalendarDays, Mic } from 'lucide-react';
 import { useMyPermissions, useProgramWeek, useRole } from '@territorios/data';
-import { type MidweekWeek, type WeekendMeeting } from '@territorios/core';
+import { formatSaliente, type MidweekWeek, type WeekendMeeting } from '@territorios/core';
 import { ScreenHeader } from '../../shell/ScreenHeader';
 import { ShareProgramButton } from './ShareProgramButton';
 import { ReminderButton } from './ReminderButton';
@@ -298,7 +298,7 @@ function WeekendSection({
     if (meeting.cancionFin) rows.push({ label: 'Canción final', value: meeting.cancionFin, mono: true });
     if (meeting.oracionFinal) rows.push({ label: 'Oración final', value: meeting.oracionFinal, remind: true });
     if (meeting.discursantesSalientes.length > 0) {
-      rows.push({ label: 'Discursantes salientes', value: meeting.discursantesSalientes.join(', ') });
+      rows.push({ label: 'Discursantes salientes', value: meeting.discursantesSalientes.map(formatSaliente).join(', ') });
     }
   }
 
@@ -328,20 +328,7 @@ function WeekendSection({
                 {meeting.discurso.orador}
                 {meeting.discurso.congregacion ? ` · Congregación ${meeting.discurso.congregacion}` : ''}
               </p>
-              {canRemind && meeting.discurso.orador && (
-                <ReminderButton
-                  name={meeting.discurso.orador}
-                  part={meeting.discurso.tipo ? `Discurso ${meeting.discurso.tipo.toLowerCase()}` : 'Discurso'}
-                  detail={meeting.discurso.titulo}
-                  date={meeting.date}
-                />
-              )}
             </div>
-          )}
-          {meeting.discurso.saliente && (
-            <p className="mt-1 text-secondary text-ink-soft break-words">
-              Discursante saliente: {meeting.discurso.saliente}
-            </p>
           )}
         </div>
       )}

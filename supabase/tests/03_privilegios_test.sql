@@ -205,7 +205,6 @@ select results_eq(
       from public.name_sources() where norm like '%fixture%' order by norm$$,
   $$values ('Libre Fixture'::text, '{privilegio}'::text[], 1, '2027-05-04'::date, '2027-05-04'::date, null::uuid),
            ('Nuevo Fixture', '{programa,salida}', 3, '2027-05-04', '2027-05-12', null),
-           ('Pablo Fixture', '{programa}', 1, '2027-05-08', '2027-05-08', 'ffffffff-0000-4000-8000-000000000002'::uuid),
            ('T. Fixture', '{programa}', 1, '2027-05-04', '2027-05-04', 'ffffffff-0000-4000-8000-000000000001'::uuid)$$,
   'name_sources: grouped by norm_name, sources/uses/dates, matched by name or alias'
 );
