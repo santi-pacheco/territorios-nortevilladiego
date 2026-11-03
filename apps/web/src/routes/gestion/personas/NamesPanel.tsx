@@ -7,7 +7,7 @@
  */
 import { useId, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { inferGender, matchPerson } from '@territorios/core';
+import { inferGender, matchPerson, normalizePersonName } from '@territorios/core';
 import {
   DataError,
   useAddPersonAlias,
@@ -115,22 +115,35 @@ export function NamesPanel({
 
 function CreatePersonSheet({ source, onClose }: { source: NameSource; onClose: () => void }) {
   const create = useCreatePersonFromName();
+  const addAlias = useAddPersonAlias();
+  // The directory keeps "Name Surname": "Diaz, Enrique" is stored as "Enrique Diaz" and the
+  // original spelling becomes an alias, so it stops being listed as unlinked.
+  const canonical = normalizePersonName(source.name) || source.name;
   const [gender, setGender] = useState<Gender | null>(() => inferGender(source.name));
   const [inCarrito, setInCarrito] = useState(false);
   const genderName = useId();
   const carritoName = useId();
   const guessed = useMemo(() => inferGender(source.name) !== null, [source.name]);
 
-  function save() {
+  async function save() {
     if (!gender) return;
-    create.mutate({ name: source.name, gender, inCarrito }, { onSuccess: onClose });
+    try {
+      const personId = await create.mutateAsync({ name: canonical, gender, inCarrito });
+      if (canonical !== source.name) await addAlias.mutateAsync({ personId, alias: source.name });
+      onClose();
+    } catch {
+      // Shown below from create.error.
+    }
   }
 
   return (
     <Sheet title="Crear persona" onClose={onClose}>
       <div>
         <p className="text-secondary text-ink-soft">Nombre</p>
-        <p className="text-body-strong font-semibold break-words">{source.name}</p>
+        <p className="text-body-strong font-semibold break-words">{canonical}</p>
+        {canonical !== source.name && (
+          <p className="text-secondary text-ink-soft">Así figura: «{source.name}».</p>
+        )}
       </div>
 
       <fieldset className="flex flex-col gap-1">
@@ -184,8 +197,13 @@ function CreatePersonSheet({ source, onClose }: { source: NameSource; onClose: (
         <button type="button" className="btn-secondary" onClick={onClose}>
           Cancelar
         </button>
-        <button type="button" className="btn-primary" disabled={!gender || create.isPending} onClick={save}>
-          {create.isPending ? 'Creando…' : 'Crear persona'}
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={!gender || create.isPending || addAlias.isPending}
+          onClick={() => void save()}
+        >
+          {create.isPending || addAlias.isPending ? 'Creando…' : 'Crear persona'}
         </button>
       </div>
     </Sheet>

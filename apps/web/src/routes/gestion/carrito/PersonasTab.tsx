@@ -7,7 +7,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { inferGender, type Gender } from '@territorios/core';
+import { inferGender, normalizePersonName, type Gender } from '@territorios/core';
 import {
   isConflictError,
   qk,
@@ -321,7 +321,7 @@ function PersonSheet({
    */
   async function save(personVersion?: number) {
     write.setError(null);
-    const values = { name: name.trim(), gender, target };
+    const values = { name: normalizePersonName(name), gender, target };
     if (!values.name) {
       write.setError('Poné un nombre.');
       return;
@@ -415,7 +415,7 @@ function PersonSheet({
           className="field"
           value={name}
           autoComplete="off"
-          placeholder="Ej: Pérez, Ana"
+          placeholder="Ej: Ana Pérez"
           onChange={(e) => onNameChange(e.target.value)}
         />
       </Field>
