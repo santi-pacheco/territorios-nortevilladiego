@@ -23,7 +23,9 @@ Owner requests (2026-10-17):
   found in `program_weeks` (midweek parts people, weekend presidente/conductor/lector/orador/oración),
   `service_meetings.conductor` and `duty_roster.person_name` (rows without person_id), with the person it
   already matches (by `private.norm_name` on name or aliases), or null.
-- `public.create_person_from_name(p_name text, p_gender text, p_in_carrito boolean default false)` → uuid (editor).
+- `public.create_person_from_name(p_name text, p_gender text, p_in_carrito boolean default false, p_duties text[] default '{}')` → uuid (**admin only**; everyone else
+  picks existing people). `public.delete_person(p_person uuid)` (admin only; 23503 while the person is still
+  referenced by a program, privilegios cell, salida, carrito assignment or account; availability and pairs cascade).
 - `public.add_person_alias(p_person uuid, p_alias text)` (editor): appends to `aliases` if not present.
 
 ### Permissions
@@ -73,8 +75,11 @@ loses access.
 
 ## Web
 - Gestión ▸ Personas: tags (duties) + "En carrito" toggle per person; panel "Nombres sin vincular" from
-  `name_sources()` (unmatched first): "Crear persona" (asks gender, prefilled from inferGender) or
-  "Es otro nombre de…" (person picker → alias).
+  `name_sources()` (unmatched first): "Es otro nombre de…" (person picker → alias; the likely person is
+  suggested via `matchPerson`) or, admin only, "Crear persona" (asks gender, prefilled from inferGender).
+  Admins also get "Borrar persona" (confirm sheet; refused with the reasons while it is referenced).
+  Imports (program PDF, Excel paste) map names to the directory with `matchPerson`
+  (`packages/core/src/people/names.ts`); names that match nobody are flagged, never auto-created.
 - Gestión ▸ Usuarios: admin toggles "Editar entre semana" / "Editar fin de semana" / "Editar
   privilegios".
 - Gestión ▸ Programa: top tabs "Entre semana" and "Fin de semana", showing only the meetings the

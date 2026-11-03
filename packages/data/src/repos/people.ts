@@ -85,13 +85,13 @@ export async function updatePerson(
   );
 }
 
-/** Cascades availability/pairs and removes the id from cart_assignments. */
-export async function deletePerson(
-  sb: TerritoriosClient,
-  id: string,
-  expectedVersion: number,
-): Promise<void> {
-  return casDelete(sb, 'people', PersonRow, { id }, expectedVersion);
+/**
+ * Admin only (delete_person RPC; there is no client DELETE on people). Cascades availability and
+ * pairs. Refused with 23503 while the person is linked to a program, privilegios cell, salida,
+ * carrito assignment or account: `DataError.details` lists the counts.
+ */
+export async function deletePerson(sb: TerritoriosClient, id: string): Promise<void> {
+  await callRpc(sb, 'delete_person', { p_person: id });
 }
 
 export async function addAvailability(
@@ -152,10 +152,9 @@ export async function fetchNameSources(sb: TerritoriosClient): Promise<NameSourc
 }
 
 /**
- * "Crear persona" from an unmatched name or from a person picker; returns the new id.
- * `inCarrito` (default false) is honoured for editors only; `duties` for editors and
- * can_edit_privilegios. 23505 when the name already matches someone (name or alias).
- * Editors, either program grant (midweek or weekend) or can_edit_privilegios; 42501 otherwise.
+ * "Crear persona" from an unmatched name; returns the new id. Admin only (42501 otherwise):
+ * everyone else picks from the directory. 23505 when the name already matches someone (name or
+ * alias). `inCarrito` defaults to false.
  */
 export async function createPersonFromName(
   sb: TerritoriosClient,

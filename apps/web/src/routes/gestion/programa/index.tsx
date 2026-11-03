@@ -15,6 +15,7 @@ import {
   mutations,
   useDataMutation,
   useMyPermissions,
+  usePeopleDirectory,
   useRole,
   type ProgramWeekRow,
 } from '@territorios/data';
@@ -27,6 +28,7 @@ import {
   meetingDay,
   publishPlan,
   carryLinks,
+  linkPeople,
   publishedSummary,
   restrictPreview,
   weekRange,
@@ -158,11 +160,15 @@ function CargarPdf({ kind }: { kind: ProgramaPart }) {
 
   const create = useDataMutation(mutations.createProgramWeek);
   const update = useDataMutation(mutations.updateProgramWeek);
+  // Names in the PDF are matched to the directory (never created): unmatched ones are flagged.
+  const directory = usePeopleDirectory();
+  const people = directory.data;
 
   // A PDF may carry both meetings; this tab only publishes its own.
   const preview = useMemo(
-    () => (files.length ? restrictPreview(buildPreview(files, year, published), kind) : null),
-    [files, year, published, kind],
+    () =>
+      files.length ? restrictPreview(buildPreview(files, year, published, people ?? []), kind) : null,
+    [files, year, published, kind, people],
   );
   const selected = useMemo(() => {
     if (!preview) return new Set<string>();
@@ -222,18 +228,23 @@ function CargarPdf({ kind }: { kind: ProgramaPart }) {
     const done = new Set<string>();
     for (const step of publishPlan(preview, selected)) {
       const { entry } = step;
-      const data = entry.meeting.week as unknown as Record<string, unknown>;
+      const raw = entry.meeting.week as unknown as Record<string, unknown>;
       try {
         if (step.op === 'update') {
           await update.mutateAsync({
             id: step.row.id,
             version: step.row.version,
             weekStart: entry.weekStart,
-            // Keep the person links an editor already made for the same names.
-            patch: { data: carryLinks(data, step.row.data) },
+            // Keep the person links an editor already made for the same names, then map the
+            // rest to the directory (unmatched names stay unlinked for the editor to pick).
+            patch: { data: linkPeople(carryLinks(raw, step.row.data), people ?? []).data },
           });
         } else {
-          await create.mutateAsync({ kind: entry.kind, date: entry.date, data });
+          await create.mutateAsync({
+            kind: entry.kind,
+            date: entry.date,
+            data: linkPeople(raw, people ?? []).data,
+          });
         }
         result.ok++;
         done.add(entry.key);
@@ -294,7 +305,7 @@ function CargarPdf({ kind }: { kind: ProgramaPart }) {
               <button
                 type="button"
                 className="btn-primary inline-flex items-center gap-2"
-                disabled={publishing || publishCount === 0 || !online || list.isPending}
+                disabled={publishing || publishCount === 0 || !online || list.isPending || directory.isPending}
                 onClick={publish}
               >
                 <Upload aria-hidden size={20} />

@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(30);
+select plan(31);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres)
@@ -29,17 +29,19 @@ end;
 $$;
 grant execute on all functions in schema tests to anon, authenticated;
 
--- Users: viewer (linked to Luis), programa, privilegios, editor.
+-- Users: viewer (linked to Luis), programa, privilegios, editor, plain viewer, admin.
 insert into auth.users (id, email) values
   ('dddddddd-0000-4000-8000-000000000001', 'luis@test.local'),
   ('dddddddd-0000-4000-8000-000000000002', 'programa@test.local'),
   ('dddddddd-0000-4000-8000-000000000003', 'privilegios@test.local'),
   ('dddddddd-0000-4000-8000-000000000004', 'editor@test.local'),
-  ('dddddddd-0000-4000-8000-000000000005', 'plain@test.local');
+  ('dddddddd-0000-4000-8000-000000000005', 'plain@test.local'),
+  ('dddddddd-0000-4000-8000-000000000006', 'admin@test.local');
 update public.profiles set can_edit_programa_midweek = true, can_edit_programa_weekend = true
  where id = 'dddddddd-0000-4000-8000-000000000002';
 update public.profiles set can_edit_privilegios = true where id = 'dddddddd-0000-4000-8000-000000000003';
 update public.profiles set role = 'editor' where id = 'dddddddd-0000-4000-8000-000000000004';
+update public.profiles set role = 'admin' where id = 'dddddddd-0000-4000-8000-000000000006';
 
 -- Luis (the member), Otro (shares Luis's spelling in linked entries) and Gone (deleted below).
 insert into public.people (id, name, gender, aliases, duties, in_carrito) values
@@ -246,36 +248,39 @@ select throws_ok($$select * from public.people_directory()$$, '42501', null,
 reset role;
 
 -- ---------------------------------------------------------------------------
--- create_person_from_name from the pickers
+-- create_person_from_name: admin only (pickers only select existing people)
 -- ---------------------------------------------------------------------------
 select tests.login_as('dddddddd-0000-4000-8000-000000000002');
+select throws_ok(
+  $$select public.create_person_from_name('Nuevo Programa Fixture', 'F', true, '{sonido}')$$, '42501', null,
+  'a program grant cannot create a person'
+);
+reset role;
+select tests.login_as('dddddddd-0000-4000-8000-000000000003');
+select throws_ok(
+  $$select public.create_person_from_name('Nuevo Privilegios Fixture', 'M', true, '{acomodador}')$$, '42501', null,
+  'can_edit_privilegios cannot create a person'
+);
+reset role;
+select tests.login_as('dddddddd-0000-4000-8000-000000000004');
+select throws_ok(
+  $$select public.create_person_from_name('Nuevo Editor Fixture', 'M', true)$$, '42501', null,
+  'an editor cannot create a person'
+);
+reset role;
+select tests.login_as('dddddddd-0000-4000-8000-000000000006');
 select lives_ok(
-  $$select public.create_person_from_name('Nuevo Programa Fixture', 'F', true, '{sonido}')$$,
-  'either program grant can create a person from the picker'
+  $$select public.create_person_from_name('Nuevo Admin Fixture', 'M', true, '{sonido,acomodador}')$$,
+  'an admin creates a person from a name'
 );
 select throws_ok(
   $$select public.create_person_from_name('l. fixture', 'M')$$, '23505', null,
   'creating a duplicate (name or alias) raises 23505'
 );
-reset role;
-select tests.login_as('dddddddd-0000-4000-8000-000000000003');
-select lives_ok(
-  $$select public.create_person_from_name('Nuevo Privilegios Fixture', 'M', true, '{acomodador}')$$,
-  'can_edit_privilegios can create a person from the picker'
-);
-reset role;
 select results_eq(
-  $$select name, in_carrito, duties from public.people where name like 'Nuevo % Fixture' order by name$$,
-  $$values ('Nuevo Privilegios Fixture'::text, false, '{acomodador}'::text[]),
-           ('Nuevo Programa Fixture', false, '{}')$$,
-  'non-editors cannot add people to the carrito; only privilegios editors tag duties'
-);
-select tests.login_as('dddddddd-0000-4000-8000-000000000004');
-select public.create_person_from_name('Nuevo Editor Fixture', 'M', true);
-select is(
-  (select in_carrito from public.people where name = 'Nuevo Editor Fixture'),
-  true,
-  'editors still choose in_carrito'
+  $$select name, in_carrito, duties from public.people where name = 'Nuevo Admin Fixture'$$,
+  $$values ('Nuevo Admin Fixture'::text, true, '{sonido,acomodador}'::text[])$$,
+  'the admin chooses in_carrito and duties'
 );
 reset role;
 

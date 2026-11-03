@@ -1,7 +1,7 @@
 /**
  * Gestión ▸ Privilegios: the month's meeting days (Tuesday and Saturday), each with its kind
  * (reunión / asamblea / sin reunión) and six role slots. Each slot is a PersonPicker over the
- * people with that duty: a choice links the person, "Usar «texto» sin vincular" keeps free text,
+ * people with that duty: a choice links the person (no free text, no creating people here),
  * clearing empties the slot; it saves on choice. Every write is CAS on the row version; a conflict rolls back,
  * refetches and shows a notice. "Pegar desde Excel" fills many dates at once (PastePanel).
  */
@@ -362,9 +362,6 @@ function SlotField({
       placeholder="Nombre"
       value={value}
       filter={DUTY_FILTER[slot.role]}
-      createDuties={[slot.role]}
-      // Free text stays possible (the roster supports it), and is marked "Sin vincular".
-      allowFreeText
       disabled={!online || pending}
       status={
         pending

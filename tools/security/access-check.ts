@@ -447,6 +447,7 @@ function rpcArgs(name: string, uid: string): Row {
     case 'reminder_candidates': return { p_from: day(0), p_to: day(7) };
     case 'link_account': return { p_user: uid, p_person: person };
     case 'add_person_alias': return { p_person: person, p_alias: `${RUN} alias` };
+    case 'delete_person': return { p_person: person };
     case 'create_person_from_name': return { p_name: `${RUN} rpc`, p_gender: 'M' };
     case 'set_account_role': return { p_user: uid, p_role: 'admin' };
     case 'set_account_permissions': return { p_user: uid, p_midweek: true, p_weekend: true, p_privilegios: true };

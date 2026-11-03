@@ -15,6 +15,8 @@ export * from './carrito/gender';
 export * from './carrito/scheduler';
 export * from './carrito/store';
 
+export * from './people/names';
+
 export * from './programa/types';
 export * from './programa/text';
 export * from './programa/week';

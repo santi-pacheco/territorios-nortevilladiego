@@ -16,16 +16,18 @@ import {
   type PersonUpdate,
 } from '@territorios/data';
 import { ConflictBar, errorMessage, useWriteState } from '../carrito/ui';
+import { DeletePersonSheet } from './DeletePersonSheet';
 import { DUTY_LABEL, DUTY_ORDER, mergeAlias, removeAlias, toggleDuty } from './model';
 
 const GENDER_LABEL = { M: 'Varón', F: 'Mujer' } as const;
 
-export function PersonItem({ person }: { person: PersonRow }) {
+export function PersonItem({ person, canDelete = false }: { person: PersonRow; canDelete?: boolean }) {
   const qc = useQueryClient();
   const update = useUpdatePerson();
   const addAlias = useAddPersonAlias();
   const write = useWriteState();
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [draft, setDraft] = useState('');
   const [aliasError, setAliasError] = useState<string | null>(null);
   const nameId = useId();
@@ -185,6 +187,15 @@ export function PersonItem({ person }: { person: PersonRow }) {
           </p>
         )}
       </div>
+
+      {canDelete && (
+        <div>
+          <button type="button" className="btn-secondary text-danger" onClick={() => setDeleting(true)}>
+            Borrar persona
+          </button>
+        </div>
+      )}
+      {deleting && <DeletePersonSheet person={person} onClose={() => setDeleting(false)} />}
 
       <ConflictBar write={write} onUseTheirs={() => void qc.invalidateQueries({ queryKey: qk.people })} />
     </li>

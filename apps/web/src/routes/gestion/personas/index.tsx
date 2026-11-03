@@ -2,11 +2,12 @@
  * Gestión ▸ Personas: the congregation directory. Every name with assignments (carrito,
  * programa, salidas, privilegios) should be a person here, so accounts can be linked to it.
  * Per person: "En carrito", duty tags and other spellings. The "Nombres sin vincular" panel
- * turns unmatched names from name_sources() into people or aliases (docs/PRIVILEGIOS.md).
+ * turns unmatched names from name_sources() into aliases of existing people; only the
+ * administrator creates and deletes people (docs/PRIVILEGIOS.md).
  */
 import { useId, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { useNameSources, usePeople, type NameSource, type PersonRow } from '@territorios/data';
+import { useNameSources, usePeople, useRole, type NameSource, type PersonRow } from '@territorios/data';
 import { EmptyState, TabSkeleton } from '../carrito/ui';
 import { filterPeople, unmatchedNames } from './model';
 import { NamesPanel } from './NamesPanel';
@@ -25,6 +26,7 @@ const SHOW_LABEL: Record<Show, string> = {
 export function GestionPersonas() {
   const roster = usePeople();
   const sources = useNameSources();
+  const isAdmin = useRole().role === 'admin';
   const [query, setQuery] = useState('');
   const [show, setShow] = useState<Show>('todas');
   const searchId = useId();
@@ -79,6 +81,7 @@ export function GestionPersonas() {
             failed={sources.isError && !sources.data}
             onRetry={() => void sources.refetch()}
             people={people}
+            isAdmin={isAdmin}
           />
 
           <section aria-labelledby={`${searchId}-h`} className="flex flex-col gap-3">
@@ -125,7 +128,11 @@ export function GestionPersonas() {
             {people.length === 0 ? (
               <EmptyState
                 title="Todavía no hay personas"
-                body="Creá personas desde “Nombres sin vincular” o desde Carrito ▸ Personas. Aparecen acá en cuanto se guardan."
+                body={
+                  isAdmin
+                    ? 'Creá personas desde “Nombres sin vincular” o desde Carrito ▸ Personas. Aparecen acá en cuanto se guardan.'
+                    : 'Solo el administrador agrega personas. Aparecen acá en cuanto las crea.'
+                }
               />
             ) : shown.length === 0 ? (
               <p className="py-6 text-body text-ink-soft">
@@ -136,7 +143,7 @@ export function GestionPersonas() {
             ) : (
               <ul className="flex flex-col border-t border-line" aria-label="Personas">
                 {shown.map((person) => (
-                  <PersonItem key={person.id} person={person} />
+                  <PersonItem key={person.id} person={person} canDelete={isAdmin} />
                 ))}
               </ul>
             )}
@@ -153,12 +160,14 @@ function NamesSection({
   failed,
   onRetry,
   people,
+  isAdmin,
 }: {
   unmatched: NameSource[];
   pending: boolean;
   failed: boolean;
   onRetry: () => void;
   people: PersonRow[];
+  isAdmin: boolean;
 }) {
   if (pending) {
     return (
@@ -185,7 +194,7 @@ function NamesSection({
       </p>
     );
   }
-  return <NamesPanel unmatched={unmatched} people={people} />;
+  return <NamesPanel unmatched={unmatched} people={people} canCreate={isAdmin} />;
 }
 
 export default GestionPersonas;

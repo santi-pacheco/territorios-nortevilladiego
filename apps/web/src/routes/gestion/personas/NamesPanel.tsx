@@ -1,11 +1,13 @@
 /**
  * "Nombres sin vincular": names used in the program, salidas or privilegios that match no
- * person. Each one becomes a new person ("Crear persona") or another spelling of an existing
- * one ("Es otro nombre de…"). Both writes invalidate name_sources, so the name leaves the list.
+ * person. Each one becomes another spelling of an existing person ("Es otro nombre de…") or, for
+ * the administrator only, a new person ("Crear persona"). Both writes invalidate name_sources, so
+ * the name leaves the list.
+ * When a name is plainly another spelling of one person ("Pérez, Ana"), that person is suggested.
  */
 import { useId, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { inferGender } from '@territorios/core';
+import { inferGender, matchPerson } from '@territorios/core';
 import {
   DataError,
   useAddPersonAlias,
@@ -21,7 +23,16 @@ const FIRST_PAGE = 6;
 
 type Action = { kind: 'create' | 'alias'; source: NameSource };
 
-export function NamesPanel({ unmatched, people }: { unmatched: NameSource[]; people: PersonRow[] }) {
+export function NamesPanel({
+  unmatched,
+  people,
+  canCreate = false,
+}: {
+  unmatched: NameSource[];
+  people: PersonRow[];
+  canCreate?: boolean;
+}) {
+  const addAlias = useAddPersonAlias();
   const [showAll, setShowAll] = useState(false);
   const [action, setAction] = useState<Action | null>(null);
   const headingId = useId();
@@ -42,6 +53,8 @@ export function NamesPanel({ unmatched, people }: { unmatched: NameSource[]; peo
       <ul className="flex flex-col">
         {visible.map((source) => {
           const info = describeSource(source);
+          const found = matchPerson(source.name, people);
+          const suggested = found.status === 'matched' ? found.person : null;
           return (
             <li key={source.norm} className="ps-name">
               <div className="min-w-0">
@@ -52,13 +65,25 @@ export function NamesPanel({ unmatched, people }: { unmatched: NameSource[]; peo
                 </p>
               </div>
               <div className="ps-name-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setAction({ kind: 'create', source })}
-                >
-                  Crear persona
-                </button>
+                {suggested && (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={addAlias.isPending}
+                    onClick={() => addAlias.mutate({ personId: suggested.id, alias: source.name })}
+                  >
+                    Es {suggested.name}
+                  </button>
+                )}
+                {canCreate && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setAction({ kind: 'create', source })}
+                  >
+                    Crear persona
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-secondary"
@@ -78,7 +103,7 @@ export function NamesPanel({ unmatched, people }: { unmatched: NameSource[]; peo
         </button>
       )}
 
-      {action?.kind === 'create' && (
+      {canCreate && action?.kind === 'create' && (
         <CreatePersonSheet source={action.source} onClose={() => setAction(null)} />
       )}
       {action?.kind === 'alias' && (

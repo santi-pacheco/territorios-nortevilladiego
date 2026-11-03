@@ -10,22 +10,19 @@
  * too, and when the stored name names exactly one person the picker offers a one-tap "Vincular"
  * (never written automatically).
  *
- * Footer actions: "Crear persona «texto»" (create_person_from_name, gender preset by
- * inferGender) and, with `allowFreeText`, "Usar «texto» sin vincular".
+ * Search-and-select only: nobody but the administrator creates people (Gestión ▸ Personas), so
+ * there is no "Crear persona" here. The one footer action is, with `allowFreeText`, "Usar «texto»
+ * sin vincular" (a visiting speaker who is not in the directory).
  */
-import { useEffect, useId, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
-import { Check, Link2, UserPlus, UserRound, X } from 'lucide-react';
-import { inferGender, type Gender } from '@territorios/core';
+import { useId, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
+import { Check, Link2, UserRound, X } from 'lucide-react';
+import { matchPerson } from '@territorios/core';
 import {
-  DataError,
-  exactPeople,
   normName,
   searchPeople,
   uniquePerson,
-  useCreatePersonFromName,
   usePeopleDirectory,
   type DirectoryPerson,
-  type DutyRole,
 } from '@territorios/data';
 
 export interface PersonValue {
@@ -40,25 +37,19 @@ const MAX_SHOWN = 30;
 
 export type PickerOption =
   | { kind: 'person'; person: DirectoryPerson; alias: string | null }
-  | { kind: 'create'; text: string }
   | { kind: 'free'; text: string };
 
 /** The listbox for a query: matching people, then the footer actions. Pure (tested). */
 export function pickerOptions(
   people: readonly DirectoryPerson[],
   query: string,
-  opts: { allowFreeText?: boolean; canCreate?: boolean } = {},
+  opts: { allowFreeText?: boolean } = {},
 ): PickerOption[] {
   const text = query.replace(/\s+/g, ' ').trim();
   const out: PickerOption[] = searchPeople(people, text)
     .slice(0, MAX_SHOWN)
     .map((h) => ({ kind: 'person', person: h.person, alias: h.alias }));
-  if (text) {
-    if (opts.canCreate !== false && exactPeople(people, text).length === 0) {
-      out.push({ kind: 'create', text });
-    }
-    if (opts.allowFreeText) out.push({ kind: 'free', text });
-  }
+  if (text && opts.allowFreeText) out.push({ kind: 'free', text });
   return out;
 }
 
@@ -78,6 +69,9 @@ export function resolveTyped(
   if (current.name && normName(t) === normName(current.name)) return current;
   const person = uniquePerson(people, t);
   if (person) return { person_id: person.id, name: person.name };
+  // "Pérez, José", "J. Pérez": same person, other spelling.
+  const found = matchPerson(t, people);
+  if (found.status === 'matched') return { person_id: found.person.id, name: found.person.name };
   return allowFreeText ? { person_id: null, name: t } : current;
 }
 
@@ -87,7 +81,8 @@ export function linkSuggestion(
   value: PersonValue,
 ): DirectoryPerson | null {
   if (value.person_id || !value.name.trim()) return null;
-  return uniquePerson(people, value.name);
+  const found = matchPerson(value.name, people);
+  return found.status === 'matched' ? found.person : uniquePerson(people, value.name);
 }
 
 export function PersonPicker({
@@ -99,7 +94,6 @@ export function PersonPicker({
   people: peopleProp,
   filter,
   allowFreeText = false,
-  createDuties,
   disabled = false,
   placeholder = 'Buscar por nombre',
   status,
@@ -116,8 +110,6 @@ export function PersonPicker({
   /** Narrow the list, e.g. by duty or in_carrito. Linking checks use the same subset. */
   filter?: (person: DirectoryPerson) => boolean;
   allowFreeText?: boolean;
-  /** Duties given to a person created from this picker (Privilegios). */
-  createDuties?: DutyRole[];
   disabled?: boolean;
   placeholder?: string;
   /** Extra line under the field (saving / error), replaces the link status while shown. */
@@ -130,7 +122,6 @@ export function PersonPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState<string | null>(null);
   const [active, setActive] = useState(0);
-  const [creating, setCreating] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
@@ -150,7 +141,6 @@ export function PersonPicker({
     setOpen(false);
     setQuery(null);
     setActive(0);
-    setCreating(null);
   }
 
   function commit(next: PersonValue) {
@@ -160,8 +150,7 @@ export function PersonPicker({
 
   function choose(option: PickerOption) {
     if (option.kind === 'person') commit({ person_id: option.person.id, name: option.person.name });
-    else if (option.kind === 'free') commit({ person_id: null, name: option.text });
-    else setCreating(option.text);
+    else commit({ person_id: null, name: option.text });
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -191,17 +180,11 @@ export function PersonPicker({
 
   function onBlur(e: FocusEvent<HTMLDivElement>) {
     if (rootRef.current?.contains(e.relatedTarget as Node | null)) return;
-    if (creating !== null) {
-      // Leaving the create panel cancels it, except while saving: the busy "Crear" button is
-      // disabled, which drops focus (relatedTarget null) without the editor leaving.
-      if (e.relatedTarget !== null) close();
-      return;
-    }
     if (query !== null) commit(resolveTyped(people, query, value, allowFreeText));
     else close();
   }
 
-  const showList = open && creating === null && !disabled;
+  const showList = open && !disabled;
   // While typing, the hint about the stored value would describe something else: hide it.
   const hint =
     status ??
@@ -300,7 +283,9 @@ export function PersonPicker({
           <li className="px-3 py-3 text-secondary text-ink-soft">
             {directory.isPending && !peopleProp
               ? 'Cargando personas…'
-              : 'Escribí un nombre para buscarlo.'}
+              : query?.trim()
+                ? 'Nadie coincide. Si falta, pedile al administrador que la agregue a Personas.'
+                : 'Escribí un nombre para buscarlo.'}
           </li>
         )}
         {showList &&
@@ -323,20 +308,6 @@ export function PersonPicker({
           ))}
       </ul>
 
-      {creating !== null && (
-        <CreatePanel
-          name={creating}
-          duties={createDuties}
-          onCancel={() => {
-            setCreating(null);
-            inputRef.current?.focus();
-          }}
-          onCreated={(personId, name) => {
-            commit({ person_id: personId, name });
-            inputRef.current?.focus();
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -357,103 +328,9 @@ function OptionBody({ option, selected }: { option: PickerOption; selected: bool
       </>
     );
   }
-  if (option.kind === 'create') {
-    return (
-      <>
-        <UserPlus aria-hidden size={20} className="shrink-0" />
-        <span className="min-w-0 flex-1 text-body font-semibold break-words">
-          Crear persona «{option.text}»
-        </span>
-      </>
-    );
-  }
   return (
     <span className="min-w-0 flex-1 text-body break-words text-ink-soft">
       Usar «{option.text}» sin vincular
     </span>
-  );
-}
-
-function CreatePanel({
-  name,
-  duties,
-  onCancel,
-  onCreated,
-}: {
-  name: string;
-  duties?: DutyRole[];
-  onCancel: () => void;
-  onCreated: (personId: string, name: string) => void;
-}) {
-  const create = useCreatePersonFromName();
-  const [gender, setGender] = useState<Gender | null>(() => inferGender(name));
-  const id = useId();
-  const firstRef = useRef<HTMLButtonElement>(null);
-  // Move focus into the panel so it is reachable from the keyboard at once.
-  useEffect(() => firstRef.current?.focus(), []);
-
-  async function save() {
-    if (!gender) return;
-    try {
-      // mutateAsync, not mutate(…, {onSuccess}): its promise settles even if the panel unmounts.
-      const personId = await create.mutateAsync({ name, gender, duties });
-      onCreated(personId, name);
-    } catch {
-      // Shown below from create.error.
-    }
-  }
-
-  return (
-    <div
-      role="group"
-      aria-labelledby={`${id}-h`}
-      className="absolute top-full right-0 left-0 z-30 mt-1 flex flex-col gap-3 rounded-md border border-line bg-surface p-3 shadow-[var(--tk-shadow-sheet)]"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          onCancel();
-        }
-      }}
-    >
-      <p id={`${id}-h`} className="text-body font-semibold break-words">
-        Crear persona «{name}»
-      </p>
-      <div role="radiogroup" aria-label="Género" className="grid grid-cols-2 gap-2">
-        {(['M', 'F'] as const).map((g, i) => (
-          <button
-            key={g}
-            type="button"
-            role="radio"
-            aria-checked={gender === g}
-            ref={i === 0 ? firstRef : undefined}
-            className={gender === g ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => setGender(g)}
-          >
-            {g === 'M' ? 'Varón' : 'Mujer'}
-          </button>
-        ))}
-      </div>
-      {!gender && <p className="text-caption text-ink-soft">Elegí varón o mujer para crearla.</p>}
-      {create.isError && (
-        <p role="alert" className="text-secondary text-danger">
-          {create.error instanceof DataError && create.error.isUniqueViolation
-            ? 'Ese nombre ya es de una persona del directorio: buscala en la lista.'
-            : 'No se pudo crear. Revisá la conexión y probá de nuevo.'}
-        </p>
-      )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <button type="button" className="btn-secondary" onClick={onCancel}>
-          Cancelar
-        </button>
-        <button
-          type="button"
-          className="btn-primary"
-          disabled={!gender || create.isPending}
-          onClick={() => void save()}
-        >
-          {create.isPending ? 'Creando…' : 'Crear'}
-        </button>
-      </div>
-    </div>
   );
 }

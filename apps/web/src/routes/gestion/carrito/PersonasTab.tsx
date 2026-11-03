@@ -12,6 +12,7 @@ import {
   isConflictError,
   qk,
   useDataMutation,
+  useRole,
   mutations,
   type CartPlaceRow,
   type CartSlotRow,
@@ -20,6 +21,7 @@ import {
 } from '@territorios/data';
 import { buildRoster, dayName, groupByDay, timeRange } from './model';
 import { ConflictBar, DeleteButton, Field, Sheet, errorMessage, useWriteState } from './ui';
+import { deleteErrorMessage } from '../personas/model';
 
 const GENDER_LABEL: Record<Gender, string> = { M: 'Varón', F: 'Mujer' };
 
@@ -36,6 +38,7 @@ export function PersonasTab({
   slots: CartSlotRow[];
   places: CartPlaceRow[];
 }) {
+  const isAdmin = useRole().role === 'admin';
   const [query, setQuery] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [sheet, setSheet] = useState<{ person: PersonRow | null } | null>(null);
@@ -65,14 +68,12 @@ export function PersonasTab({
     void qc.invalidateQueries({ queryKey: qk.people });
   }
 
-  async function remove(person: PersonRow, version?: number) {
+  async function remove(person: PersonRow) {
     write.setError(null);
     try {
-      await deletePerson.mutateAsync({ id: person.id, version: version ?? person.version });
+      await deletePerson.mutateAsync({ id: person.id });
     } catch (error) {
-      if (!write.report(error, person.name, (v) => void remove(person, v))) {
-        write.setError(errorMessage(error));
-      }
+      write.setError(deleteErrorMessage(error, person.name));
     }
   }
 
@@ -114,14 +115,16 @@ export function PersonasTab({
             onChange={(e) => setQuery(e.target.value)}
           />
         </Field>
-        <button
-          type="button"
-          className="btn-primary inline-flex items-center gap-2 self-start"
-          onClick={() => setSheet({ person: null })}
-        >
-          <Plus aria-hidden size={20} />
-          Nueva persona
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn-primary inline-flex items-center gap-2 self-start"
+            onClick={() => setSheet({ person: null })}
+          >
+            <Plus aria-hidden size={20} />
+            Nueva persona
+          </button>
+        )}
       </div>
 
       {outside > 0 && (
@@ -186,7 +189,7 @@ export function PersonasTab({
                 >
                   Editar
                 </button>
-                <DeleteButton onConfirm={() => void remove(rowOf(roster, p.id))} />
+                {isAdmin && <DeleteButton onConfirm={() => void remove(rowOf(roster, p.id))} />}
               </div>
             </li>
           ))}

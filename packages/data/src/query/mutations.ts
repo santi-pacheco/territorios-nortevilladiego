@@ -344,10 +344,10 @@ export const peopleMutations = {
     },
     peopleSide,
   ),
-  deletePerson: define<CasDel, void, PeopleRoster>(
+  deletePerson: define<{ id: string }, void, PeopleRoster>(
     qk.people,
     'deletePerson',
-    (sb, v) => peopleRepo.deletePerson(sb, v.id, v.version),
+    (sb, v) => peopleRepo.deletePerson(sb, v.id),
     {
       target: () => qk.people,
       apply: (old, v) => ({
@@ -638,6 +638,7 @@ export const useSaveProgramWeek = (h?: MutationHooks) =>
   useDataMutation(mutations.saveProgramWeek, h);
 export const useCreatePersonFromName = (h?: MutationHooks) =>
   useDataMutation(mutations.createPersonFromName, h);
+export const useDeletePerson = (h?: MutationHooks) => useDataMutation(mutations.deletePerson, h);
 export const useAddPersonAlias = (h?: MutationHooks) =>
   useDataMutation(mutations.addPersonAlias, h);
 export const useUpsertDutyCell = (h?: MutationHooks) =>

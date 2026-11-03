@@ -7,6 +7,7 @@ import {
   carryLinks,
   defaultSelection,
   detectKind,
+  linkPeople,
   publishPlan,
   restrictPreview,
   type StagedFile,
@@ -161,5 +162,44 @@ describe('carryLinks (re-publishing a PDF keeps person links)', () => {
   it('returns the payload unchanged when nothing was linked', () => {
     const next = { presidente: 'Ana Prueba' };
     expect(carryLinks(next, { presidente: 'Ana Prueba' })).toBe(next);
+  });
+});
+
+describe('linkPeople (PDF names -> directory people)', () => {
+  const people = [
+    { id: 'p-ana', name: 'Ana Pérez' },
+    { id: 'p-jose', name: 'José Gómez', aliases: ['Pepe Gómez'] },
+    { id: 'p-carlos', name: 'Carlos Ruiz' },
+    { id: 'p-carla', name: 'Carla Ruiz' },
+  ];
+
+  it('maps other spellings to the canonical person and flags the rest', () => {
+    const data = {
+      parts: [{ title: 'Lectura', people: [{ name: 'PÉREZ Ana', role: 'Titular' }, { name: 'Luis Nadie' }] }],
+      presidente: 'Gómez, José',
+      lector: 'C. Ruiz',
+      discursantesSalientes: [{ name: 'Gomez Jose', congregacion: 'Norte' }],
+      discurso: { titulo: 'T', orador: 'Visitante Libre' },
+    };
+    const { data: out, unmatched } = linkPeople(data, people);
+    expect(out).toEqual({
+      parts: [
+        {
+          title: 'Lectura',
+          people: [{ name: 'Ana Pérez', role: 'Titular', person_id: 'p-ana' }, { name: 'Luis Nadie' }],
+        },
+      ],
+      presidente: { name: 'José Gómez', person_id: 'p-jose' },
+      lector: 'C. Ruiz', // two people fit: left for the editor
+      discursantesSalientes: [{ name: 'José Gómez', congregacion: 'Norte', person_id: 'p-jose' }],
+      discurso: { titulo: 'T', orador: 'Visitante Libre' }, // the orador is free text, never linked
+    });
+    expect(unmatched).toEqual(['Luis Nadie', 'C. Ruiz']);
+  });
+
+  it('keeps links that are already there and never creates anyone', () => {
+    const data = { presidente: { name: 'Nombre Viejo', person_id: '00000000-0000-4000-8000-0000000000aa' } };
+    expect(linkPeople(data, people)).toEqual({ data, unmatched: [] });
+    expect(linkPeople({ lector: 'Nadie Aquí' }, []).unmatched).toEqual(['Nadie Aquí']);
   });
 });

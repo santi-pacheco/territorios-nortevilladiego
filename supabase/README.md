@@ -93,7 +93,8 @@ supabase/
 | RPC                                                         | Who                              | What                                                                                       |
 | ----------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------ |
 | `name_sources()`                                            | editor/admin                     | distinct names in program, salida conductors and free-text roster cells, matched person or null (unmatched first) |
-| `create_person_from_name(p_name, p_gender, p_in_carrito)`   | editor/admin                     | new person (in_carrito default false); 23505 if the name/alias already matches someone     |
+| `create_person_from_name(p_name, p_gender, p_in_carrito, p_duties)` | admin                    | new person (in_carrito default false); 23505 if the name/alias already matches someone     |
+| `delete_person(p_person)`                                   | admin                            | delete a person; 23503 (counts in detail) while referenced; availability/pairs cascade     |
 | `add_person_alias(p_person, p_alias)`                       | editor/admin                     | append alias; no-op if it already matches the person, 23505 if it matches someone else     |
 | `set_account_permissions(p_user, p_midweek, p_weekend, p_privilegios)` | admin                | set the three grants (null = unchanged)                                                    |
 | `my_permissions()`                                          | authenticated                    | `(role, can_edit_programa_midweek, can_edit_programa_weekend, can_edit_privilegios, sees_privilegios)`, effective (editors: true) |

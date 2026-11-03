@@ -18,12 +18,12 @@ import {
 import { DAY_KIND_LABEL, cellId, longDay, monthLabel, type Month } from '../../privilegios/model';
 import { parsePaste, peopleFor, resolveName, type PastedCell, type PastedRow, type Resolution, type SkippedLine } from './paste';
 
-/** Select value for "keep the pasted text as free text". */
-const AS_TEXT = '__texto__';
+/** Select value for "do not load this name" (people are never created from a paste). */
+const SKIP = '__omitir__';
 
 interface PreviewCell extends PastedCell {
   res: Resolution;
-  /** A person id, AS_TEXT, or '' while an ambiguous name is still unchosen. */
+  /** A person id, SKIP, or '' while an unmatched or ambiguous name is still unchosen. */
   choice: string;
 }
 interface PreviewRow extends Omit<PastedRow, 'cells'> {
@@ -48,7 +48,7 @@ function buildPreview(text: string, month: Month, people: DutyPerson[]): Preview
       ...r,
       cells: r.cells.map((c) => {
         const res = resolveName(c.raw, c.role, people);
-        const choice = res.status === 'resolved' ? res.person.id : res.status === 'unknown' ? AS_TEXT : '';
+        const choice = res.status === 'resolved' ? res.person.id : '';
         return { ...c, res, choice };
       }),
     })),
@@ -159,20 +159,21 @@ export function PastePanel({
         await run(() => clearDay.mutateAsync({ date: row.date, version: mark.version }));
       }
       for (const cell of row.cells) {
-        const person = cell.choice === AS_TEXT ? null : (byId.get(cell.choice) ?? null);
+        const person = cell.choice === SKIP ? null : (byId.get(cell.choice) ?? null);
+        if (!person) {
+          step();
+          continue;
+        }
         const existing = cells.get(cellId(row.date, cell.role, cell.slot));
-        const same = person
-          ? existing?.person_id === person.id
-          : existing !== undefined && existing.person_id === null && existing.person_name === cell.raw;
-        if (same) tally.unchanged++;
+        if (existing?.person_id === person.id) tally.unchanged++;
         else
           await run(() =>
             upsert.mutateAsync({
               date: row.date,
               role: cell.role,
               slot: cell.slot,
-              person_id: person?.id ?? null,
-              person_name: person?.name ?? cell.raw,
+              person_id: person.id,
+              person_name: person.name,
               version: existing?.version,
             }),
           );
@@ -239,7 +240,7 @@ export function PastePanel({
               <strong>{preview.rows.length === 1 ? '1 fecha' : `${preview.rows.length} fechas`}</strong>
               {' · '}
               {counts.resolved} reconocidos · {counts.toChoose} para elegir · {counts.unknown} sin
-              coincidencia
+              coincidencia (elegí la persona o no la cargues)
             </p>
           )}
 
@@ -394,7 +395,7 @@ function CellChoice({
             ))}
           </optgroup>
         )}
-        <option value={AS_TEXT}>Dejar como texto</option>
+        <option value={SKIP}>No cargar este nombre</option>
         {rest.length > 0 && (
           <optgroup label={first.length > 0 ? 'Otras personas' : 'Personas'}>
             {rest.map((p) => (
@@ -406,24 +407,24 @@ function CellChoice({
         )}
       </select>
       <p id={`${id}-status`} className="flex items-center gap-1.5 text-secondary">
-        {cell.choice !== '' && cell.choice !== AS_TEXT ? (
+        {cell.choice !== '' && cell.choice !== SKIP ? (
           <>
             <Check aria-hidden size={18} className="shrink-0 text-ok" />
             <span className={status === 'resolved' ? 'text-ok' : ''}>
               {status === 'resolved' && cell.choice === cell.res.person.id ? 'Reconocido' : 'Elegido'}
             </span>
           </>
-        ) : status === 'ambiguous' && cell.choice === '' ? (
+        ) : cell.choice === '' ? (
           <>
             <CircleHelp aria-hidden size={18} className="shrink-0 text-warn" />
-            <span className="text-warn">Hay más de una persona</span>
+            <span className="text-warn">
+              {status === 'ambiguous' ? 'Hay más de una persona' : 'No está en el directorio: elegí a quién'}
+            </span>
           </>
         ) : (
           <>
             <CircleDashed aria-hidden size={18} className="shrink-0 text-ink-soft" />
-            <span className="text-ink-soft">
-              {status === 'unknown' ? 'Sin coincidencia: queda como texto' : 'Queda como texto'}
-            </span>
+            <span className="text-ink-soft">No se carga</span>
           </>
         )}
       </p>

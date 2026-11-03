@@ -78,7 +78,12 @@ export const TABLES: Record<string, TableRow> = {
   // Each program grant writes only its meeting's rows. The matrix is table-level, so both are
   // "allow"; the kind-level RLS is covered by supabase/tests/06_programa_split_test.sql.
   program_weeks: publicTable('can_edit_programa_midweek', 'can_edit_programa_weekend', ...EDITORS),
-  people: editorTable,
+  // Only the administrator creates people; deleting goes through public.delete_person() (admin).
+  people: {
+    ...editorTable,
+    insert: gated('admin'),
+    delete: all('deny'),
+  },
   person_availability: editorTable,
   person_pairs: editorTable,
   duty_roster: dutyTable,
@@ -125,7 +130,8 @@ export const RPCS: Record<string, RpcSpec> = {
   reminder_candidates: { allowed: [], mutating: false },
   link_account: { allowed: EDITORS, mutating: true },
   add_person_alias: { allowed: EDITORS, mutating: true },
-  create_person_from_name: { allowed: PEOPLE_PICKERS, mutating: true },
+  create_person_from_name: { allowed: ['admin'], mutating: true },
+  delete_person: { allowed: ['admin'], mutating: true },
   set_account_role: { allowed: ['admin'], mutating: true },
   set_account_permissions: { allowed: ['admin'], mutating: true },
 };

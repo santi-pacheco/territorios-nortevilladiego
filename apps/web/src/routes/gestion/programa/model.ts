@@ -6,10 +6,12 @@
  */
 import {
   WEEKEND_PERSON_FIELDS,
+  matchPerson,
   parseMidweekPages,
   parseWeekendPages,
   personLink,
   personName,
+  type MatchablePerson,
   type MidweekWeek,
   type PdfItem,
   type WeekendMeeting,
@@ -37,6 +39,8 @@ export interface PreviewEntry {
   fileName: string;
   /** Things the editor should look at; publishing is still allowed. */
   warnings: string[];
+  /** Names in the PDF that match nobody in the directory (published unlinked; never created). */
+  unmatched: string[];
   /** Set when the row cannot be published at all (the DB would reject it). */
   blocking: string | null;
   /** The published row this entry would overwrite. */
@@ -124,6 +128,7 @@ export function buildPreview(
   files: readonly StagedFile[],
   year: number,
   published: readonly ProgramWeekRow[],
+  people: readonly MatchablePerson[] = [],
 ): Preview {
   const publishedByKey = new Map(published.map((r) => [`${r.kind}:${r.date}`, r]));
   const byKey = new Map<string, PreviewEntry>();
@@ -148,6 +153,15 @@ export function buildPreview(
       const key = `${meeting.kind}:${date}`;
       const warnings =
         meeting.kind === 'midweek' ? midweekWarnings(meeting.week) : weekendWarnings(meeting.week);
+      const unmatched =
+        people.length > 0
+          ? linkPeople(meeting.week as unknown as Record<string, unknown>, people).unmatched
+          : [];
+      if (unmatched.length > 0) {
+        warnings.push(
+          `No están en Personas: ${unmatched.join(', ')}. Se publican sin vincular; elegilas después en Editar.`,
+        );
+      }
       const prev = byKey.get(key);
       if (prev) {
         warnings.unshift(`También está en ${prev.fileName}; se usa la de ${file.name}.`);
@@ -161,6 +175,7 @@ export function buildPreview(
         meeting,
         fileName: file.name,
         warnings,
+        unmatched,
         blocking: Number.isNaN(dow)
           ? 'Fecha ilegible.'
           : dow !== KEY_DOW[meeting.kind]
@@ -314,4 +329,53 @@ export function carryLinks(
     out.discursantesSalientes = next.discursantesSalientes.map(relink);
   }
   return out;
+}
+
+/**
+ * Person slots of a program payload that a PDF fills with plain text: midweek people and the
+ * weekend roles. The weekend orador is a visiting speaker (free text) and is not touched.
+ */
+function mapPersonSlots(
+  data: Record<string, unknown>,
+  fn: (v: unknown) => unknown,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...data };
+  if (Array.isArray(data.parts)) {
+    out.parts = data.parts.map((part) =>
+      isRecord(part) && Array.isArray(part.people) ? { ...part, people: part.people.map(fn) } : part,
+    );
+  }
+  for (const key of WEEKEND_PERSON_FIELDS) {
+    if (key in data) out[key] = fn(data[key]);
+  }
+  if (Array.isArray(data.discursantesSalientes)) {
+    out.discursantesSalientes = data.discursantesSalientes.map(fn);
+  }
+  return out;
+}
+
+/**
+ * Maps the names a PDF import brought to the directory: "Pérez, Ana", "PÉREZ Ana" or "A. Pérez"
+ * become the canonical person (`{name: "Ana Pérez", person_id}`). Values already linked are kept.
+ * A name that matches nobody (or several people) stays as it was and is returned in `unmatched`
+ * for the editor to pick; nobody is ever created. Pure.
+ */
+export function linkPeople(
+  data: Record<string, unknown>,
+  people: readonly MatchablePerson[],
+): { data: Record<string, unknown>; unmatched: string[] } {
+  const unmatched: string[] = [];
+  const link = (v: unknown): unknown => {
+    const name = personName(v);
+    if (!name || personLink(v)) return v;
+    const found = matchPerson(name, people);
+    if (found.status === 'matched') {
+      return isRecord(v)
+        ? { ...v, name: found.person.name, person_id: found.person.id }
+        : { name: found.person.name, person_id: found.person.id };
+    }
+    if (!unmatched.includes(name)) unmatched.push(name);
+    return v;
+  };
+  return { data: mapPersonSlots(data, link), unmatched };
 }

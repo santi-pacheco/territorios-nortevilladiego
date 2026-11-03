@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(45);
+select plan(46);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres)
@@ -212,9 +212,14 @@ select is(
   (select person_id from public.name_sources() limit 1), null,
   'name_sources lists unmatched names first'
 );
+select throws_ok(
+  $$select public.create_person_from_name(' Nuevo   Fixture ', 'M')$$, '42501', null,
+  'editor cannot create people (admin only)');
+reset role;
+select tests.login_as('eeeeeeee-0000-4000-8000-000000000006');
 select lives_ok(
   $$select public.create_person_from_name(' Nuevo   Fixture ', 'M')$$,
-  'editor creates a person from a name');
+  'admin creates a person from a name');
 select results_eq(
   $$select name, gender, in_carrito from public.people where name = 'Nuevo Fixture'$$,
   $$values ('Nuevo Fixture'::text, 'M'::text, false)$$,
@@ -226,6 +231,8 @@ select throws_ok(
 select throws_ok(
   $$select public.create_person_from_name('Otro Fixture', 'X')$$, '22023', null,
   'invalid gender rejected');
+reset role;
+select tests.login_as('eeeeeeee-0000-4000-8000-000000000005');
 select lives_ok(
   $$select public.add_person_alias('ffffffff-0000-4000-8000-000000000002', 'Libre Fixture')$$,
   'editor adds an alias');

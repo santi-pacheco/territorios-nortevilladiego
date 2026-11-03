@@ -1,4 +1,4 @@
-import type { DutyRole, NameSource, NameSourceKind, PersonRow } from '@territorios/data';
+import { DataError, type DutyRole, type NameSource, type NameSourceKind, type PersonRow } from '@territorios/data';
 
 /** Lower case, no accents, single spaces: the client mirror of private.norm_name. */
 export function norm(text: string): string {
@@ -86,4 +86,20 @@ export function describeSource(source: NameSource): { where: string; uses: strin
   if (first && last && first !== last) when = `del ${dateLabel(first)} al ${dateLabel(last)}`;
   else if (first ?? last) when = `el ${dateLabel((first ?? last) as string)}`;
   return { where, uses, when };
+}
+
+/**
+ * Why delete_person said no. A referenced person (23503) is never deleted behind the schedule's
+ * back: `details` carries the counts ("2 en el programa, 1 en el carrito").
+ */
+export function deleteErrorMessage(error: unknown, name: string): string {
+  if (error instanceof DataError) {
+    if (error.code === '23503') {
+      const where = error.details ? ` (${error.details})` : '';
+      return `No se puede borrar a ${name}: todavía figura en asignaciones${where}. Reemplazala ahí y desvinculá su cuenta, y volvé a intentar.`;
+    }
+    if (error.code === '42501') return 'Solo el administrador puede borrar personas.';
+    if (error.code === 'P0002') return `${name} ya no existe.`;
+  }
+  return 'No se pudo borrar. Revisá la conexión y probá de nuevo.';
 }

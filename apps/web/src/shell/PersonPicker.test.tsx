@@ -22,24 +22,18 @@ const people: DirectoryPerson[] = [
 ];
 
 describe('pickerOptions', () => {
-  it('lists matches by word prefix, then "Crear persona" for a new name', () => {
-    const opts = pickerOptions(people, 'jo pe');
-    expect(opts).toEqual([
-      { kind: 'person', person: people[0], alias: null },
-      { kind: 'create', text: 'jo pe' },
-    ]);
-    expect(pickerOptions(people, 'Nuevo Nombre')).toEqual([{ kind: 'create', text: 'Nuevo Nombre' }]);
+  it('lists matches by word prefix and never offers to create a person', () => {
+    expect(pickerOptions(people, 'jo pe')).toEqual([{ kind: 'person', person: people[0], alias: null }]);
+    expect(pickerOptions(people, 'Nuevo Nombre')).toEqual([]);
   });
 
-  it('offers "sin vincular" only with allowFreeText, and no "Crear" for an exact match', () => {
+  it('offers "sin vincular" only with allowFreeText', () => {
     expect(pickerOptions(people, 'ana prueba', { allowFreeText: true }).map((o) => o.kind)).toEqual([
       'person',
       'free',
     ]);
-    expect(pickerOptions(people, 'Visitante', { allowFreeText: true }).map((o) => o.kind)).toEqual([
-      'create',
-      'free',
-    ]);
+    expect(pickerOptions(people, 'Visitante', { allowFreeText: true }).map((o) => o.kind)).toEqual(['free']);
+    expect(pickerOptions(people, 'Visitante').map((o) => o.kind)).toEqual([]);
   });
 
   it('an empty query lists everyone and no actions', () => {
@@ -56,6 +50,9 @@ describe('resolveTyped (leaving the field without choosing)', () => {
 
   it('links an exact single match', () => {
     expect(resolveTyped(people, 'j. perez', EMPTY_PERSON, false)).toEqual(linked);
+  });
+  it('links another spelling of the same person ("Surname, Name")', () => {
+    expect(resolveTyped(people, 'Pérez, José', EMPTY_PERSON, false)).toEqual(linked);
   });
   it('blank clears', () => {
     expect(resolveTyped(people, '  ', linked, false)).toEqual(EMPTY_PERSON);

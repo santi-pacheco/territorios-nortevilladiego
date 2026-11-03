@@ -3,6 +3,7 @@
  *   FECHA | COMPUTADORA | SONIDO | MIC | MIC [| ACOMODADOR | ACOMODADOR]
  * Pure functions only (parse, dates, name resolution) so they are unit-tested without a DOM.
  */
+import { matchPerson } from '@territorios/core';
 import type { DutyDayKind, DutyPerson, DutyRole } from '@territorios/data';
 import { fromIso, toIso } from '../../../lib/week';
 import { SLOTS, type Month, type Slot } from '../../privilegios/model';
@@ -200,15 +201,16 @@ function startsLike(raw: Token[], name: string): boolean {
 }
 
 /**
- * Resolve a pasted name against the people who take `role`: full name or alias first, then by
- * the start of the name ("Ana" when only one Ana has the duty, "Ana M." for "Ana Martínez").
- * More than one match is ambiguous; none is unknown.
+ * Resolve a pasted name against the people who take `role`: the same person in any spelling
+ * (matchPerson: "Pérez, Ana", "PÉREZ Ana", "A. Pérez", accents, case) first, then by the start
+ * of the name ("Ana" when only one Ana has the duty, "Ana M." for "Ana Martínez").
+ * More than one match is ambiguous; none is unknown (the editor picks; nobody is created).
  */
 export function resolveName(raw: string, role: DutyRole, people: DutyPerson[]): Resolution {
   const pool = peopleFor(role, people);
-  const exact = exactPerson(raw, pool);
-  if (exact.length === 1) return { status: 'resolved', person: exact[0]! };
-  if (exact.length > 1) return { status: 'ambiguous', candidates: exact };
+  const found = matchPerson(raw, pool);
+  if (found.status === 'matched') return { status: 'resolved', person: found.person };
+  if (found.status === 'ambiguous') return { status: 'ambiguous', candidates: found.candidates };
 
   const t = tokens(raw);
   if (t.length === 0) return { status: 'unknown' };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { NameSource } from '@territorios/data';
-import { describeSource, filterPeople, mergeAlias, removeAlias, toggleDuty, unmatchedNames } from './model';
+import { DataError, type NameSource } from '@territorios/data';
+import { deleteErrorMessage, describeSource, filterPeople, mergeAlias, removeAlias, toggleDuty, unmatchedNames } from './model';
 
 function source(name: string, uses: number, personId: string | null = null): NameSource {
   return {
@@ -68,5 +68,20 @@ describe('describeSource', () => {
       when: 'del 1 sep al 27 oct',
     });
     expect(describeSource({ ...source('X', 1), last_date: '2026-09-01' }).when).toBe('el 1 sep');
+  });
+});
+
+describe('deleteErrorMessage', () => {
+  const err = (code: string, details: string | null = null) =>
+    new DataError({ message: 'x', code, status: 400, details });
+  it('explains a referenced person with the counts', () => {
+    const msg = deleteErrorMessage(err('23503', '2 en el programa, 1 en el carrito'), 'Ana Prueba');
+    expect(msg).toContain('No se puede borrar a Ana Prueba');
+    expect(msg).toContain('2 en el programa, 1 en el carrito');
+  });
+  it('knows permission and missing-row errors, and falls back', () => {
+    expect(deleteErrorMessage(err('42501'), 'Ana')).toMatch(/administrador/);
+    expect(deleteErrorMessage(err('P0002'), 'Ana')).toBe('Ana ya no existe.');
+    expect(deleteErrorMessage(new Error('boom'), 'Ana')).toMatch(/No se pudo borrar/);
   });
 });

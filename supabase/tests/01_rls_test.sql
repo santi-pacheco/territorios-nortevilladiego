@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(58);
+select plan(59);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres)
@@ -220,8 +220,8 @@ select is(tests.affected($$update public.territories set name = 'Fresh' where id
   'CAS with the current version updates 1 row');
 select is((select version from public.territories where id = 900), 3, 'CAS success bumps version to 3');
 
-select lives_ok($$insert into public.people (name, gender) values ('Persona Nueva', 'M')$$,
-  'editor can insert people');
+select throws_ok($$insert into public.people (name, gender) values ('Persona Nueva', 'M')$$,
+  '42501', null, 'editor cannot insert people (admin only)');
 select is(tests.affected($$delete from public.territories where id = 901$$), 1,
   'editor can delete territories');
 select throws_ok($$update public.profiles set role = 'admin' where id = 'aaaaaaaa-0000-4000-8000-000000000002'$$,
@@ -236,6 +236,8 @@ reset role;
 select tests.login_as('aaaaaaaa-0000-4000-8000-000000000003');
 select ok(public.is_editor() and public.is_admin(), 'admin: is_editor() and is_admin() are true');
 select lives_ok($$insert into public.cart_places (name) values ('Lugar Admin')$$, 'admin can write');
+select lives_ok($$insert into public.people (name, gender) values ('Persona Admin', 'M')$$,
+  'admin can insert people');
 reset role;
 
 select * from finish();
