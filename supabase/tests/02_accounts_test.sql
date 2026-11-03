@@ -244,7 +244,8 @@ select results_eq(
 select results_eq(
   $$select kind, date from public.my_assignments('2027-03-01', '2027-03-14')$$,
   $$values ('carrito'::text, '2027-03-02'::date), ('programa', '2027-03-02'),
-           ('programa', '2027-03-06'), ('programa', '2027-03-06'), ('salida', '2027-03-07')$$,
+           -- weekend lector only: the orador is free text from another congregation, never an assignment.
+           ('programa', '2027-03-06'), ('salida', '2027-03-07')$$,
   'linked member: my_assignments returns exactly their assignments, ordered by date');
 select throws_ok($$select * from public.my_assignments('2027-03-14', '2027-03-01')$$, '22023', null,
   'my_assignments rejects an inverted range');

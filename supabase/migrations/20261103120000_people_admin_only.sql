@@ -107,7 +107,7 @@ begin
   if v_privilegios > 0 then v_refs := v_refs || (v_privilegios || ' en privilegios'); end if;
   if v_salidas > 0 then v_refs := v_refs || (v_salidas || ' en salidas'); end if;
   if v_carrito > 0 then v_refs := v_refs || (v_carrito || ' en el carrito'); end if;
-  if v_cuenta > 0 then v_refs := v_refs || 'una cuenta vinculada'; end if;
+  if v_cuenta > 0 then v_refs := v_refs || 'una cuenta vinculada'::text; end if;
 
   if cardinality(v_refs) > 0 then
     raise exception 'delete_person: % is still referenced', v_name
