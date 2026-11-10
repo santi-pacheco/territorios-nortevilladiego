@@ -51,9 +51,9 @@ select v.loser, v.winner, v.note
     ('fffac785-ebf5-47fe-bf8b-00797ccaa4c9'::uuid, 'd960bef7-c817-48a9-8cf1-a1bc489235af'::uuid, 'Santiago Pacheco - Congregación La Florida -> Santiago Pacheco'),
     ('4a350823-0f89-41dd-bbc7-b7b0d5ffac9d'::uuid, 'c8ce16a6-488c-52fc-abb1-6d65e55cb51a'::uuid, 'David Mallqui - Congregación La Florida -> David Mallqui'),
     ('41e9ad10-c3c2-43e0-9d86-1ad02f73c7eb'::uuid, '0993e8a6-3c28-4168-b9e7-21c5b5d88f9b'::uuid, 'Emmanuel Cardozo - Congregación Saenz Peña -> Emmanuel Cardozo'),
-    ('b84cd6fb-ae5a-496a-83b7-86a8bfd6421d'::uuid, '0993e8a6-3c28-4168-b9e7-21c5b5d88f9b'::uuid, 'Emmanuel Cardozo - Congregación SUR Villa Constitución -> Emmanuel Cardozo')
-    -- ('ac106da9-75f1-4190-9527-1199d9401aa6'::uuid, 'c8ce16a6-488c-52fc-abb1-6d65e55cb51a'::uuid, 'David -> David Mallqui'),  -- NEEDS YOUR DECISION
-    -- ('1abf621a-03a3-4c19-a589-5a6645a49b86'::uuid, '0993e8a6-3c28-4168-b9e7-21c5b5d88f9b'::uuid, 'Emanuel -> Emmanuel Cardozo'),  -- NEEDS YOUR DECISION
+    ('b84cd6fb-ae5a-496a-83b7-86a8bfd6421d'::uuid, '0993e8a6-3c28-4168-b9e7-21c5b5d88f9b'::uuid, 'Emmanuel Cardozo - Congregación SUR Villa Constitución -> Emmanuel Cardozo'),
+    ('ac106da9-75f1-4190-9527-1199d9401aa6'::uuid, 'c8ce16a6-488c-52fc-abb1-6d65e55cb51a'::uuid, 'David -> David Mallqui'),
+    ('1abf621a-03a3-4c19-a589-5a6645a49b86'::uuid, '0993e8a6-3c28-4168-b9e7-21c5b5d88f9b'::uuid, 'Emanuel -> Emmanuel Cardozo')
   ) as v (loser, winner, note)
   join public.people l on l.id = v.loser
   join public.people w on w.id = v.winner
